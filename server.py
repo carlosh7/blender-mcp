@@ -462,7 +462,7 @@ async def main():
     print(f"  Mode:      {args.mode}")
     print(f"  Output:    {session['check_path'] or MODELS_DIR}")
     print(f"  Blender:   {BLENDER_PATH or 'NOT FOUND'}")
-    print(f"  WS Port:   {args.port} (for Blender addon)")
+    print(f"  WS Port:   {args.ws_port} (for Blender addon)")
     print(f"\n  Ready. Connect via MCP stdio or WebSocket.\n")
 
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
