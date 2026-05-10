@@ -4,7 +4,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 9, 2),
+    "version": (0, 9, 3),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
