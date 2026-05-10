@@ -11,11 +11,12 @@ bl_info = {
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }
-import bpy, os, json, urllib.request, threading
+import bpy, os, json, time, urllib.request, threading
 from bpy.types import Panel, Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 
 HTTP_HOST = "http://localhost:9877"
+_poll_results = {}  # {message_id: {"response": "...", "error": ""} or None if still polling}
 
 def http_get(path):
     try:
@@ -294,38 +295,51 @@ class OP_Send(Operator):
         ctx.scene.aimcp_pending_msg_id = ""
         if ctx.area: ctx.area.tag_redraw()
 
+        h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
+
         def send():
             result = http_post("/api/chat", {"message": txt})
             if result and result.get("message_id"):
-                ctx.scene.aimcp_pending_msg_id = result["message_id"]
-                # Start polling timer
-                def poll():
-                    if not ctx.scene.aimcp_pending_msg_id:
-                        return None
+                mid = result["message_id"]
+                ctx.scene.aimcp_pending_msg_id = mid
+                _poll_results[mid] = None  # still polling
+
+                # Background poll thread (no UI blocking)
+                def poll_worker():
+                    while _poll_results.get(mid) is None:
+                        try:
+                            r = urllib.request.urlopen(
+                                f"http://{h}:{p}/api/chat/status?message_id={mid}", timeout=3)
+                            status = json.loads(r.read())
+                            if status.get("status") in ("done", "error", "not_found"):
+                                _poll_results[mid] = status
+                                return
+                        except:
+                            pass
+                        time.sleep(2)
+
+                threading.Thread(target=poll_worker, daemon=True).start()
+
+                # UI timer — only checks _poll_results, never does HTTP
+                def check():
                     mid = ctx.scene.aimcp_pending_msg_id
-                    try:
-                        r = urllib.request.urlopen(
-                            f"http://{ctx.scene.aimcp_host}:{ctx.scene.aimcp_port}/api/chat/status?message_id={mid}",
-                            timeout=3)
-                        status = json.loads(r.read())
-                        if status.get("status") == "done":
-                            resp = status.get("response", "")
-                            ctx.scene.aimcp_chat.add("assistant", resp)
-                            ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
-                            ctx.scene.aimcp_status = ""
-                            ctx.scene.aimcp_waiting = False
-                            ctx.scene.aimcp_pending_msg_id = ""
-                            if ctx.area: ctx.area.tag_redraw()
-                            return None  # stop timer
-                        # Still waiting
-                        return 2.0  # poll again in 2s
-                    except:
-                        ctx.scene.aimcp_waiting = False
-                        ctx.scene.aimcp_pending_msg_id = ""
-                        ctx.scene.aimcp_status = "Poll error"
-                        if ctx.area: ctx.area.tag_redraw()
+                    if not mid:
                         return None
-                bpy.app.timers.register(poll, first_interval=0.5)
+                    result = _poll_results.get(mid)
+                    if result is None:
+                        return 1.0  # check again in 1s
+                    # Result ready
+                    resp = result.get("response", "")
+                    ctx.scene.aimcp_chat.add("assistant", resp)
+                    ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
+                    ctx.scene.aimcp_status = ""
+                    ctx.scene.aimcp_waiting = False
+                    ctx.scene.aimcp_pending_msg_id = ""
+                    _poll_results.pop(mid, None)
+                    if ctx.area: ctx.area.tag_redraw()
+                    return None
+
+                bpy.app.timers.register(check, first_interval=0.5)
             else:
                 def err():
                     ctx.scene.aimcp_waiting = False
