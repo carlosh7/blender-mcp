@@ -360,19 +360,28 @@ def _auto_process_chat(msg_id: str, message: str):
         except Exception as e:
             response = f"❌ Error generating: {str(e)[:100]}"
     else:
-        response = f"📝 Message received: \"{message[:100]}\". I can create 3D models like chairs, tables, stages, screens, etc."
-
-    # Check if AI already responded via MCP
-    if server_session is not None and msg_id in server_session.get("chat_responses", {}):
-        ai_response = server_session["chat_responses"].pop(msg_id, None)
-        if ai_response:
-            response = ai_response
+        # No object detected — wait for AI response via MCP (no timeout)
+        with _chat_lock:
+            if msg_id in _chat_statuses:
+                _chat_statuses[msg_id]["status"] = "waiting_for_ai"
+        if server_session is not None:
+            deadline = time.time() + 300
+            while time.time() < deadline:
+                # Check AI response
+                if msg_id in server_session.get("chat_responses", {}):
+                    response = server_session["chat_responses"].pop(msg_id, None)
+                    break
+                # Also check if AI placed a different response
+                time.sleep(1)
+        if not response:
+            response = "I didn't get a response."
 
     # Store final status
     with _chat_lock:
         if msg_id in _chat_statuses:
             _chat_statuses[msg_id]["status"] = "done"
-            _chat_statuses[msg_id]["response"] = response
+            if response:
+                _chat_statuses[msg_id]["response"] = response
             _chat_statuses[msg_id]["timestamp"] = time.time()
 
     # Clean old statuses (keep last 50)
