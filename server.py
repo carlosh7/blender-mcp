@@ -459,6 +459,13 @@ async def main():
     from config import print_summary
     print_summary()
 
+    # Start HTTP bridge for Blender addon
+    try:
+        from http_bridge import start_http_server
+        start_http_server(args.ws_port + 11)  # 9876 + 11 = 9877
+    except Exception as e:
+        print(f"  HTTP Bridge: not started ({e})")
+
     print(f"  Mode:      {args.mode}")
     print(f"  Output:    {session['check_path'] or MODELS_DIR}")
     print(f"  Blender:   {BLENDER_PATH or 'NOT FOUND'}")
