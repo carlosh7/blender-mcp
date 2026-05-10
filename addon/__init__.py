@@ -4,7 +4,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 9, 3),
+    "version": (0, 9, 4),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
@@ -19,7 +19,7 @@ HTTP_HOST = "http://localhost:9877"
 ADDON_PORT = 9878
 _poll_results = {}
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
-HEALTH_FAILS = 0
+_last_health = {"connected": False, "ai_state": "disconnected"}
 
 # ─── Internal command server ───
 _cmd_server = None
@@ -500,51 +500,52 @@ def register():
 
     # Spinner animation timer (0.3s)
     def spinner_tick():
-        need_redraw = False
+        any_waiting = False
         for s in bpy.data.scenes:
             if s.aimcp_waiting:
                 s.aimcp_spinner_idx = (s.aimcp_spinner_idx + 1) % len(SPINNER_FRAMES)
-                need_redraw = True
-        if need_redraw:
-            try:
-                for w in bpy.context.window_manager.windows:
-                    for a in w.screen.areas:
-                        a.tag_redraw()
-            except: pass
+                any_waiting = True
+        if any_waiting:
+            for screen in bpy.data.screens:
+                for area in screen.areas:
+                    if area.type == 'VIEW_3D':
+                        area.tag_redraw()
         return 0.3
     bpy.app.timers.register(spinner_tick, first_interval=0.3)
 
-    # Health check timer (5s)
+    # Background health check thread
+    def _health_worker():
+        while True:
+            try:
+                r = urllib.request.urlopen("http://localhost:9877/api/health", timeout=2)
+                d = json.loads(r.read())
+                d["connected"] = True
+                _last_health.update(d)
+            except:
+                _last_health["connected"] = False
+            time.sleep(5)
+    threading.Thread(target=_health_worker, daemon=True).start()
+
+    # Health check timer (5s) — reads _last_health, no HTTP
     def health_check():
-        global HEALTH_FAILS
         changed = False
         for s in bpy.data.scenes:
             old_state = s.aimcp_ai_state
             old_conn = s.aimcp_connected
-            try:
-                r = urllib.request.urlopen("http://localhost:9877/api/health", timeout=2)
-                d = json.loads(r.read())
-                s.aimcp_connected = True
-                HEALTH_FAILS = 0
-                if d.get("ai_state") == "disconnected":
-                    s.aimcp_ai_state = "disconnected"
-                elif s.aimcp_waiting:
-                    s.aimcp_ai_state = "processing"
-                else:
-                    s.aimcp_ai_state = "connected"
-            except:
-                HEALTH_FAILS += 1
-                if HEALTH_FAILS >= 2:
-                    s.aimcp_connected = False
-                    s.aimcp_ai_state = "disconnected"
+            s.aimcp_connected = _last_health.get("connected", False)
+            if _last_health.get("ai_state") == "disconnected":
+                s.aimcp_ai_state = "disconnected"
+            elif s.aimcp_waiting:
+                s.aimcp_ai_state = "processing"
+            else:
+                s.aimcp_ai_state = "connected" if s.aimcp_connected else "disconnected"
             if s.aimcp_ai_state != old_state or s.aimcp_connected != old_conn:
                 changed = True
         if changed:
-            try:
-                for w in bpy.context.window_manager.windows:
-                    for a in w.screen.areas:
-                        a.tag_redraw()
-            except: pass
+            for screen in bpy.data.screens:
+                for area in screen.areas:
+                    if area.type == 'VIEW_3D':
+                        area.tag_redraw()
         return 5.0
     bpy.app.timers.register(health_check, first_interval=5.0)
 
