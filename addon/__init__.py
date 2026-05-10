@@ -4,7 +4,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 10, 4),
+    "version": (0, 11, 0),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
@@ -138,6 +138,7 @@ class PN_PT_Chat(Panel):
         if not c.aimcp_connected:
             row = L.row(align=True)
             row.operator("aimcp.check", text="Connect", icon='ADD')
+            row.label(text=m)
         elif state == "processing":
             row = L.row(align=True)
             row.operator("aimcp.disconnect", text="", icon='X')
@@ -146,15 +147,21 @@ class PN_PT_Chat(Panel):
             row.label(text=SPINNER_FRAMES[idx], icon='SORTTIME')
             row = L.row(align=True)
             row.label(text="Processing...")
+        elif state == "no_mcp":
+            row = L.row(align=True)
+            row.label(text="Socket OK", icon='CHECKBOX_HLT')
+            row.label(text="AI Offline", icon='ERROR')
+            row = L.row(align=True)
+            row.label(text=m)
         elif state == "disconnected":
             row = L.row(align=True)
-            row.operator("aimcp.check", text="AI Lost", icon='ERROR')
+            row.operator("aimcp.check", text="Connect", icon='ADD')
             row.label(text=m)
         else:
             row = L.row(align=True)
             row.operator("aimcp.disconnect", text="", icon='X')
             row.label(text=m)
-            row.label(text="", icon='CHECKBOX_HLT')
+            row.label(text="AI Online", icon='CHECKBOX_HLT')
 
         row.separator()
         row.operator("aimcp.capture", text="", icon='CAMERA_DATA')
@@ -363,9 +370,13 @@ def register():
         return 0.3
     bpy.app.timers.register(spinner_tick, first_interval=0.3)
 
-    # Health check (5s) — checks socket server state
+    # Health check (5s) — checks socket + MCP state
     def health_check():
         changed = False
+        now = time.time()
+        # Auto-reset mcp_connected if no ping in 15s
+        if bsock.mcp_connected and now - bsock.mcp_last_ping > 15:
+            bsock.mcp_connected = False
         for s in bpy.data.scenes:
             old_state = s.aimcp_ai_state
             old_conn = s.aimcp_connected
@@ -373,8 +384,12 @@ def register():
             s.aimcp_connected = is_connected
             if s.aimcp_waiting:
                 s.aimcp_ai_state = "processing"
+            elif not is_connected:
+                s.aimcp_ai_state = "disconnected"
+            elif bsock.mcp_connected:
+                s.aimcp_ai_state = "connected"
             else:
-                s.aimcp_ai_state = "connected" if is_connected else "disconnected"
+                s.aimcp_ai_state = "no_mcp"
             if s.aimcp_ai_state != old_state or s.aimcp_connected != old_conn:
                 changed = True
         if changed:

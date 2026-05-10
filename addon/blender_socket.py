@@ -9,6 +9,8 @@ _socket_server = None
 _chat_queue = []
 _chat_responses = {}
 _chat_lock = threading.Lock()
+mcp_last_ping = 0  # timestamp of last ping from MCP server
+mcp_connected = False  # true if ping received in last 15s
 
 class BlenderSocketServer:
     """TCP socket server inside Blender for receiving MCP commands."""
@@ -100,6 +102,12 @@ class BlenderSocketServer:
                 "location": [round(float(obj.location.x), 2), round(float(obj.location.y), 2), round(float(obj.location.z), 2)],
             })
         return info
+
+    def cmd_ping(self):
+        global mcp_last_ping, mcp_connected
+        mcp_last_ping = time.time()
+        mcp_connected = True
+        return {"pong": True, "time": mcp_last_ping}
 
     def cmd_execute_code(self, code=""):
         ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}

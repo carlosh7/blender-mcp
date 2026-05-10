@@ -5,6 +5,7 @@ Replaces server.py + http_bridge.py.
 Connect: opencode mcp uses this via opencode.json → uvx blender-mcp (or python mcp_server.py)
 """
 import json, socket, os, sys, time, logging, threading
+import textwrap
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
@@ -152,7 +153,7 @@ _COLOR_KEYWORDS = {
 def _build_chair_script(color, scale):
     c = color or "#3b404a"
     r, g, b = int(c[1:3], 16) / 255, int(c[3:5], 16) / 255, int(c[5:7], 16) / 255
-    return f"""
+    return textwrap.dedent(f"""\
 import bpy, math
 S = {scale}
 def make_mat(name, r, g, b, rough=0.5, metal=0.0):
@@ -174,17 +175,25 @@ bpy.context.active_object.data.materials.append(plastic)
 for x, z in [(-0.085*S, -0.085*S), (0.085*S, -0.085*S), (-0.085*S, 0.085*S), (0.085*S, 0.085*S)]:
     bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.01*S, depth=0.44*S, location=(x, 0, 0.22*S))
     bpy.context.active_object.data.materials.append(metal)
-# Rename and group
-objs = [o for o in bpy.data.objects if o.select_get()]
-for i, o in enumerate(objs): o.name = f"chair_{{i+1:02d}}"
-"""
+""")
 
+
+_last_ping = 0
 
 def _auto_process():
     """Background thread: polls Blender chat, auto-generates 3D objects from keywords."""
+    global _last_ping
     while True:
         try:
             b = get_blender()
+            # Send ping every 5s so addon knows MCP is alive
+            now = time.time()
+            if now - _last_ping > 5:
+                try:
+                    b.send_command("ping")
+                    _last_ping = now
+                except:
+                    pass
             result = b.send_command("read_chat")
             messages = result.get("messages", [])
             for msg in messages:
