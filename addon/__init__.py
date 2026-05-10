@@ -103,9 +103,9 @@ class OP_Clear(Operator):
         return {'FINISHED'}
 
 # ─── Panel ───
-class PN_Main(Panel):
+class PN_PT_Main(Panel):
     bl_label = "🤖 AI Assistant"
-    bl_idname = "PN_Main"
+    bl_idname = "PN_PT_Main"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'AI'
@@ -160,7 +160,7 @@ classes = [
     ChatMsg, ChatData,
     OP_Connect, OP_Disconnect, OP_Send,
     OP_Capture, OP_Export, OP_Clear,
-    PN_Main,
+    PN_PT_Main,
 ]
 
 def register():
@@ -171,11 +171,17 @@ def register():
     bpy.types.Scene.aimcp_connected = BoolProperty(default=False)
 
 def unregister():
+    for cls in reversed(classes):
+        try:
+            bpy.utils.unregister_class(cls)
+        except:
+            pass
     for attr in ["aimcp_connected", "aimcp_input", "aimcp_chat"]:
         if hasattr(bpy.types.Scene, attr):
-            delattr(bpy.types.Scene, attr)
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+            try:
+                delattr(bpy.types.Scene, attr)
+            except:
+                pass
 
 if __name__ == "__main__":
     register()
