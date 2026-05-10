@@ -164,33 +164,79 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "Not found"}, 404)
 
     def _process_chat(self, message: str, model: str = "default") -> dict:
-        """Process a chat message using template matching."""
+        """Process a chat message using template matching and auto-generate if possible."""
         msg_lower = message.lower()
 
-        # Check for model generation requests
-        if any(w in msg_lower for w in ["chair", "silla", "asiento", "seat"]):
-            return {
-                "response": "I'll create a chair for you. Use the Generate button or type more details (color, size).",
-                "action": "generate",
-            }
-        if any(w in msg_lower for w in ["table", "mesa"]):
-            return {
-                "response": "I can create a table. Specify round or rectangular and I'll generate it.",
-                "action": "generate",
-            }
-        if any(w in msg_lower for w in ["stage", "escenario", "tarima", "platform"]):
-            return {
-                "response": "I'll create a stage/platform. Specify dimensions if you want something custom.",
-                "action": "generate",
-            }
+        # Keywords → model type mapping
+        kw_map = {
+            "chair": "chair-folding", "silla": "chair-folding", "asiento": "chair-folding",
+            "table": "table-round-150", "mesa": "table-round-150", "mesa redonda": "table-round-150",
+            "mesa rectangular": "table-rect",
+            "stage": "stage-custom", "escenario": "stage-custom", "tarima": "platform-2x2",
+            "platform": "platform-2x2",
+            "speaker": "speaker", "altavoz": "speaker", "bocina": "speaker",
+            "screen": "led-flat", "pantalla": "led-flat", "monitor": "led-flat",
+            "truss": "truss-straight",
+            "barrier": "barrier", "valla": "barrier", "barrera": "barrier",
+        }
+
+        # Find matching model type
+        matched_type = None
+        matched_word = None
+        for word, mtype in kw_map.items():
+            if word in msg_lower:
+                matched_type = mtype
+                matched_word = word
+                break
+
+        if matched_type:
+            try:
+                from server import generate_blender_script, run_blender, session
+                # Check for color in message
+                color = None
+                color_words = {"rojo": "#ff0000", "azul": "#0000ff", "verde": "#00ff00",
+                               "negro": "#000000", "blanco": "#ffffff", "gris": "#888888",
+                               "amarillo": "#ffff00", "dorado": "#ffd700", "plateado": "#c0c0c0",
+                               "madera": "#8B4513", "roble": "#8B4513", "oscuro": "#333333"}
+                for cname, chex in color_words.items():
+                    if cname in msg_lower:
+                        color = chex
+                        break
+
+                name = matched_type
+                script, output_path = generate_blender_script(matched_type, name=name, color=color)
+                result = run_blender(script)
+
+                if os.path.exists(output_path):
+                    size = os.path.getsize(output_path)
+                    final_path = str(output_path)
+                    if session.get("check_path"):
+                        dst = Path(session["check_path"]) / f"{name}.glb"
+                        import shutil
+                        shutil.copy2(output_path, dst)
+                        final_path = str(dst)
+
+                    color_msg = f" in color" if color else ""
+                    return {
+                        "response": f"✅ Created {matched_word}{color_msg}! File: {os.path.basename(final_path)} ({size/1024:.0f} KB)",
+                        "action": "generated",
+                        "file": final_path,
+                        "size_bytes": size,
+                    }
+                else:
+                    return {"response": f"❌ Failed to generate {matched_word}. Check server logs.", "action": "error"}
+            except Exception as e:
+                return {"response": f"❌ Error: {str(e)[:80]}", "action": "error"}
+
+        # Help
         if any(w in msg_lower for w in ["help", "ayuda", "?"]):
             return {
-                "response": "Available commands: 'create a chair', 'make a table', 'build a stage', 'capture the scene', 'export to glb'.",
+                "response": "Try: 'create a chair', 'make a blue table', 'build a stage', 'red speaker'.",
                 "action": "none",
             }
 
         return {
-            "response": "Message received! Describe what 3D model you want: chair, table, stage, etc.",
+            "response": "I can create 3D models! Try: chair, table, stage, speaker, screen, truss, barrier. Add a color like 'red chair'.",
             "action": "none",
         }
 
