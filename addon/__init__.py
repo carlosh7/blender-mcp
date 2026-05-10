@@ -1,10 +1,10 @@
-# blender-mcp — AI Assistant for Blender v0.7.4
+# blender-mcp — AI Assistant for Blender v0.8.0
 # Panels: Config (Properties) + Chat (3D View Sidebar)
-# Models fetched live from provider APIs in separate sections
+# AI chat via MCP tools (read-chat / respond-chat)
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 7, 4),
+    "version": (0, 8, 0),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "Chat with AI to create 3D models via connected provider APIs.",
@@ -12,7 +12,7 @@ bl_info = {
     "category": "3D View",
 }
 import bpy, os, json, urllib.request, threading
-from bpy.types import Panel, Operator, PropertyGroup
+from bpy.types import Panel, Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 
 HTTP_HOST = "http://localhost:9877"
@@ -28,7 +28,7 @@ def http_post(path, data):
         body = json.dumps(data).encode()
         req = urllib.request.Request(f"{HTTP_HOST}{path}", data=body,
             headers={"Content-Type": "application/json"}, method="POST")
-        r = urllib.request.urlopen(req, timeout=30)
+        r = urllib.request.urlopen(req, timeout=180)
         return json.loads(r.read())
     except Exception as e:
         return {"error": str(e)}
@@ -43,6 +43,15 @@ class ChatData(PropertyGroup):
     def clear_all(self):
         while self.msgs: self.msgs.remove(0); self.count = 0
 
+class MCP_UL_Chat(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        tag = "You" if item.role == "user" else "AI" if item.role == "assistant" else "Sys"
+        col = layout.column()
+        col.scale_y = 1.5
+        col.label(text=f"[{tag}]")
+        for line in item.text.split("\n"):
+            col.label(text=f"  {line[:150]}")
+
 # ─── Model ───
 class ModelItem(PropertyGroup):
     model_id: StringProperty(); model_name: StringProperty(); provider: StringProperty()
@@ -53,12 +62,9 @@ class ModelsData(PropertyGroup):
         m = self.items.add(); m.model_id = mid; m.model_name = name; m.provider = prov; self.count = len(self.items)
     def clear_all(self):
         while self.items: self.items.remove(0); self.count = 0
-    def by_provider(self, prov):
-        return [m for m in self.items if m.provider == prov]
 
 PROVIDER_ORDER = ["deepseek", "opencode-go", "openrouter"]
 PROVIDER_LABELS = {"deepseek": "DeepSeek", "opencode-go": "OpenCode Go", "openrouter": "OpenRouter"}
-PROVIDER_ICONS = {"deepseek": 'DOT', "opencode-go": 'DOT', "openrouter": 'URL'}
 
 # ─── Config Panel ───
 class PN_PT_Config(Panel):
@@ -85,7 +91,6 @@ class PN_PT_Config(Panel):
         row.operator("aimcp.refresh", text="Refresh all", icon='FILE_REFRESH')
         if c.aimcp_refreshing: row.label(text="", icon='SORTTIME')
 
-        # Provider sections
         md = c.aimcp_models
         if md and md.count > 0:
             for prov_id in PROVIDER_ORDER:
@@ -95,9 +100,8 @@ class PN_PT_Config(Panel):
                 prov_box = box.box()
                 label = PROVIDER_LABELS.get(prov_id, prov_id)
                 row = prov_box.row(align=True)
-                row.label(text=f"{label} ({count})", icon=PROVIDER_ICONS.get(prov_id, 'DOT'))
+                row.label(text=f"{label} ({count})", icon='DOT')
 
-                # Search per provider
                 search_key = f"aimcp_search_{prov_id.replace('-','_')}"
                 search_val = getattr(c, search_key, "")
                 row = prov_box.row(align=True)
@@ -105,7 +109,6 @@ class PN_PT_Config(Panel):
                 if search_val:
                     row.operator("aimcp.clear_search", text="", icon='X').search_prop = search_key
 
-                # Model rows
                 s = search_val.lower()
                 visible = [m for m in prov_models if not s or s in m.model_id.lower() or s in m.model_name.lower()]
                 for m in visible:
@@ -116,17 +119,15 @@ class PN_PT_Config(Panel):
                     else:
                         op = row.operator("aimcp.select", text=m.model_name, icon='RADIOBUT_OFF')
                         op.model_id = m.model_id
-                        op.provider = prov_id
 
                 if len(prov_models) > 20:
                     prov_box.label(text=f"Showing {len(visible)} of {len(prov_models)}")
 
-                row = prov_box.row(align=True)
                 if visible:
-                    first_vis = visible[0]
-                    row.operator("aimcp.apply_model", text=f"Apply {PROVIDER_LABELS.get(prov_id,prov_id)}", icon='CHECKMARK').model_id = first_vis.model_id
+                    row = prov_box.row(align=True)
+                    row.operator("aimcp.apply_model", text=f"Apply {PROVIDER_LABELS.get(prov_id,prov_id)}", icon='CHECKMARK').model_id = visible[0].model_id
         else:
-            box.label(text="Click 'Refresh all' to load models from your APIs")
+            box.label(text="Click 'Refresh all' to load models")
 
         L.separator()
         status = c.aimcp_status
@@ -136,11 +137,14 @@ class PN_PT_Config(Panel):
 class PN_PT_Chat(Panel):
     bl_label = "MCP AI Chat"; bl_idname = "PN_PT_Chat"
     bl_space_type = 'VIEW_3D'; bl_region_type = 'UI'; bl_category = 'AI'
+
     def draw(self, ctx):
         L = self.layout; c = ctx.scene
+
+        # Status bar
         row = L.row(align=True)
         if c.aimcp_connected:
-            row.operator("aimcp.disconnect", text="Disconnect", icon='X')
+            row.operator("aimcp.disconnect", text="", icon='X')
             m = c.aimcp_model or "?"
             row.label(text=f"Online [{m}]", icon='CHECKBOX_HLT')
         else:
@@ -149,18 +153,29 @@ class PN_PT_Chat(Panel):
         row.separator()
         row.operator("aimcp.capture", text="", icon='CAMERA_DATA')
         row.operator("aimcp.export", text="", icon='EXPORT')
+
         L.separator()
+        # Chat messages with scroll
         chat = c.aimcp_chat
         if chat and chat.count > 0:
-            L.operator("aimcp.show_chat", text=f"Chat ({chat.count} messages)", icon='DOT')
-            L.operator("aimcp.clear_chat", text="Clear chat", icon='X')
+            row = L.row()
+            row.template_list("MCP_UL_Chat", "", chat, "msgs", c, "aimcp_chat_index",
+                rows=min(15, max(8, chat.count)))
         else:
-            L.label(text="No messages.")
+            L.label(text="No messages. Type something and send.")
+
         L.separator()
-        row = L.row(align=True); row.scale_y = 3.0; row.prop(c, "aimcp_input", text="")
-        row = L.row(align=True); row.scale_y = 1.5
-        row.operator("aimcp.send", text="Send to AI", icon='PLAY')
+        # Input
+        row = L.row(align=True)
+        row.scale_y = 3.0
+        row.prop(c, "aimcp_input", text="")
+        row = L.row(align=True)
+        row.scale_y = 1.5
+        cns = row.operator("aimcp.send", text="Send to AI", icon='PLAY')
+        cns.connected = c.aimcp_connected
         row.operator("aimcp.clear_chat", text="Clear", icon='X')
+        if c.aimcp_waiting:
+            L.label(text="Waiting for AI response...", icon='SORTTIME')
 
 # ─── Operators ───
 class OP_Check(Operator):
@@ -221,12 +236,11 @@ class OP_Refresh(Operator):
 
 class OP_SelectModel(Operator):
     bl_idname = "aimcp.select"; bl_label = "Select"
-    model_id: StringProperty(); provider: StringProperty()
+    model_id: StringProperty()
     def execute(self, ctx):
         ctx.scene.aimcp_model = self.model_id
         ctx.scene.aimcp_status = f"Selected: {self.model_id}"
-        if ctx.area: ctx.area.tag_redraw()
-        return {'FINISHED'}
+        if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
 class OP_ApplyModel(Operator):
     bl_idname = "aimcp.apply_model"; bl_label = "Apply"
@@ -240,14 +254,10 @@ class OP_ApplyModel(Operator):
             req = urllib.request.Request(f"http://{h}:{p}/api/set-model",
                 data=body, headers={"Content-Type": "application/json"}, method="POST")
             r = json.loads(urllib.request.urlopen(req, timeout=5).read())
-            if r.get("success"):
-                ctx.scene.aimcp_status = f"Saved: {mid}"
-            else:
-                ctx.scene.aimcp_status = f"Local: {mid}"
-        except Exception as e:
-            ctx.scene.aimcp_status = f"Local: {mid}"
-        if ctx.area: ctx.area.tag_redraw()
-        return {'FINISHED'}
+            ctx.scene.aimcp_status = "Saved: " + mid if r.get("success") else "Local: " + mid
+        except:
+            ctx.scene.aimcp_status = "Local: " + mid
+        if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
 class OP_ClearSearch(Operator):
     bl_idname = "aimcp.clear_search"; bl_label = "Clear"
@@ -255,8 +265,7 @@ class OP_ClearSearch(Operator):
     def execute(self, ctx):
         if self.search_prop and hasattr(ctx.scene, self.search_prop):
             setattr(ctx.scene, self.search_prop, "")
-        if ctx.area: ctx.area.tag_redraw()
-        return {'FINISHED'}
+        if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
 class OP_Disconnect(Operator):
     bl_idname = "aimcp.disconnect"; bl_label = "Disconnect"
@@ -266,22 +275,33 @@ class OP_Disconnect(Operator):
 
 class OP_Send(Operator):
     bl_idname = "aimcp.send"; bl_label = "Send"
+    connected: BoolProperty(default=False)
     def execute(self, ctx):
         txt = ctx.scene.aimcp_input.strip()
         if not txt: return {'CANCELLED'}
         ctx.scene.aimcp_chat.add("user", txt)
         ctx.scene.aimcp_input = ""
-        ctx.scene.aimcp_status = "Processing..."
+        ctx.scene.aimcp_status = "Sending..."
+        ctx.scene.aimcp_waiting = True
+        ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
         if ctx.area: ctx.area.tag_redraw()
-        if ctx.scene.aimcp_connected:
-            r = http_post("/api/chat", {"message": txt, "model": ctx.scene.aimcp_model})
-            if "response" in r: ctx.scene.aimcp_chat.add("assistant", r["response"])
-            elif "error" in r: ctx.scene.aimcp_chat.add("assistant", f"Error: {r['error'][:100]}")
-            else: ctx.scene.aimcp_chat.add("assistant", "Done")
-        else:
-            ctx.scene.aimcp_chat.add("assistant", "Not connected")
-        ctx.scene.aimcp_status = ""
-        if ctx.area: ctx.area.tag_redraw()
+
+        def send():
+            result = http_post("/api/chat", {"message": txt})
+            def update():
+                if "response" in result:
+                    ctx.scene.aimcp_chat.add("assistant", result["response"])
+                    ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
+                elif "error" in result:
+                    ctx.scene.aimcp_chat.add("assistant", f"Error: {result['error'][:200]}")
+                else:
+                    ctx.scene.aimcp_chat.add("assistant", "No response received.")
+                ctx.scene.aimcp_status = ""
+                ctx.scene.aimcp_waiting = False
+                if ctx.area: ctx.area.tag_redraw()
+            bpy.app.timers.register(update, first_interval=0.01)
+
+        threading.Thread(target=send, daemon=True).start()
         return {'FINISHED'}
 
 class OP_Capture(Operator):
@@ -307,20 +327,12 @@ class OP_ClearChat(Operator):
         ctx.scene.aimcp_chat.clear_all()
         if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
-class OP_ShowChat(Operator):
-    bl_idname = "aimcp.show_chat"; bl_label = "Show Chat"
-    def execute(self, ctx):
-        chat = ctx.scene.aimcp_chat
-        for m in chat.msgs:
-            print(f"[{m.role}] {m.text[:100]}")
-        return {'FINISHED'}
-
 # ─── Register ───
 classes = [
-    ChatMsg, ChatData,
+    ChatMsg, ChatData, MCP_UL_Chat,
     ModelItem, ModelsData,
     OP_Check, OP_Refresh, OP_SelectModel, OP_ApplyModel, OP_ClearSearch,
-    OP_Disconnect, OP_Send, OP_Capture, OP_Export, OP_ClearChat, OP_ShowChat,
+    OP_Disconnect, OP_Send, OP_Capture, OP_Export, OP_ClearChat,
     PN_PT_Config, PN_PT_Chat,
 ]
 
@@ -330,26 +342,25 @@ def register():
     bpy.types.Scene.aimcp_input = StringProperty(default="")
     bpy.types.Scene.aimcp_connected = BoolProperty(default=False)
     bpy.types.Scene.aimcp_refreshing = BoolProperty(default=False)
+    bpy.types.Scene.aimcp_waiting = BoolProperty(default=False)
+    bpy.types.Scene.aimcp_chat_index = IntProperty(default=0)
     bpy.types.Scene.aimcp_host = StringProperty(default="localhost")
     bpy.types.Scene.aimcp_port = IntProperty(default=9877, min=1024, max=65535)
     bpy.types.Scene.aimcp_model = StringProperty(default="")
     bpy.types.Scene.aimcp_status = StringProperty(default="")
     bpy.types.Scene.aimcp_models = PointerProperty(type=ModelsData)
-    # Search per provider
-    for pid in PROVIDER_ORDER:
+    for pid in ["deepseek", "opencode-go", "openrouter"]:
         key = f"aimcp_search_{pid.replace('-','_')}"
         setattr(bpy.types.Scene, key, StringProperty(default=""))
-    # Auto-load current model from opencode config
     try:
-        r = urllib.request.urlopen(f"http://localhost:9877/api/providers", timeout=2)
+        r = urllib.request.urlopen("http://localhost:9877/api/providers", timeout=2)
         d = json.loads(r.read())
         if d.get("current_model"):
-            from bpy.app import timers
             def set_model():
                 for s in bpy.data.scenes:
                     s.aimcp_model = d["current_model"]
                 return None
-            timers.register(set_model, first_interval=0.5)
+            bpy.app.timers.register(set_model, first_interval=0.5)
     except: pass
 
 def unregister():
@@ -357,8 +368,9 @@ def unregister():
         try: bpy.utils.unregister_class(cls)
         except: pass
     attrs = ["aimcp_models", "aimcp_status", "aimcp_model", "aimcp_port", "aimcp_host",
-             "aimcp_refreshing", "aimcp_connected", "aimcp_input", "aimcp_chat"]
-    for pid in PROVIDER_ORDER:
+             "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing", "aimcp_connected",
+             "aimcp_input", "aimcp_chat"]
+    for pid in ["deepseek", "opencode-go", "openrouter"]:
         attrs.append(f"aimcp_search_{pid.replace('-','_')}")
     for a in attrs:
         if hasattr(bpy.types.Scene, a):

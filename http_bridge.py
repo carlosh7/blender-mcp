@@ -15,6 +15,7 @@ import json
 import os
 import sys
 import time
+import uuid
 import threading
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -31,6 +32,12 @@ server_instance = None
 sys.path.insert(0, str(ROOT))
 from config import read_opencode_config, write_opencode_model, PROVIDER_API_CONFIG, get_api_key
 
+# Shared session with MCP server (must be running in same process)
+try:
+    from server import session as server_session
+except ImportError:
+    server_session = None
+
 # Model cache: {provider_id: {"data": [...], "cached_at": timestamp}}
 _model_cache = {}
 CACHE_TTL = 300  # 5 minutes
@@ -39,7 +46,7 @@ CACHE_TTL = 300  # 5 minutes
 def _fetch_provider_models(provider_id: str, cfg: dict) -> dict:
     """Fetch models from a provider's API. Returns {"models": [...], "error": None} or {"error": "..."}."""
     url = cfg["url"]
-    headers = {"User-Agent": "blender-mcp/0.7.2", "Accept": "application/json"}
+    headers = {"User-Agent": "blender-mcp/0.8.0", "Accept": "application/json"}
 
     if cfg.get("auth"):
         api_key = get_api_key(provider_id)
@@ -106,7 +113,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/health":
             self._send_json({
                 "status": "ok",
-                "version": "0.7.2",
+                "version": "0.8.0",
                 "models_dir": str(MODELS_DIR),
                 "models_count": len(list(MODELS_DIR.glob("*.glb"))),
             })
@@ -199,14 +206,42 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/chat":
             body = self._read_body()
             message = body.get("message", "")
-            model = body.get("model", "default")
-
             if not message:
                 self._send_json({"error": "Empty message"}, 400)
                 return
 
-            response = self._process_chat(message, model)
-            self._send_json(response)
+            if server_session is None:
+                self._send_json({"error": "MCP server session not available. Run in --mode all."}, 500)
+                return
+
+            # Queue message for AI processing
+            msg_id = str(uuid.uuid4())
+            entry = {
+                "id": msg_id,
+                "message": message,
+                "timestamp": time.time(),
+            }
+            server_session["chat_queue"].append(entry)
+
+            # Poll for response (up to 120s, check every 0.5s)
+            deadline = time.time() + 120
+            response_text = None
+            while time.time() < deadline:
+                if msg_id in server_session.get("chat_responses", {}):
+                    response_text = server_session["chat_responses"].pop(msg_id, None)
+                    break
+                time.sleep(0.5)
+
+            if response_text:
+                self._send_json({"response": response_text, "message_id": msg_id})
+            else:
+                # Timeout - remove from queue
+                server_session["chat_queue"] = [m for m in server_session["chat_queue"] if m["id"] != msg_id]
+                self._send_json({
+                    "response": "⏱ I didn't get a response in time. Check that opencode is running and connected.",
+                    "message_id": msg_id,
+                    "timeout": True,
+                })
 
         elif parsed.path == "/api/generate":
             body = self._read_body()
@@ -244,80 +279,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
         else:
             self._send_json({"error": "Not found"}, 404)
-
-    def _process_chat(self, message: str, model: str = "default") -> dict:
-        msg_lower = message.lower()
-
-        kw_map = {
-            "chair": "chair-folding", "silla": "chair-folding", "asiento": "chair-folding",
-            "table": "table-round-150", "mesa": "table-round-150", "mesa redonda": "table-round-150",
-            "mesa rectangular": "table-rect",
-            "stage": "stage-custom", "escenario": "stage-custom", "tarima": "platform-2x2",
-            "platform": "platform-2x2",
-            "speaker": "speaker", "altavoz": "speaker", "bocina": "speaker",
-            "screen": "led-flat", "pantalla": "led-flat", "monitor": "led-flat",
-            "truss": "truss-straight",
-            "barrier": "barrier", "valla": "barrier", "barrera": "barrier",
-        }
-
-        matched_type = None
-        matched_word = None
-        for word, mtype in kw_map.items():
-            if word in msg_lower:
-                matched_type = mtype
-                matched_word = word
-                break
-
-        if matched_type:
-            try:
-                from server import generate_blender_script, run_blender, session
-                color = None
-                color_words = {"rojo": "#ff0000", "azul": "#0000ff", "verde": "#00ff00",
-                               "negro": "#000000", "blanco": "#ffffff", "gris": "#888888",
-                               "amarillo": "#ffff00", "dorado": "#ffd700", "plateado": "#c0c0c0",
-                               "madera": "#8B4513", "roble": "#8B4513", "oscuro": "#333333",
-                               "popo": "#7B3F00", "caca": "#7B3F00", "marron": "#7B3F00", "marrón": "#7B3F00"}
-                for cname, chex in color_words.items():
-                    if cname in msg_lower:
-                        color = chex
-                        break
-
-                name = matched_type
-                script, output_path = generate_blender_script(matched_type, name=name, color=color)
-                result = run_blender(script)
-
-                if os.path.exists(output_path):
-                    size = os.path.getsize(output_path)
-                    final_path = str(output_path)
-                    if session.get("check_path"):
-                        dst = Path(session["check_path"]) / f"{name}.glb"
-                        import shutil
-                        shutil.copy2(output_path, dst)
-                        final_path = str(dst)
-
-                    color_msg = f" in color" if color else ""
-                    return {
-                        "response": f"✅ Created {matched_word}{color_msg}! File: {os.path.basename(final_path)} ({size/1024:.0f} KB)",
-                        "action": "generated",
-                        "file": final_path,
-                        "size_bytes": size,
-                    }
-                else:
-                    return {"response": f"❌ Failed to generate {matched_word}. Check server logs.", "action": "error"}
-            except Exception as e:
-                return {"response": f"❌ Error: {str(e)[:80]}", "action": "error"}
-
-        if any(w in msg_lower for w in ["help", "ayuda", "?"]):
-            return {
-                "response": "Try: 'create a chair', 'make a blue table', 'build a stage', 'red speaker'.",
-                "action": "none",
-            }
-
-        return {
-            "response": "I can create 3D models! Try: chair, table, stage, speaker, screen, truss, barrier. Add a color like 'red chair'.",
-            "action": "none",
-        }
-
 
 def start_http_server(port: int = HTTP_PORT):
     global server_instance

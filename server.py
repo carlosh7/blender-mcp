@@ -18,6 +18,8 @@ import subprocess
 import tempfile
 import argparse
 import textwrap
+import time
+import uuid
 from pathlib import Path
 
 from mcp.server import Server, NotificationOptions
@@ -53,6 +55,8 @@ session = {
     "last_script": None,
     "last_type": None,
     "last_params": None,
+    "chat_queue": [],
+    "chat_responses": {},
 }
 
 
@@ -173,6 +177,32 @@ async def handle_list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {},
+            },
+        ),
+        types.Tool(
+            name="read-chat",
+            description="Read pending chat messages from the Blender addon user. Returns a list of messages waiting for AI response.",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
+        types.Tool(
+            name="respond-chat",
+            description="Respond to a pending chat message from Blender. The response will be sent back to the Blender addon chat panel.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "message_id": {
+                        "type": "string",
+                        "description": "ID of the message to respond to (from read-chat).",
+                    },
+                    "response": {
+                        "type": "string",
+                        "description": "The response text to send back to Blender. Can include model generation results or any AI response.",
+                    },
+                },
+                "required": ["message_id", "response"],
             },
         ),
     ]
@@ -428,6 +458,26 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
             }, indent=2))]
         else:
             return [types.TextContent(type="text", text=f"FAILED to generate model. Blender output:\n{result[:2000]}")]
+
+    if name == "read-chat":
+        pending = []
+        for msg in session["chat_queue"]:
+            pending.append({
+                "id": msg["id"],
+                "message": msg["message"],
+                "timestamp": msg["timestamp"],
+            })
+        return [types.TextContent(type="text", text=json.dumps({"messages": pending}, indent=2))]
+
+    if name == "respond-chat":
+        msg_id = arguments.get("message_id", "")
+        response = arguments.get("response", "")
+        if not msg_id or not response:
+            return [types.TextContent(type="text", text="Error: message_id and response are required")]
+        session["chat_responses"][msg_id] = response
+        # Remove from queue
+        session["chat_queue"] = [m for m in session["chat_queue"] if m["id"] != msg_id]
+        return [types.TextContent(type="text", text=json.dumps({"success": True, "message_id": msg_id}))]
 
     return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
 
