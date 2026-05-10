@@ -500,16 +500,27 @@ def register():
 
     # Spinner animation timer (0.3s)
     def spinner_tick():
+        need_redraw = False
         for s in bpy.data.scenes:
             if s.aimcp_waiting:
                 s.aimcp_spinner_idx = (s.aimcp_spinner_idx + 1) % len(SPINNER_FRAMES)
+                need_redraw = True
+        if need_redraw:
+            try:
+                for w in bpy.context.window_manager.windows:
+                    for a in w.screen.areas:
+                        a.tag_redraw()
+            except: pass
         return 0.3
     bpy.app.timers.register(spinner_tick, first_interval=0.3)
 
     # Health check timer (5s)
     def health_check():
         global HEALTH_FAILS
+        changed = False
         for s in bpy.data.scenes:
+            old_state = s.aimcp_ai_state
+            old_conn = s.aimcp_connected
             try:
                 r = urllib.request.urlopen("http://localhost:9877/api/health", timeout=2)
                 d = json.loads(r.read())
@@ -526,6 +537,14 @@ def register():
                 if HEALTH_FAILS >= 2:
                     s.aimcp_connected = False
                     s.aimcp_ai_state = "disconnected"
+            if s.aimcp_ai_state != old_state or s.aimcp_connected != old_conn:
+                changed = True
+        if changed:
+            try:
+                for w in bpy.context.window_manager.windows:
+                    for a in w.screen.areas:
+                        a.tag_redraw()
+            except: pass
         return 5.0
     bpy.app.timers.register(health_check, first_interval=5.0)
 
