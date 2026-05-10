@@ -4,7 +4,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 9, 4),
+    "version": (0, 10, 4),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
@@ -178,30 +178,12 @@ class PN_PT_Chat(Panel):
 class OP_Check(Operator):
     bl_idname = "aimcp.check"; bl_label = "Check Connection"
     def execute(self, ctx):
-        ctx.scene.aimcp_status = "Connecting..."
+        ctx.scene.aimcp_status = "Checking..."
         if ctx.area: ctx.area.tag_redraw()
-        h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        def check():
-            try:
-                r = urllib.request.urlopen(f"http://{h}:{p}/api/health", timeout=3)
-                json.loads(r.read())
-                ctx.scene.aimcp_connected = True
-                try:
-                    r2 = urllib.request.urlopen(f"http://{h}:{p}/api/providers", timeout=3)
-                    d = json.loads(r2.read())
-                    if d.get("current_model"): ctx.scene.aimcp_model = d["current_model"]
-                except: pass
-                def ok():
-                    ctx.scene.aimcp_status = "Connected"
-                    if ctx.area: ctx.area.tag_redraw()
-                bpy.app.timers.register(ok, first_interval=0.01)
-            except Exception as e:
-                def fail():
-                    ctx.scene.aimcp_connected = False
-                    ctx.scene.aimcp_status = f"Failed: {str(e)[:60]}"
-                    if ctx.area: ctx.area.tag_redraw()
-                bpy.app.timers.register(fail, first_interval=0.01)
-        threading.Thread(target=check, daemon=True).start()
+        connected = bsock._socket_server is not None and bsock._socket_server.running
+        ctx.scene.aimcp_connected = connected
+        ctx.scene.aimcp_status = "Connected" if connected else "Socket not running"
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
 class OP_Refresh(Operator):
