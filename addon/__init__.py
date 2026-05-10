@@ -12,10 +12,9 @@ bl_info = {
 }
 import bpy, os, json, urllib.request, urllib.error
 from bpy.types import Panel, Operator, PropertyGroup, UIList
-from bpy.props import StringProperty, IntProperty, BoolProperty, EnumProperty, PointerProperty, CollectionProperty
+from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 
 HTTP_HOST = "http://localhost:9877"
-AVAILABLE_MODELS = ["Claude Sonnet", "GPT-4o", "DeepSeek V3", "Mistral", "Llama"]
 
 # ─── Helpers ───
 def http_get(path):
@@ -86,12 +85,22 @@ class PN_PT_Config(Panel):
             row.label(text="Offline", icon='CHECKBOX_DEHLT')
         row.operator("aimcp.check_connection", text="Check")
 
-        # Model selector
+        # Model selector (text input - type any model from opencode/openrouter)
         L.separator()
         box = L.box()
-        box.label(text="AI Model", icon='SETTINGS')
-        box.prop(c, "aimcp_model", text="")
-        box.prop(c, "aimcp_provider", text="")
+        box.label(text="AI Model (opencode)", icon='SETTINGS')
+        row = box.row(align=True)
+        row.prop(c, "aimcp_model", text="")
+        row.operator("aimcp.refresh_models", text="↻", icon='FILE_REFRESH')
+        row = box.row(align=True)
+        row.prop(c, "aimcp_provider", text="Provider")
+        row.enabled = False
+
+        # Suggestions
+        box.label(text="Suggestions:", icon='INFO')
+        suggestions = getattr(c, "aimcp_model_suggestions", "")
+        if suggestions:
+            box.label(text=suggestions, icon='BLANK1')
 
         # Status
         L.separator()
@@ -115,9 +124,10 @@ class PN_PT_Chat(Panel):
         row = L.row(align=True)
         if getattr(c, "aimcp_connected", False):
             row.operator("aimcp.disconnect", text="Disconnect", icon='X')
-            row.label(text=f"Online [{c.aimcp_model}]", icon='CHECKBOX_HLT')
+            model_name = getattr(c, "aimcp_model", "?")
+            row.label(text=f"Online [{model_name}]", icon='CHECKBOX_HLT')
         else:
-            row.operator("aimcp.check_connection", text="Connect", icon='ADD')
+            row.operator("aimcp.refresh_models", text="Connect", icon='ADD')
             row.label(text="Offline", icon='CHECKBOX_DEHLT')
         row.separator()
         row.operator("aimcp.capture", text="", icon='CAMERA_DATA')
@@ -161,6 +171,27 @@ class OP_CheckConnection(Operator):
             ctx.scene.aimcp_status = f"Connection failed: {str(e)[:60]}"
             if ctx.area: ctx.area.tag_redraw()
             self.report({'ERROR'}, f"Connection failed: {str(e)[:60]}")
+        return {'FINISHED'}
+
+class OP_RefreshModels(Operator):
+    bl_idname = "aimcp.refresh_models"; bl_label = "Refresh Models"
+    bl_description = "Load available models from server and test connection"
+    def execute(self, ctx):
+        host = ctx.scene.aimcp_server_host
+        port = ctx.scene.aimcp_server_port
+        try:
+            r = urllib.request.urlopen(f"http://{host}:{port}/api/health", timeout=3)
+            data = json.loads(r.read())
+            ctx.scene.aimcp_connected = True
+            ctx.scene.aimcp_status = f"Connected."
+            ctx.scene.aimcp_model_suggestions = "Type any model from opencode (Claude, GPT, DeepSeek, etc.)"
+            if ctx.area: ctx.area.tag_redraw()
+            self.report({'INFO'}, "Connected to server")
+        except Exception as e:
+            ctx.scene.aimcp_connected = False
+            ctx.scene.aimcp_status = f"Failed: {str(e)[:60]}"
+            if ctx.area: ctx.area.tag_redraw()
+            self.report({'ERROR'}, str(e)[:60])
         return {'FINISHED'}
 
 class OP_Disconnect(Operator):
@@ -234,7 +265,7 @@ class OP_Clear(Operator):
 # ─── Register ───
 classes = [
     ChatMsg, ChatData, MCP_UL_Chat,
-    OP_CheckConnection, OP_Disconnect, OP_Send,
+    OP_CheckConnection, OP_RefreshModels, OP_Disconnect, OP_Send,
     OP_Capture, OP_Export, OP_Clear,
     PN_PT_Config, PN_PT_Chat,
 ]
@@ -248,18 +279,17 @@ def register():
     bpy.types.Scene.aimcp_chat_index = IntProperty(name="", default=0)
     bpy.types.Scene.aimcp_server_host = StringProperty(name="", default="localhost")
     bpy.types.Scene.aimcp_server_port = IntProperty(name="", default=9877, min=1024, max=65535)
-    bpy.types.Scene.aimcp_model = EnumProperty(
-        name="Model", items=[(m, m, "") for m in AVAILABLE_MODELS],
-        default=AVAILABLE_MODELS[0],
-    )
+    bpy.types.Scene.aimcp_model = StringProperty(name="", default="claude-sonnet-4-5",
+        description="Model name as configured in opencode (e.g. claude-sonnet-4-5, gpt-4o, deepseek-chat)")
     bpy.types.Scene.aimcp_provider = StringProperty(name="Provider", default="opencode")
     bpy.types.Scene.aimcp_status = StringProperty(name="", default="")
+    bpy.types.Scene.aimcp_model_suggestions = StringProperty(name="", default="")
 
 def unregister():
     for cls in reversed(classes):
         try: bpy.utils.unregister_class(cls)
         except: pass
-    for attr in ["aimcp_status", "aimcp_provider", "aimcp_model", "aimcp_server_port",
+    for attr in ["aimcp_model_suggestions", "aimcp_status", "aimcp_provider", "aimcp_model", "aimcp_server_port",
                  "aimcp_server_host", "aimcp_chat_index", "aimcp_connected",
                  "aimcp_input", "aimcp_chat"]:
         if hasattr(bpy.types.Scene, attr):

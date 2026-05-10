@@ -58,6 +58,14 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 "status": "ok",
                 "models_dir": str(MODELS_DIR),
                 "models_count": len(list(MODELS_DIR.glob("*.glb"))),
+                "suggested_models": [
+                    "claude-sonnet-4-5", "claude-haiku-4-5",
+                    "gpt-4o", "gpt-4o-mini",
+                    "deepseek-chat", "deepseek-reasoner",
+                    "mistral-large", "llama-3.3-70b",
+                    "gemini-2.0-flash",
+                ],
+                "openrouter": "https://openrouter.ai/models — 300+ models available",
             })
 
         elif parsed.path == "/api/models":
@@ -74,6 +82,29 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 })
             except Exception as e:
                 self._send_json({"error": str(e)}, 500)
+
+        elif parsed.path == "/api/opencode-config":
+            """Read opencode config to find configured model."""
+            config_paths = [
+                Path.home() / ".config" / "opencode" / "opencode.json",
+                Path.home() / ".config" / "opencode" / "opencode.jsonc",
+                Path.cwd() / "opencode.json",
+            ]
+            model = None
+            provider = None
+            for p in config_paths:
+                if p.exists():
+                    try:
+                        data = json.loads(p.read_text())
+                        model = data.get("model", model)
+                        if "provider" in data:
+                            provider = list(data["provider"].keys())[0] if isinstance(data["provider"], dict) else provider
+                    except: pass
+            self._send_json({
+                "model": model or "unknown",
+                "provider": provider or "opencode",
+                "config_files_found": [str(p) for p in config_paths if p.exists()],
+            })
 
         else:
             self._send_json({"error": "Not found"}, 404)
