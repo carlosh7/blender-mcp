@@ -316,88 +316,65 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         else:
             self._send_json({"error": "Not found"}, 404)
 
-def _execute_in_blender_addon(script_code: str) -> dict:
-    """Send a Blender Python script to the running Blender addon (port 9878).
-    Falls back to headless run_blender if addon is not available."""
-    try:
-        body = json.dumps({"code": script_code}).encode()
-        req = urllib.request.Request("http://localhost:9878/api/execute",
-            data=body, headers={"Content-Type": "application/json"}, method="POST")
-        r = urllib.request.urlopen(req, timeout=30)
-        result = json.loads(r.read())
-        return result
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
-
 def _auto_process_chat(msg_id: str, message: str):
-    """Process a chat message - generate objects directly in Blender scene via addon."""
+    """Wait for AI to respond via MCP. Fallback: auto-detect objects if AI unavailable."""
     msg_lower = message.lower()
     response = None
-    file_path = None
 
-    matched_type = None
-    matched_word = None
-    for word, mtype in _OBJECT_KEYWORDS.items():
-        if word in msg_lower:
-            matched_type = mtype
-            matched_word = word
-            break
+    # Step 1: wait for AI response (60s)
+    with _chat_lock:
+        if msg_id in _chat_statuses:
+            _chat_statuses[msg_id]["status"] = "waiting_for_ai"
 
-    if matched_type:
-        color = None
-        for cname, chex in _COLOR_KEYWORDS.items():
-            if cname in msg_lower:
-                color = chex
+    if server_session is not None:
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            if msg_id in server_session.get("chat_responses", {}):
+                response = server_session["chat_responses"].pop(msg_id, None)
+                break
+            time.sleep(1)
+
+    # Step 2: if AI didn't respond, try auto-detect as fallback
+    if not response:
+        matched_type = None
+        matched_word = None
+        for word, mtype in _OBJECT_KEYWORDS.items():
+            if word in msg_lower:
+                matched_type = mtype
+                matched_word = word
                 break
 
-        try:
-            from server import generate_blender_script
-            name = matched_type
-            script, _ = generate_blender_script(matched_type, name=name, color=color, keep_scene=True)
-
-            # Try to execute in running Blender addon first
-            addon_result = _execute_in_blender_addon(script)
-
-            if addon_result.get("status") == "ok":
-                color_msg = f" {color}" if color else ""
-                pfx = name.replace(" ", "_")
-                response = f"✅ {matched_word}{color_msg} created! [{pfx}]"
-            else:
-                # Fall back to headless generation with keep_scene=False
-                from server import run_blender, session
-                script_headless, output_path = generate_blender_script(matched_type, name=name, color=color, keep_scene=False)
-                result = run_blender(script_headless)
-                if os.path.exists(output_path):
-                    size = os.path.getsize(output_path)
-                    final_path = str(output_path)
-                    if session.get("check_path"):
-                        dst = Path(session["check_path"]) / f"{name}.glb"
-                        import shutil
-                        shutil.copy2(output_path, dst)
-                        final_path = str(dst)
-                    color_msg = f" color" if color else ""
-                    response = f"✅ {matched_word}{color_msg} generated! (headless, saved to {os.path.basename(final_path)})"
-                else:
-                    response = f"❌ Failed to generate {matched_word}."
-        except Exception as e:
-            response = f"❌ Error: {str(e)[:100]}"
-    else:
-        # No object detected — wait for AI response via MCP (no timeout)
-        with _chat_lock:
-            if msg_id in _chat_statuses:
-                _chat_statuses[msg_id]["status"] = "waiting_for_ai"
-        if server_session is not None:
-            deadline = time.time() + 300
-            while time.time() < deadline:
-                # Check AI response
-                if msg_id in server_session.get("chat_responses", {}):
-                    response = server_session["chat_responses"].pop(msg_id, None)
+        if matched_type and server_session is not None:
+            color = None
+            for cname, chex in _COLOR_KEYWORDS.items():
+                if cname in msg_lower:
+                    color = chex
                     break
-                # Also check if AI placed a different response
-                time.sleep(1)
-        if not response:
-            response = "I didn't get a response."
+            try:
+                from server import generate_blender_script, run_blender, session as srv_sesh
+                script, _ = generate_blender_script(matched_type, name=matched_type, color=color, keep_scene=True)
+                # Try addon first
+                try:
+                    body = json.dumps({"code": script}).encode()
+                    req = urllib.request.Request("http://localhost:9878/api/execute",
+                        data=body, headers={"Content-Type": "application/json"}, method="POST")
+                    addon_resp = json.loads(urllib.request.urlopen(req, timeout=10).read())
+                    if addon_resp.get("status") == "ok":
+                        response = f"✅ {matched_word} created in scene"
+                except:
+                    pass
+                if not response:
+                    # Headless fallback
+                    script_h, out_path = generate_blender_script(matched_type, name=matched_type, color=color, keep_scene=False)
+                    run_blender(script_h)
+                    if os.path.exists(out_path):
+                        response = f"✅ {matched_word} generated ({os.path.basename(out_path)})"
+                    else:
+                        response = f"❌ Failed to generate {matched_word}"
+            except Exception as e:
+                response = f"❌ Error: {str(e)[:100]}"
+        else:
+            response = "I didn't get a response from the AI. Try asking when opencode is connected."
 
     # Store final status
     with _chat_lock:
