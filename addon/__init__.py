@@ -110,7 +110,8 @@ class PN_PT_Config(Panel):
         L.separator()
         box = L.box()
         box.label(text="AI Model", icon='SETTINGS')
-        box.label(text=getattr(c, "aimcp_model", "not set"))
+        current = getattr(c, "aimcp_model", "")
+        box.label(text=f"Current: {current}" if current else "Current: (not set)")
         row = box.row(align=True)
         row.operator("aimcp.refresh_all", text="Refresh all providers", icon='FILE_REFRESH')
         if getattr(c, "aimcp_refreshing", False):
@@ -185,8 +186,15 @@ class OP_CheckConnection(Operator):
         host = ctx.scene.aimcp_server_host; port = ctx.scene.aimcp_server_port
         try:
             r = urllib.request.urlopen(f"http://{host}:{port}/api/health", timeout=3)
-            data = json.loads(r.read())
+            json.loads(r.read())
             ctx.scene.aimcp_connected = True
+            # Also fetch current model from opencode config
+            try:
+                r2 = urllib.request.urlopen(f"http://{host}:{port}/api/providers", timeout=3)
+                pdata = json.loads(r2.read())
+                if pdata.get("current_model"):
+                    ctx.scene.aimcp_model = pdata["current_model"]
+            except: pass
             ctx.scene.aimcp_status = f"Connected."
             if ctx.area: ctx.area.tag_redraw()
             self.report({'INFO'}, "Connected")
@@ -210,9 +218,10 @@ class OP_RefreshAll(Operator):
 
         def fetch():
             try:
-                r = urllib.request.urlopen(f"http://{host}:{port}/api/fetch-all-models",
+                req = urllib.request.Request(f"http://{host}:{port}/api/fetch-all-models",
                     data=json.dumps({"force": True}).encode(),
-                    headers={"Content-Type": "application/json"}, timeout=30)
+                    headers={"Content-Type": "application/json"}, method="POST")
+                r = urllib.request.urlopen(req, timeout=30)
                 data = json.loads(r.read())
                 providers_data = data.get("providers", {})
 
@@ -354,7 +363,7 @@ def register():
     bpy.types.Scene.aimcp_refreshing = BoolProperty(name="", default=False)
     bpy.types.Scene.aimcp_server_host = StringProperty(name="", default="localhost")
     bpy.types.Scene.aimcp_server_port = IntProperty(name="", default=9877, min=1024, max=65535)
-    bpy.types.Scene.aimcp_model = StringProperty(name="", default="anthropic/claude-sonnet-4-5")
+    bpy.types.Scene.aimcp_model = StringProperty(name="", default="")
     bpy.types.Scene.aimcp_status = StringProperty(name="", default="")
     bpy.types.Scene.aimcp_model_search = StringProperty(name="", default="")
     bpy.types.Scene.aimcp_model_list_index = IntProperty(name="", default=0)
