@@ -12,128 +12,12 @@ bl_info = {
     "category": "3D View",
 }
 import bpy, os, json, time, urllib.request, threading
+sys.path.insert(0, os.path.dirname(__file__))
+import blender_socket as bsock
 from bpy.types import Panel, Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 
-HTTP_HOST = "http://localhost:9877"
-ADDON_PORT = 9878
-_poll_results = {}
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
-_last_health = {"connected": False, "ai_state": "disconnected"}
-
-# ─── Internal command server ───
-_cmd_server = None
-
-def start_cmd_server():
-    """Start HTTP server inside Blender to receive bpy commands from MCP/HTTP bridge."""
-    global _cmd_server
-    if _cmd_server:
-        return
-    try:
-        from http.server import HTTPServer, BaseHTTPRequestHandler
-        import urllib.parse
-
-        class CmdHandler(BaseHTTPRequestHandler):
-            def log_message(self, fmt, *args):
-                print(f"[BLENDER] {args[0]} {args[1]} {args[2]}")
-
-            def _send(self, data, status=200):
-                self.send_response(status)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(json.dumps(data).encode())
-
-            def do_OPTIONS(self):
-                self.send_response(200)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type")
-                self.end_headers()
-
-            def do_GET(self):
-                if self.path == "/api/health":
-                    self._send({"status": "ok", "addon": "ai_assistant", "blender_scene": bpy.context.scene.name if bpy.context else "none"})
-                else:
-                    self._send({"error": "Not found"}, 404)
-
-            def do_POST(self):
-                parsed = urllib.parse.urlparse(self.path)
-                length = int(self.headers.get("Content-Length", 0))
-                body = {}
-                if length > 0:
-                    try: body = json.loads(self.rfile.read(length))
-                    except: self._send({"error": "Invalid JSON"}, 400); return
-
-                if parsed.path == "/api/execute":
-                    code = body.get("code", "")
-                    if not code:
-                        self._send({"error": "code required"}, 400); return
-                    try:
-                        import io, sys
-                        stdout_capture = io.StringIO()
-                        old_stdout = sys.stdout
-                        sys.stdout = stdout_capture
-                        exec(code, {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops})
-                        sys.stdout = old_stdout
-                        output = stdout_capture.getvalue()
-                        # Force viewport update
-                        for area in bpy.context.screen.areas:
-                            if area.type == 'VIEW_3D':
-                                area.tag_redraw()
-                        self._send({"status": "ok", "output": output})
-                    except Exception as e:
-                        import traceback
-                        self._send({"status": "error", "error": str(e), "traceback": traceback.format_exc()}, 500)
-
-                elif parsed.path == "/api/generate-model":
-                    model_type = body.get("model_type", "")
-                    if not model_type:
-                        self._send({"error": "model_type required"}, 400); return
-                    name = body.get("name", model_type)
-                    color = body.get("color")
-                    try:
-                        # Auto-save if no file open
-                        if not bpy.data.filepath:
-                            bpy.ops.wm.save_as_mainfile(filepath="untitled.blend")
-                        # Import and generate with keep_scene=True (no clear, no export)
-                        import sys
-                        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                        if root not in sys.path:
-                            sys.path.insert(0, root)
-                        from server import generate_blender_script
-                        script, _ = generate_blender_script(model_type, name=name, color=color, keep_scene=True)
-                        exec(script, {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops})
-                        # Zoom to created object
-                        pfx = name.replace(" ", "_")
-                        if pfx in bpy.data.objects:
-                            bpy.ops.object.select_all(action='DESELECT')
-                            bpy.data.objects[pfx].select_set(True)
-                            bpy.context.view_layer.objects.active = bpy.data.objects[pfx]
-                            bpy.ops.view3d.view_selected()
-                        for area in bpy.context.screen.areas:
-                            if area.type == 'VIEW_3D':
-                                area.tag_redraw()
-                        self._send({"status": "ok", "object": pfx})
-                    except Exception as e:
-                        import traceback
-                        self._send({"status": "error", "error": str(e), "traceback": traceback.format_exc()}, 500)
-
-                else:
-                    self._send({"error": "Not found"}, 404)
-
-        _cmd_server = HTTPServer(("0.0.0.0", ADDON_PORT), CmdHandler)
-        thread = threading.Thread(target=_cmd_server.serve_forever, daemon=True)
-        thread.start()
-        print(f"[BLENDER CMD] HTTP server on port {ADDON_PORT}")
-    except Exception as e:
-        print(f"[BLENDER CMD] Failed to start: {e}")
-
-def stop_cmd_server():
-    global _cmd_server
-    if _cmd_server:
-        _cmd_server.shutdown()
-        _cmd_server = None
 
 # ─── Helpers ───
 def http_get(path):
@@ -394,57 +278,31 @@ class OP_Send(Operator):
         if not txt: return {'CANCELLED'}
         ctx.scene.aimcp_chat.add("user", txt)
         ctx.scene.aimcp_input = ""
-        ctx.scene.aimcp_status = "Waiting..."
         ctx.scene.aimcp_waiting = True
         ctx.scene.aimcp_ai_state = "processing"
         ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
         ctx.scene.aimcp_pending_msg_id = ""
         if ctx.area: ctx.area.tag_redraw()
-        h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        def send():
-            result = http_post("/api/chat", {"message": txt})
-            if result and result.get("message_id"):
-                mid = result["message_id"]
-                ctx.scene.aimcp_pending_msg_id = mid
-                _poll_results[mid] = None
-                _poll_fails = 0
-                def poll_worker():
-                    nonlocal _poll_fails
-                    while _poll_results.get(mid) is None:
-                        try:
-                            r = urllib.request.urlopen(
-                                f"http://{h}:{p}/api/chat/status?message_id={mid}", timeout=3)
-                            status = json.loads(r.read())
-                            if status.get("status") in ("done", "error", "not_found"):
-                                _poll_results[mid] = status; return
-                        except:
-                            _poll_fails += 1
-                            if _poll_fails >= 5:
-                                _poll_results[mid] = {"status": "error", "response": "[System] Connection lost. Check opencode."}
-                                return
-                        time.sleep(2)
-                threading.Thread(target=poll_worker, daemon=True).start()
-                def check():
-                    mid = ctx.scene.aimcp_pending_msg_id
-                    if not mid: return None
-                    result = _poll_results.get(mid)
-                    if result is None: return 1.0
-                    resp = result.get("response", "")
-                    ctx.scene.aimcp_chat.add("assistant", resp)
-                    ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
-                    ctx.scene.aimcp_status = ""
-                    ctx.scene.aimcp_waiting = False
-                    ctx.scene.aimcp_pending_msg_id = ""
-                    _poll_results.pop(mid, None)
-                    if ctx.area: ctx.area.tag_redraw()
-                    return None
-                bpy.app.timers.register(check, first_interval=0.5)
-            else:
-                def err():
-                    ctx.scene.aimcp_waiting = False; ctx.scene.aimcp_status = "Send failed"
-                    if ctx.area: ctx.area.tag_redraw()
-                bpy.app.timers.register(err, first_interval=0.01)
-        threading.Thread(target=send, daemon=True).start(); return {'FINISHED'}
+        # Queue message in-process — socket server reads it, MCP responds
+        msg_id = str(time.time())
+        with bsock._chat_lock:
+            bsock._chat_queue.append({"id": msg_id, "message": txt, "timestamp": time.time()})
+        ctx.scene.aimcp_pending_msg_id = msg_id
+        def check():
+            mid = ctx.scene.aimcp_pending_msg_id
+            if not mid: return None
+            with bsock._chat_lock:
+                resp = bsock._chat_responses.pop(mid, None)
+            if resp is None: return 1.0
+            ctx.scene.aimcp_chat.add("assistant", resp)
+            ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
+            ctx.scene.aimcp_status = ""
+            ctx.scene.aimcp_waiting = False
+            ctx.scene.aimcp_pending_msg_id = ""
+            if ctx.area: ctx.area.tag_redraw()
+            return None
+        bpy.app.timers.register(check, first_interval=0.5)
+        return {'FINISHED'}
 
 class OP_Capture(Operator):
     bl_idname = "aimcp.capture"; bl_label = "Capture"
@@ -517,32 +375,18 @@ def register():
         return 0.3
     bpy.app.timers.register(spinner_tick, first_interval=0.3)
 
-    # Background health check thread (no HTTP in main thread)
-    def _health_worker():
-        while True:
-            try:
-                r = urllib.request.urlopen("http://localhost:9877/api/health", timeout=2)
-                d = json.loads(r.read())
-                d["connected"] = True
-                _last_health.update(d)
-            except:
-                _last_health["connected"] = False
-            time.sleep(5)
-    threading.Thread(target=_health_worker, daemon=True).start()
-
-    # Health readout (5s) — reads _last_health only, never blocks
+    # Health check (5s) — checks socket server state
     def health_check():
         changed = False
         for s in bpy.data.scenes:
             old_state = s.aimcp_ai_state
             old_conn = s.aimcp_connected
-            s.aimcp_connected = _last_health.get("connected", False)
-            if _last_health.get("ai_state") == "disconnected":
-                s.aimcp_ai_state = "disconnected"
-            elif s.aimcp_waiting:
+            is_connected = bsock._socket_server is not None and bsock._socket_server.running
+            s.aimcp_connected = is_connected
+            if s.aimcp_waiting:
                 s.aimcp_ai_state = "processing"
             else:
-                s.aimcp_ai_state = "connected" if s.aimcp_connected else "disconnected"
+                s.aimcp_ai_state = "connected" if is_connected else "disconnected"
             if s.aimcp_ai_state != old_state or s.aimcp_connected != old_conn:
                 changed = True
         if changed:
@@ -550,14 +394,14 @@ def register():
         return 5.0
     bpy.app.timers.register(health_check, first_interval=5.0)
 
-    # ─── Internal command server (optional: if port 9878 is busy, timers still work) ───
+    # ─── Socket server (replaces HTTP bridge) ───
     try:
-        start_cmd_server()
+        bsock.start_socket_server()
     except:
-        print("[blender-mcp] Puerto 9878 no disponible - servidor de comandos desactivado")
+        print("[blender-mcp] Socket server failed")
 
 def unregister():
-    stop_cmd_server()
+    bsock.stop_socket_server()
     for cls in reversed(classes):
         try: bpy.utils.unregister_class(cls)
         except: pass
