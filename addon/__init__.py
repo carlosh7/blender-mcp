@@ -496,9 +496,16 @@ def register():
     Scene.aimcp_spinner_idx = IntProperty(default=0)
     for pid in PROVIDER_ORDER:
         setattr(Scene, f"aimcp_search_{pid.replace('-','_')}", StringProperty(default=""))
-    start_cmd_server()
 
-    # Spinner animation timer (0.3s)
+    # ─── Timers (CRITICAL: must always register) ───
+
+    def _redraw_areas():
+        for screen in bpy.data.screens:
+            for area in screen.areas:
+                if area.type in ('VIEW_3D', 'PROPERTIES'):
+                    area.tag_redraw()
+
+    # Spinner animation (0.3s)
     def spinner_tick():
         any_waiting = False
         for s in bpy.data.scenes:
@@ -506,14 +513,11 @@ def register():
                 s.aimcp_spinner_idx = (s.aimcp_spinner_idx + 1) % len(SPINNER_FRAMES)
                 any_waiting = True
         if any_waiting:
-            for screen in bpy.data.screens:
-                for area in screen.areas:
-                    if area.type == 'VIEW_3D':
-                        area.tag_redraw()
+            _redraw_areas()
         return 0.3
     bpy.app.timers.register(spinner_tick, first_interval=0.3)
 
-    # Background health check thread
+    # Background health check thread (no HTTP in main thread)
     def _health_worker():
         while True:
             try:
@@ -526,7 +530,7 @@ def register():
             time.sleep(5)
     threading.Thread(target=_health_worker, daemon=True).start()
 
-    # Health check timer (5s) — reads _last_health, no HTTP
+    # Health readout (5s) — reads _last_health only, never blocks
     def health_check():
         changed = False
         for s in bpy.data.scenes:
@@ -542,12 +546,15 @@ def register():
             if s.aimcp_ai_state != old_state or s.aimcp_connected != old_conn:
                 changed = True
         if changed:
-            for screen in bpy.data.screens:
-                for area in screen.areas:
-                    if area.type == 'VIEW_3D':
-                        area.tag_redraw()
+            _redraw_areas()
         return 5.0
     bpy.app.timers.register(health_check, first_interval=5.0)
+
+    # ─── Internal command server (optional: if port 9878 is busy, timers still work) ───
+    try:
+        start_cmd_server()
+    except:
+        print("[blender-mcp] Puerto 9878 no disponible - servidor de comandos desactivado")
 
 def unregister():
     stop_cmd_server()
