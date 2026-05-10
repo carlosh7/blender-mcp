@@ -71,7 +71,7 @@ _COLOR_KEYWORDS = {
 def _fetch_provider_models(provider_id: str, cfg: dict) -> dict:
     """Fetch models from a provider's API. Returns {"models": [...], "error": None} or {"error": "..."}."""
     url = cfg["url"]
-    headers = {"User-Agent": "blender-mcp/0.8.1", "Accept": "application/json"}
+    headers = {"User-Agent": "blender-mcp/0.9.0", "Accept": "application/json"}
 
     if cfg.get("auth"):
         api_key = get_api_key(provider_id)
@@ -138,7 +138,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/health":
             self._send_json({
                 "status": "ok",
-                "version": "0.8.1",
+                "version": "0.9.0",
                 "models_dir": str(MODELS_DIR),
                 "models_count": len(list(MODELS_DIR.glob("*.glb"))),
             })
@@ -316,12 +316,26 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         else:
             self._send_json({"error": "Not found"}, 404)
 
+def _execute_in_blender_addon(script_code: str) -> dict:
+    """Send a Blender Python script to the running Blender addon (port 9878).
+    Falls back to headless run_blender if addon is not available."""
+    try:
+        body = json.dumps({"code": script_code}).encode()
+        req = urllib.request.Request("http://localhost:9878/api/execute",
+            data=body, headers={"Content-Type": "application/json"}, method="POST")
+        r = urllib.request.urlopen(req, timeout=30)
+        result = json.loads(r.read())
+        return result
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 def _auto_process_chat(msg_id: str, message: str):
-    """Process a chat message in background using the real Blender pipeline."""
+    """Process a chat message - generate objects directly in Blender scene via addon."""
     msg_lower = message.lower()
     response = None
+    file_path = None
 
-    # Detect object type
     matched_type = None
     matched_word = None
     for word, mtype in _OBJECT_KEYWORDS.items():
@@ -331,7 +345,6 @@ def _auto_process_chat(msg_id: str, message: str):
             break
 
     if matched_type:
-        # Detect color
         color = None
         for cname, chex in _COLOR_KEYWORDS.items():
             if cname in msg_lower:
@@ -339,26 +352,35 @@ def _auto_process_chat(msg_id: str, message: str):
                 break
 
         try:
-            from server import generate_blender_script, run_blender, session
+            from server import generate_blender_script
             name = matched_type
-            script, output_path = generate_blender_script(matched_type, name=name, color=color)
-            result = run_blender(script)
+            script, _ = generate_blender_script(matched_type, name=name, color=color)
 
-            if os.path.exists(output_path):
-                size = os.path.getsize(output_path)
-                final_path = str(output_path)
-                if session.get("check_path"):
-                    dst = Path(session["check_path"]) / f"{name}.glb"
-                    import shutil
-                    shutil.copy2(output_path, dst)
-                    final_path = str(dst)
+            # Try to execute in running Blender addon first
+            addon_result = _execute_in_blender_addon(script)
 
+            if addon_result.get("status") == "ok":
                 color_msg = f" color" if color else ""
-                response = f"✅ Created {matched_word}{color_msg}! File: {os.path.basename(final_path)} ({size/1024:.0f} KB)"
+                response = f"✅ {matched_word}{color_msg} created in scene!"
             else:
-                response = f"❌ Failed to generate {matched_word}. Blender error."
+                # Fall back to headless generation
+                from server import run_blender, session
+                result = run_blender(script)
+                _, output_path = generate_blender_script(matched_type, name=name, color=color)
+                if os.path.exists(output_path):
+                    size = os.path.getsize(output_path)
+                    final_path = str(output_path)
+                    if session.get("check_path"):
+                        dst = Path(session["check_path"]) / f"{name}.glb"
+                        import shutil
+                        shutil.copy2(output_path, dst)
+                        final_path = str(dst)
+                    color_msg = f" color" if color else ""
+                    response = f"✅ {matched_word}{color_msg} generated! (headless, saved to {os.path.basename(final_path)})"
+                else:
+                    response = f"❌ Failed to generate {matched_word}."
         except Exception as e:
-            response = f"❌ Error generating: {str(e)[:100]}"
+            response = f"❌ Error: {str(e)[:100]}"
     else:
         # No object detected — wait for AI response via MCP (no timeout)
         with _chat_lock:

@@ -438,11 +438,24 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
         )
         session["last_script"] = script
 
-        result = run_blender(script, use_gui=use_gui)
+        # Try executing in already-running Blender addon first
+        addon_used = False
+        try:
+            import urllib.request
+            body_data = json.dumps({"code": script}).encode()
+            addon_req = urllib.request.Request("http://localhost:9878/api/execute",
+                data=body_data, headers={"Content-Type": "application/json"}, method="POST")
+            addon_resp = json.loads(urllib.request.urlopen(addon_req, timeout=30).read())
+            if addon_resp.get("status") == "ok":
+                addon_used = True
+        except Exception:
+            pass
+
+        if not addon_used:
+            result = run_blender(script, use_gui=use_gui)
 
         if os.path.exists(output_path):
             size = os.path.getsize(output_path)
-            # Copy to check path if needed
             final_path = output_path
             if session["mode"] == "check" and session["check_path"]:
                 dst = Path(session["check_path"]) / f"{name}.glb"
@@ -452,9 +465,9 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
             return [types.TextContent(type="text", text=json.dumps({
                 "success": True,
                 "file": final_path,
+                "mode": "addon" if addon_used else "headless",
                 "size_bytes": size,
                 "size_kb": round(size / 1024, 1),
-                "output_preview": result[:500],
             }, indent=2))]
         else:
             return [types.TextContent(type="text", text=f"FAILED to generate model. Blender output:\n{result[:2000]}")]

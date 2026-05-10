@@ -1,13 +1,13 @@
-# blender-mcp — AI Assistant for Blender v0.8.1
+# blender-mcp — AI Assistant for Blender v0.9.0
 # Panels: Config (Properties) + Chat (3D View Sidebar)
-# AI chat via MCP tools (read-chat / respond-chat)
+# Includes internal HTTP server (port 9878) for direct bpy commands from MCP/HTTP bridge
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 8, 1),
+    "version": (0, 9, 0),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
-    "description": "Chat with AI to create 3D models via connected provider APIs.",
+    "description": "AI chat with direct bpy execution in Blender scene.",
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }
@@ -16,8 +16,114 @@ from bpy.types import Panel, Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 
 HTTP_HOST = "http://localhost:9877"
-_poll_results = {}  # {message_id: {"response": "...", "error": ""} or None if still polling}
+ADDON_PORT = 9878
+_poll_results = {}
 
+# ─── Internal command server ───
+_cmd_server = None
+
+def start_cmd_server():
+    """Start HTTP server inside Blender to receive bpy commands from MCP/HTTP bridge."""
+    global _cmd_server
+    if _cmd_server:
+        return
+    try:
+        from http.server import HTTPServer, BaseHTTPRequestHandler
+        import urllib.parse
+
+        class CmdHandler(BaseHTTPRequestHandler):
+            def log_message(self, fmt, *args):
+                print(f"[BLENDER] {args[0]} {args[1]} {args[2]}")
+
+            def _send(self, data, status=200):
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode())
+
+            def do_OPTIONS(self):
+                self.send_response(200)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
+                self.end_headers()
+
+            def do_GET(self):
+                if self.path == "/api/health":
+                    self._send({"status": "ok", "addon": "ai_assistant", "blender_scene": bpy.context.scene.name if bpy.context else "none"})
+                else:
+                    self._send({"error": "Not found"}, 404)
+
+            def do_POST(self):
+                parsed = urllib.parse.urlparse(self.path)
+                length = int(self.headers.get("Content-Length", 0))
+                body = {}
+                if length > 0:
+                    try: body = json.loads(self.rfile.read(length))
+                    except: self._send({"error": "Invalid JSON"}, 400); return
+
+                if parsed.path == "/api/execute":
+                    code = body.get("code", "")
+                    if not code:
+                        self._send({"error": "code required"}, 400); return
+                    try:
+                        import io, sys
+                        stdout_capture = io.StringIO()
+                        old_stdout = sys.stdout
+                        sys.stdout = stdout_capture
+                        exec(code, {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops})
+                        sys.stdout = old_stdout
+                        output = stdout_capture.getvalue()
+                        # Force viewport update
+                        for area in bpy.context.screen.areas:
+                            if area.type == 'VIEW_3D':
+                                area.tag_redraw()
+                        self._send({"status": "ok", "output": output})
+                    except Exception as e:
+                        import traceback
+                        self._send({"status": "error", "error": str(e), "traceback": traceback.format_exc()}, 500)
+
+                elif parsed.path == "/api/generate-model":
+                    model_type = body.get("model_type", "")
+                    if not model_type:
+                        self._send({"error": "model_type required"}, 400); return
+                    name = body.get("name", model_type)
+                    color = body.get("color")
+                    try:
+                        # Import server generation functions
+                        import sys
+                        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                        if root not in sys.path:
+                            sys.path.insert(0, root)
+                        from server import generate_blender_script
+                        script, _ = generate_blender_script(model_type, name=name, color=color)
+                        # Execute the script
+                        exec(script, {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops})
+                        for area in bpy.context.screen.areas:
+                            if area.type == 'VIEW_3D':
+                                area.tag_redraw()
+                        self._send({"status": "ok", "object": name})
+                    except Exception as e:
+                        self._send({"status": "error", "error": str(e)}, 500)
+
+                else:
+                    self._send({"error": "Not found"}, 404)
+
+        _cmd_server = HTTPServer(("0.0.0.0", ADDON_PORT), CmdHandler)
+        thread = threading.Thread(target=_cmd_server.serve_forever, daemon=True)
+        thread.start()
+        print(f"[BLENDER CMD] HTTP server on port {ADDON_PORT}")
+    except Exception as e:
+        print(f"[BLENDER CMD] Failed to start: {e}")
+
+def stop_cmd_server():
+    global _cmd_server
+    if _cmd_server:
+        _cmd_server.shutdown()
+        _cmd_server = None
+
+# ─── Helpers ───
 def http_get(path):
     try:
         r = urllib.request.urlopen(f"{HTTP_HOST}{path}", timeout=3)
@@ -36,7 +142,7 @@ def http_post(path, data):
 
 # ─── Chat ───
 class ChatMsg(PropertyGroup):
-    role: StringProperty(name="Role"); text: StringProperty(name="Text")
+    role: StringProperty(); text: StringProperty()
 
 class ChatData(PropertyGroup):
     msgs: CollectionProperty(type=ChatMsg); count: IntProperty(default=0)
@@ -100,16 +206,11 @@ class PN_PT_Config(Panel):
                 count = len(prov_models)
                 prov_box = box.box()
                 label = PROVIDER_LABELS.get(prov_id, prov_id)
-                row = prov_box.row(align=True)
-                row.label(text=f"{label} ({count})", icon='DOT')
-
+                row = prov_box.row(align=True); row.label(text=f"{label} ({count})", icon='DOT')
                 search_key = f"aimcp_search_{prov_id.replace('-','_')}"
                 search_val = getattr(c, search_key, "")
-                row = prov_box.row(align=True)
-                row.prop(c, search_key, text="", icon='VIEWZOOM')
-                if search_val:
-                    row.operator("aimcp.clear_search", text="", icon='X').search_prop = search_key
-
+                row = prov_box.row(align=True); row.prop(c, search_key, text="", icon='VIEWZOOM')
+                if search_val: row.operator("aimcp.clear_search", text="", icon='X').search_prop = search_key
                 s = search_val.lower()
                 visible = [m for m in prov_models if not s or s in m.model_id.lower() or s in m.model_name.lower()]
                 for m in visible:
@@ -118,18 +219,10 @@ class PN_PT_Config(Panel):
                         row.label(text="", icon='RADIOBUT_ON')
                         row.label(text=f"{m.model_name}  [{m.model_id}]")
                     else:
-                        op = row.operator("aimcp.select", text=m.model_name, icon='RADIOBUT_OFF')
-                        op.model_id = m.model_id
-
-                if len(prov_models) > 20:
-                    prov_box.label(text=f"Showing {len(visible)} of {len(prov_models)}")
-
-                if visible:
-                    row = prov_box.row(align=True)
-                    row.operator("aimcp.apply_model", text=f"Apply {PROVIDER_LABELS.get(prov_id,prov_id)}", icon='CHECKMARK').model_id = visible[0].model_id
-        else:
-            box.label(text="Click 'Refresh all' to load models")
-
+                        op = row.operator("aimcp.select", text=m.model_name, icon='RADIOBUT_OFF'); op.model_id = m.model_id
+                if len(prov_models) > 20: prov_box.label(text=f"Showing {len(visible)} of {len(prov_models)}")
+                if visible: row = prov_box.row(align=True); row.operator("aimcp.apply_model", text=f"Apply {PROVIDER_LABELS.get(prov_id,prov_id)}", icon='CHECKMARK').model_id = visible[0].model_id
+        else: box.label(text="Click 'Refresh all' to load models")
         L.separator()
         status = c.aimcp_status
         if status: L.label(text=status, icon='INFO')
@@ -141,42 +234,27 @@ class PN_PT_Chat(Panel):
 
     def draw(self, ctx):
         L = self.layout; c = ctx.scene
-
-        # Status bar
         row = L.row(align=True)
         if c.aimcp_connected:
             row.operator("aimcp.disconnect", text="", icon='X')
-            m = c.aimcp_model or "?"
-            row.label(text=f"Online [{m}]", icon='CHECKBOX_HLT')
+            m = c.aimcp_model or "?"; row.label(text=f"Online [{m}]", icon='CHECKBOX_HLT')
         else:
-            row.operator("aimcp.check", text="Connect", icon='ADD')
-            row.label(text="Offline", icon='CHECKBOX_DEHLT')
+            row.operator("aimcp.check", text="Connect", icon='ADD'); row.label(text="Offline", icon='CHECKBOX_DEHLT')
         row.separator()
         row.operator("aimcp.capture", text="", icon='CAMERA_DATA')
         row.operator("aimcp.export", text="", icon='EXPORT')
-
         L.separator()
-        # Chat messages with scroll
         chat = c.aimcp_chat
         if chat and chat.count > 0:
             row = L.row()
-            row.template_list("MCP_UL_Chat", "", chat, "msgs", c, "aimcp_chat_index",
-                rows=min(15, max(8, chat.count)))
-        else:
-            L.label(text="No messages. Type something and send.")
-
+            row.template_list("MCP_UL_Chat", "", chat, "msgs", c, "aimcp_chat_index", rows=min(15, max(8, chat.count)))
+        else: L.label(text="No messages.")
         L.separator()
-        # Input
-        row = L.row(align=True)
-        row.scale_y = 3.0
-        row.prop(c, "aimcp_input", text="")
-        row = L.row(align=True)
-        row.scale_y = 1.5
-        cns = row.operator("aimcp.send", text="Send to AI", icon='PLAY')
-        cns.connected = c.aimcp_connected
+        row = L.row(align=True); row.scale_y = 3.0; row.prop(c, "aimcp_input", text="")
+        row = L.row(align=True); row.scale_y = 1.5
+        row.operator("aimcp.send", text="Send to AI", icon='PLAY')
         row.operator("aimcp.clear_chat", text="Clear", icon='X')
-        if c.aimcp_waiting:
-            L.label(text="Waiting for AI response...", icon='SORTTIME')
+        if c.aimcp_waiting: L.label(text="Waiting for AI response...", icon='SORTTIME')
 
 # ─── Operators ───
 class OP_Check(Operator):
@@ -212,8 +290,7 @@ class OP_Refresh(Operator):
     bl_idname = "aimcp.refresh"; bl_label = "Refresh"
     def execute(self, ctx):
         h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        ctx.scene.aimcp_refreshing = True
-        ctx.scene.aimcp_status = "Refreshing..."
+        ctx.scene.aimcp_refreshing = True; ctx.scene.aimcp_status = "Refreshing..."
         if ctx.area: ctx.area.tag_redraw()
         def fetch():
             try:
@@ -223,11 +300,8 @@ class OP_Refresh(Operator):
                 r = urllib.request.urlopen(req, timeout=30)
                 data = json.loads(r.read())["providers"]
                 def update():
-                    md = ctx.scene.aimcp_models
-                    md.clear_all()
-                    names = []
+                    md = ctx.scene.aimcp_models; md.clear_all()
                     for pid, result in data.items():
-                        names.append(pid)
                         for m in result.get("models", []):
                             md.add(m["id"], m.get("name", m["id"]), pid)
                     ctx.scene.aimcp_status = f"{md.count} models loaded"
@@ -240,24 +314,20 @@ class OP_Refresh(Operator):
                     ctx.scene.aimcp_refreshing = False
                     if ctx.area: ctx.area.tag_redraw()
                 bpy.app.timers.register(err, first_interval=0.01)
-        threading.Thread(target=fetch, daemon=True).start()
-        return {'FINISHED'}
+        threading.Thread(target=fetch, daemon=True).start(); return {'FINISHED'}
 
 class OP_SelectModel(Operator):
     bl_idname = "aimcp.select"; bl_label = "Select"
     model_id: StringProperty()
     def execute(self, ctx):
-        ctx.scene.aimcp_model = self.model_id
-        ctx.scene.aimcp_status = f"Selected: {self.model_id}"
+        ctx.scene.aimcp_model = self.model_id; ctx.scene.aimcp_status = f"Selected: {self.model_id}"
         if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
 class OP_ApplyModel(Operator):
     bl_idname = "aimcp.apply_model"; bl_label = "Apply"
     model_id: StringProperty()
     def execute(self, ctx):
-        mid = self.model_id
-        ctx.scene.aimcp_model = mid
-        ctx.scene.aimcp_status = "Saving..."
+        mid = self.model_id; ctx.scene.aimcp_model = mid; ctx.scene.aimcp_status = "Saving..."
         if ctx.area: ctx.area.tag_redraw()
         h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
         def save():
@@ -267,24 +337,19 @@ class OP_ApplyModel(Operator):
                     data=body, headers={"Content-Type": "application/json"}, method="POST")
                 r = json.loads(urllib.request.urlopen(req, timeout=5).read())
                 msg = "Saved: " + mid if r.get("success") else "Local: " + mid
-                def ok():
-                    ctx.scene.aimcp_status = msg
-                    if ctx.area: ctx.area.tag_redraw()
+                def ok(): ctx.scene.aimcp_status = msg; ctx.scene.aimcp_model = mid
+                if ctx.area: ctx.area.tag_redraw()
                 bpy.app.timers.register(ok, first_interval=0.01)
             except:
-                def err():
-                    ctx.scene.aimcp_status = "Local: " + mid
-                    if ctx.area: ctx.area.tag_redraw()
+                def err(): ctx.scene.aimcp_status = "Local: " + mid
                 bpy.app.timers.register(err, first_interval=0.01)
-        threading.Thread(target=save, daemon=True).start()
-        return {'FINISHED'}
+        threading.Thread(target=save, daemon=True).start(); return {'FINISHED'}
 
 class OP_ClearSearch(Operator):
     bl_idname = "aimcp.clear_search"; bl_label = "Clear"
     search_prop: StringProperty()
     def execute(self, ctx):
-        if self.search_prop and hasattr(ctx.scene, self.search_prop):
-            setattr(ctx.scene, self.search_prop, "")
+        if self.search_prop and hasattr(ctx.scene, self.search_prop): setattr(ctx.scene, self.search_prop, "")
         if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
 class OP_Disconnect(Operator):
@@ -305,17 +370,13 @@ class OP_Send(Operator):
         ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
         ctx.scene.aimcp_pending_msg_id = ""
         if ctx.area: ctx.area.tag_redraw()
-
         h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-
         def send():
             result = http_post("/api/chat", {"message": txt})
             if result and result.get("message_id"):
                 mid = result["message_id"]
                 ctx.scene.aimcp_pending_msg_id = mid
-                _poll_results[mid] = None  # still polling
-
-                # Background poll thread (no UI blocking)
+                _poll_results[mid] = None
                 def poll_worker():
                     while _poll_results.get(mid) is None:
                         try:
@@ -323,23 +384,15 @@ class OP_Send(Operator):
                                 f"http://{h}:{p}/api/chat/status?message_id={mid}", timeout=3)
                             status = json.loads(r.read())
                             if status.get("status") in ("done", "error", "not_found"):
-                                _poll_results[mid] = status
-                                return
-                        except:
-                            pass
+                                _poll_results[mid] = status; return
+                        except: pass
                         time.sleep(2)
-
                 threading.Thread(target=poll_worker, daemon=True).start()
-
-                # UI timer — only checks _poll_results, never does HTTP
                 def check():
                     mid = ctx.scene.aimcp_pending_msg_id
-                    if not mid:
-                        return None
+                    if not mid: return None
                     result = _poll_results.get(mid)
-                    if result is None:
-                        return 1.0  # check again in 1s
-                    # Result ready
+                    if result is None: return 1.0
                     resp = result.get("response", "")
                     ctx.scene.aimcp_chat.add("assistant", resp)
                     ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
@@ -349,17 +402,13 @@ class OP_Send(Operator):
                     _poll_results.pop(mid, None)
                     if ctx.area: ctx.area.tag_redraw()
                     return None
-
                 bpy.app.timers.register(check, first_interval=0.5)
             else:
                 def err():
-                    ctx.scene.aimcp_waiting = False
-                    ctx.scene.aimcp_status = "Send failed"
+                    ctx.scene.aimcp_waiting = False; ctx.scene.aimcp_status = "Send failed"
                     if ctx.area: ctx.area.tag_redraw()
                 bpy.app.timers.register(err, first_interval=0.01)
-
-        threading.Thread(target=send, daemon=True).start()
-        return {'FINISHED'}
+        threading.Thread(target=send, daemon=True).start(); return {'FINISHED'}
 
 class OP_Capture(Operator):
     bl_idname = "aimcp.capture"; bl_label = "Capture"
@@ -386,8 +435,7 @@ class OP_ClearChat(Operator):
 
 # ─── Register ───
 classes = [
-    ChatMsg, ChatData, MCP_UL_Chat,
-    ModelItem, ModelsData,
+    ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData,
     OP_Check, OP_Refresh, OP_SelectModel, OP_ApplyModel, OP_ClearSearch,
     OP_Disconnect, OP_Send, OP_Capture, OP_Export, OP_ClearChat,
     PN_PT_Config, PN_PT_Chat,
@@ -395,30 +443,32 @@ classes = [
 
 def register():
     for cls in classes: bpy.utils.register_class(cls)
-    bpy.types.Scene.aimcp_chat = PointerProperty(type=ChatData)
-    bpy.types.Scene.aimcp_input = StringProperty(default="")
-    bpy.types.Scene.aimcp_connected = BoolProperty(default=False)
-    bpy.types.Scene.aimcp_refreshing = BoolProperty(default=False)
-    bpy.types.Scene.aimcp_waiting = BoolProperty(default=False)
-    bpy.types.Scene.aimcp_pending_msg_id = StringProperty(default="")
-    bpy.types.Scene.aimcp_chat_index = IntProperty(default=0)
-    bpy.types.Scene.aimcp_host = StringProperty(default="localhost")
-    bpy.types.Scene.aimcp_port = IntProperty(default=9877, min=1024, max=65535)
-    bpy.types.Scene.aimcp_model = StringProperty(default="")
-    bpy.types.Scene.aimcp_status = StringProperty(default="")
-    bpy.types.Scene.aimcp_models = PointerProperty(type=ModelsData)
-    for pid in ["deepseek", "opencode-go", "openrouter"]:
-        key = f"aimcp_search_{pid.replace('-','_')}"
-        setattr(bpy.types.Scene, key, StringProperty(default=""))
+    Scene = bpy.types.Scene
+    Scene.aimcp_chat = PointerProperty(type=ChatData)
+    Scene.aimcp_input = StringProperty(default="")
+    Scene.aimcp_connected = BoolProperty(default=False)
+    Scene.aimcp_refreshing = BoolProperty(default=False)
+    Scene.aimcp_waiting = BoolProperty(default=False)
+    Scene.aimcp_pending_msg_id = StringProperty(default="")
+    Scene.aimcp_chat_index = IntProperty(default=0)
+    Scene.aimcp_host = StringProperty(default="localhost")
+    Scene.aimcp_port = IntProperty(default=9877, min=1024, max=65535)
+    Scene.aimcp_model = StringProperty(default="")
+    Scene.aimcp_status = StringProperty(default="")
+    Scene.aimcp_models = PointerProperty(type=ModelsData)
+    for pid in PROVIDER_ORDER:
+        setattr(Scene, f"aimcp_search_{pid.replace('-','_')}", StringProperty(default=""))
+    start_cmd_server()
 
 def unregister():
+    stop_cmd_server()
     for cls in reversed(classes):
         try: bpy.utils.unregister_class(cls)
         except: pass
     attrs = ["aimcp_models", "aimcp_status", "aimcp_model", "aimcp_port", "aimcp_host",
              "aimcp_pending_msg_id", "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing",
              "aimcp_connected", "aimcp_input", "aimcp_chat"]
-    for pid in ["deepseek", "opencode-go", "openrouter"]:
+    for pid in PROVIDER_ORDER:
         attrs.append(f"aimcp_search_{pid.replace('-','_')}")
     for a in attrs:
         if hasattr(bpy.types.Scene, a):
