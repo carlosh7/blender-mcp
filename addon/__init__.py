@@ -181,22 +181,30 @@ class PN_PT_Chat(Panel):
 class OP_Check(Operator):
     bl_idname = "aimcp.check"; bl_label = "Check Connection"
     def execute(self, ctx):
+        ctx.scene.aimcp_status = "Connecting..."
+        if ctx.area: ctx.area.tag_redraw()
         h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        try:
-            r = urllib.request.urlopen(f"http://{h}:{p}/api/health", timeout=3)
-            json.loads(r.read())
-            ctx.scene.aimcp_connected = True
+        def check():
             try:
-                r2 = urllib.request.urlopen(f"http://{h}:{p}/api/providers", timeout=3)
-                d = json.loads(r2.read())
-                if d.get("current_model"): ctx.scene.aimcp_model = d["current_model"]
-            except: pass
-            ctx.scene.aimcp_status = "Connected"
-            if ctx.area: ctx.area.tag_redraw()
-        except Exception as e:
-            ctx.scene.aimcp_connected = False
-            ctx.scene.aimcp_status = f"Failed: {str(e)[:60]}"
-            if ctx.area: ctx.area.tag_redraw()
+                r = urllib.request.urlopen(f"http://{h}:{p}/api/health", timeout=3)
+                json.loads(r.read())
+                ctx.scene.aimcp_connected = True
+                try:
+                    r2 = urllib.request.urlopen(f"http://{h}:{p}/api/providers", timeout=3)
+                    d = json.loads(r2.read())
+                    if d.get("current_model"): ctx.scene.aimcp_model = d["current_model"]
+                except: pass
+                def ok():
+                    ctx.scene.aimcp_status = "Connected"
+                    if ctx.area: ctx.area.tag_redraw()
+                bpy.app.timers.register(ok, first_interval=0.01)
+            except Exception as e:
+                def fail():
+                    ctx.scene.aimcp_connected = False
+                    ctx.scene.aimcp_status = f"Failed: {str(e)[:60]}"
+                    if ctx.area: ctx.area.tag_redraw()
+                bpy.app.timers.register(fail, first_interval=0.01)
+        threading.Thread(target=check, daemon=True).start()
         return {'FINISHED'}
 
 class OP_Refresh(Operator):
@@ -377,16 +385,17 @@ def register():
     for pid in ["deepseek", "opencode-go", "openrouter"]:
         key = f"aimcp_search_{pid.replace('-','_')}"
         setattr(bpy.types.Scene, key, StringProperty(default=""))
-    try:
-        r = urllib.request.urlopen("http://localhost:9877/api/providers", timeout=2)
-        d = json.loads(r.read())
-        if d.get("current_model"):
-            def set_model():
+    # Load current model from opencode config (non-blocking, delayed)
+    def load_model():
+        try:
+            r = urllib.request.urlopen("http://localhost:9877/api/providers", timeout=2)
+            d = json.loads(r.read())
+            if d.get("current_model"):
                 for s in bpy.data.scenes:
                     s.aimcp_model = d["current_model"]
-                return None
-            bpy.app.timers.register(set_model, first_interval=0.5)
-    except: pass
+        except: pass
+        return None
+    bpy.app.timers.register(load_model, first_interval=2.0)
 
 def unregister():
     for cls in reversed(classes):
