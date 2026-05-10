@@ -152,6 +152,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 "config_file": config.get("config_file"),
                 "current_model": config.get("model", ""),
                 "current_provider": config.get("current_provider", "opencode"),
+                "current_provider_connected": config.get("current_provider_connected", False),
                 "providers": config.get("providers", []),
             })
 

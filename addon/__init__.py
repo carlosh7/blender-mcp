@@ -157,21 +157,33 @@ class PN_PT_Config(Panel):
         row.label(text=f"Current: {current_model}", icon='FILE_TICK')
         row.operator("aimcp.refresh_providers", text="", icon='FILE_REFRESH')
 
+        # Show if current provider is connected or not
+        prov_connected = getattr(c, "aimcp_current_provider_connected", False)
+        if current_model and current_model != "not set":
+            prov_name = current_model.split("/")[0] if "/" in current_model else "?"
+            if not prov_connected:
+                box.label(text=f"⚠ {prov_name}: no API key configured", icon='ERROR')
+            else:
+                box.label(text=f"✓ {prov_name}: connected", icon='CHECKMARK')
+
         # Search field
         row = box.row(align=True)
         row.prop(c, "aimcp_model_search", text="", icon='VIEWZOOM')
         if c.aimcp_model_search:
             row.operator("aimcp.clear_search", text="", icon='X')
 
-        # Provider sections + model list
+        # Manual model input (always available)
+        row = box.row(align=True)
+        row.prop(c, "aimcp_model_text", text="")
+
+        # Provider sections + model list (only connected providers)
         providers = getattr(c, "aimcp_providers_data", None)
         if providers and providers.count > 0:
             for i, prov in enumerate(providers.items):
                 prov_box = box.box()
-                icon = 'CHECKBOX_HLT' if prov.connected else 'CHECKBOX_DEHLT'
                 lbl = f"{prov.prov_name} ({prov.model_count} models)"
                 row = prov_box.row(align=True)
-                row.label(text=lbl, icon=icon)
+                row.label(text=lbl, icon='CHECKBOX_HLT')
                 if prov.public_api:
                     row.operator("aimcp.fetch_models", text="Fetch", icon='URL').provider_id = prov.prov_id
                 else:
@@ -180,7 +192,6 @@ class PN_PT_Config(Panel):
                 # If models are loaded for this provider, show them
                 models = getattr(c, "aimcp_models_data", None)
                 if models and models.count > 0:
-                    # Check if first model matches this provider
                     first_prov = models.items[0].provider if models.count > 0 else ""
                     if first_prov == prov.prov_id:
                         row = prov_box.row()
@@ -193,7 +204,10 @@ class PN_PT_Config(Panel):
                             row = prov_box.row()
                             row.label(text=f"Showing {min(models.count, 50)} of {models.count} models", icon='INFO')
         else:
-            box.label(text="Click ↻ to detect providers", icon='BLANK1')
+            if prov_connected:
+                box.label(text="Click ↻ to detect provider models", icon='BLANK1')
+            else:
+                box.label(text="No providers connected. Type a model name manually.", icon='INFO')
 
         # Status
         L.separator()
@@ -281,28 +295,28 @@ class OP_RefreshProviders(Operator):
             # Update current model and provider
             if data.get("current_model"):
                 ctx.scene.aimcp_model = data["current_model"]
+            ctx.scene.aimcp_current_provider_connected = data.get("current_provider_connected", False)
 
-            # Build providers list
+            # Build providers list (only connected providers)
             prov_data = ctx.scene.aimcp_providers_data
             prov_data.clear_all()
             for p in data.get("providers", []):
                 prov_data.add_provider(
                     p["id"], p["name"],
-                    p.get("connected", False),
+                    True,  # all in list are connected
                     p.get("model_count", 0),
                     p.get("public_api", False),
                 )
 
             # Auto-fetch models for connected non-OpenRouter providers
+            models_data = ctx.scene.aimcp_models_data
+            models_data.clear_all()
             for p in data.get("providers", []):
-                if p.get("connected") and not p.get("public_api"):
-                    # Fetch curated list
+                if not p.get("public_api"):
                     try:
                         r2 = urllib.request.urlopen(
                             f"http://{host}:{port}/api/models-list?provider={p['id']}", timeout=5)
                         mdata = json.loads(r2.read())
-                        models_data = ctx.scene.aimcp_models_data
-                        models_data.clear_all()
                         for m in mdata.get("models", []):
                             models_data.add_model(
                                 m["id"], m.get("name", m["id"]),
@@ -509,6 +523,9 @@ def register():
     bpy.types.Scene.aimcp_model_search = StringProperty(name="", default="",
         description="Filter models by name")
     bpy.types.Scene.aimcp_model_list_index = IntProperty(name="", default=0)
+    bpy.types.Scene.aimcp_current_provider_connected = BoolProperty(name="", default=False)
+    bpy.types.Scene.aimcp_model_text = StringProperty(name="", default="",
+        description="Type any model name manually (e.g. openai/gpt-4o)")
     bpy.types.Scene.aimcp_providers_data = PointerProperty(type=ProvidersData)
     bpy.types.Scene.aimcp_models_data = PointerProperty(type=ModelsData)
 
@@ -517,9 +534,9 @@ def unregister():
         try: bpy.utils.unregister_class(cls)
         except: pass
     for attr in ["aimcp_models_data", "aimcp_providers_data", "aimcp_model_list_index",
-                 "aimcp_model_search", "aimcp_status", "aimcp_model",
-                 "aimcp_server_port", "aimcp_server_host", "aimcp_chat_index",
-                 "aimcp_connected", "aimcp_input", "aimcp_chat"]:
+                 "aimcp_current_provider_connected", "aimcp_model_text", "aimcp_model_search",
+                 "aimcp_status", "aimcp_model", "aimcp_server_port", "aimcp_server_host",
+                 "aimcp_chat_index", "aimcp_connected", "aimcp_input", "aimcp_chat"]:
         if hasattr(bpy.types.Scene, attr):
             try: delattr(bpy.types.Scene, attr)
             except: pass

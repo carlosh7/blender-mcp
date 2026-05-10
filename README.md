@@ -25,7 +25,7 @@ Crea y edita modelos 3D desde lenguaje natural usando Blender, controlado por IA
 
 - **Blender 4.0+** ([Descargar](https://www.blender.org/download/))
 - **Python 3.10+** ([Descargar](https://python.org))
-- **Git** ([Descargar](https://git-scm.com/))
+- **Git** ([Descargar](https://git-scm.com/)) *— recomendado para clonar el repo, o descarga el ZIP desde GitHub*
 
 ### Linux
 

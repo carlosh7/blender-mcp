@@ -83,23 +83,31 @@ def read_opencode_config() -> dict:
 
     # Detect provider from model name
     model = data.get("model", "")
-    current_provider = "opencode"
+    current_model_provider = "opencode"
     if model and "/" in model:
-        current_provider = model.split("/")[0]
+        current_model_provider = model.split("/")[0]
 
-    # Detect which providers have API keys in config
+    # Detect which providers have API keys
+    # Sources: auth.json (from /connect), opencode.json, env vars
     detected_providers = {}
+
+    # 1. Read auth.json (where /connect stores keys)
+    auth_path = Path.home() / ".local/share/opencode/auth.json"
+    if auth_path.exists():
+        try:
+            auth_data = json.loads(auth_path.read_text())
+            for prov_id in auth_data:
+                if isinstance(auth_data[prov_id], dict) and auth_data[prov_id].get("key"):
+                    detected_providers[prov_id] = True
+        except: pass
+
+    # 2. Check opencode.json provider section
     for prov_id in KNOWN_MODELS:
-        # Check if provider has API key in standard locations
         key = data.get(prov_id, {}).get("api_key") or data.get("provider", {}).get(prov_id, {}).get("api_key")
         if key:
             detected_providers[prov_id] = True
 
-    # Always add current model's provider if it's known
-    if current_provider in KNOWN_MODELS:
-        detected_providers.setdefault(current_provider, False)
-
-    # Check environment variables for API keys
+    # 3. Check environment variables
     env_keys = {
         "anthropic": "ANTHROPIC_API_KEY",
         "openai": "OPENAI_API_KEY",
@@ -113,27 +121,30 @@ def read_opencode_config() -> dict:
         if os.environ.get(env_var):
             detected_providers[prov_id] = True
 
-    # Build providers list with metadata
+    # Build providers list (only connected providers)
     providers_list = []
     for prov_id in sorted(detected_providers):
-        is_connected = detected_providers[prov_id]
         is_public_api = prov_id in PUBLIC_API_PROVIDERS
         model_count = len(KNOWN_MODELS.get(prov_id, []))
         providers_list.append({
             "id": prov_id,
             "name": prov_id.capitalize(),
-            "connected": is_connected,
+            "connected": True,
             "model_count": model_count if not is_public_api else 300,
             "public_api": is_public_api,
             "api_url": "https://openrouter.ai/api/v1/models" if is_public_api else None,
         })
+
+    # Check if current model's provider is among connected providers
+    current_provider_connected = any(p["id"] == current_model_provider for p in providers_list)
 
     return {
         "found": True,
         "config_file": str(config_file),
         "data": data,
         "model": model,
-        "current_provider": current_provider,
+        "current_provider": current_model_provider,
+        "current_provider_connected": current_provider_connected,
         "providers": providers_list,
     }
 
