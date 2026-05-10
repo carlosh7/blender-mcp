@@ -218,11 +218,14 @@ def generate_blender_script(model_type: str, name: str = None, color: str = None
             p1, p2, p3 = r, g, b
             s1, s2, s3 = r * 0.8, g * 0.8, b * 0.8
 
+    clear_cmd = "bpy.ops.object.select_all(action='SELECT')\nbpy.ops.object.delete(use_global=False)"
+    keep_cmd = "# Keep existing scene (iterative mode)"
+
     script = textwrap.dedent(f'''\
 import bpy, os, math
 
 # ─── Clean or keep scene ───
-{"# Keep existing scene" if iterative else "bpy.ops.object.select_all(action='SELECT')\\nbpy.ops.object.delete(use_global=False)"}
+{keep_cmd if iterative else clear_cmd}
 
 def make_mat(name, r, g, b, roughness=0.5, metalness=0.0):
     mat = bpy.data.materials.new(name)
