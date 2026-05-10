@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "python3",
+      "args": ["/ruta/completa/a/blender-mcp/server.py", "--mode", "standalone"],
+      "env": {}
+    }
+  }
+}
