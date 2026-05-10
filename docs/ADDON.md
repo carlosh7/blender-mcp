@@ -61,7 +61,9 @@ Click **📤 Export to GLB** para exportar la escena actual.
 
 | Problema | Causa | Solución |
 |----------|-------|----------|
-| No aparece el panel | Addon no activado | Preferences → Add-ons → buscar AI Assistant |
-| No conecta | MCP server no running | `python server.py --mode gui` en terminal |
-| Chat no responde | Server desconectado | Click Connect en el panel |
-| Export falla | Permisos | Asegura que ~/blender-mcp/models/ existe |
+| No aparece el panel | Addon no activado | Preferences → Add-ons → buscar AI Assistant → activar |
+| Línea roja al activar | Error en el addon | Ve a `Window → Toggle System Console` para ver el error exacto |
+| Panel se colapsa al conectar | Error de redibujado | Desactivar y reactivar el addon. Si persiste, reinicia Blender |
+| Chat no responde | MCP server no running | `python server.py --mode all --check-path ...` |
+| Export falla | Permisos | Asegura que `~/blender-mcp/models/` existe |
+| Botón Connect no hace nada | Ver consola de Blender | `Window → Toggle System Console` para ver errores Python |
