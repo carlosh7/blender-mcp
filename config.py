@@ -4,8 +4,171 @@ import shutil
 import platform
 import subprocess
 import json
+from pathlib import Path
 
 SYSTEM = platform.system()  # 'Windows' or 'Linux'
+
+# ─── opencode config paths ───
+OPENCODE_CONFIG_PATHS = [
+    Path.home() / ".config" / "opencode" / "opencode.json",
+    Path.home() / ".config" / "opencode" / "opencode.jsonc",
+    Path.cwd() / "opencode.json",
+    Path.cwd() / "opencode.jsonc",
+    Path.home() / "Check" / "opencode.json",
+    Path.home() / "check-3d-planner" / "opencode.json",
+]
+
+# Known model lists per provider (when we can't query the API)
+KNOWN_MODELS = {
+    "anthropic": [
+        "anthropic/claude-sonnet-4-5", "anthropic/claude-haiku-4-5",
+        "anthropic/claude-opus-4-5", "anthropic/claude-3-5-sonnet",
+        "anthropic/claude-3-5-haiku", "anthropic/claude-3-opus",
+        "anthropic/claude-3-sonnet", "anthropic/claude-3-haiku",
+    ],
+    "openai": [
+        "openai/gpt-4o", "openai/gpt-4o-mini", "openai/gpt-4-turbo",
+        "openai/gpt-4", "openai/gpt-3.5-turbo",
+        "openai/o1", "openai/o1-mini", "openai/o3-mini",
+        "openai/o1-pro", "openai/gpt-4.5-preview",
+    ],
+    "deepseek": [
+        "deepseek/deepseek-chat", "deepseek/deepseek-reasoner",
+        "deepseek/deepseek-coder",
+    ],
+    "mistral": [
+        "mistralai/mistral-large", "mistralai/mistral-medium",
+        "mistralai/mistral-small", "mistralai/codestral",
+        "mistralai/mistral-7b-v0.3",
+    ],
+    "google": [
+        "google/gemini-2.0-flash", "google/gemini-2.0-pro",
+        "google/gemini-1.5-pro", "google/gemini-1.5-flash",
+    ],
+    "groq": [
+        "groq/llama-3.3-70b", "groq/llama-3.1-8b",
+        "groq/mixtral-8x7b", "groq/gemma-7b",
+    ],
+    "meta": [
+        "meta/llama-3.3-70b", "meta/llama-3.1-405b",
+        "meta/llama-3.1-70b", "meta/llama-3.1-8b",
+    ],
+    "cohere": [
+        "cohere/command-r-plus", "cohere/command-r",
+    ],
+}
+
+# Providers that have public model listing APIs
+PUBLIC_API_PROVIDERS = ["openrouter"]
+
+
+def find_opencode_config() -> Path | None:
+    """Find the first existing opencode config file."""
+    for p in OPENCODE_CONFIG_PATHS:
+        if p.exists():
+            return p
+    return None
+
+
+def read_opencode_config() -> dict:
+    """Read opencode config and return parsed JSON + metadata."""
+    config_file = find_opencode_config()
+    if not config_file:
+        return {"found": False, "config_file": None, "data": {}}
+
+    try:
+        data = json.loads(config_file.read_text())
+    except Exception:
+        return {"found": False, "config_file": str(config_file), "data": {}}
+
+    # Detect provider from model name
+    model = data.get("model", "")
+    current_provider = "opencode"
+    if model and "/" in model:
+        current_provider = model.split("/")[0]
+
+    # Detect which providers have API keys in config
+    detected_providers = {}
+    for prov_id in KNOWN_MODELS:
+        # Check if provider has API key in standard locations
+        key = data.get(prov_id, {}).get("api_key") or data.get("provider", {}).get(prov_id, {}).get("api_key")
+        if key:
+            detected_providers[prov_id] = True
+
+    # Always add current model's provider if it's known
+    if current_provider in KNOWN_MODELS:
+        detected_providers.setdefault(current_provider, False)
+
+    # Check environment variables for API keys
+    env_keys = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "mistral": "MISTRAL_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    for prov_id, env_var in env_keys.items():
+        if os.environ.get(env_var):
+            detected_providers[prov_id] = True
+
+    # Build providers list with metadata
+    providers_list = []
+    for prov_id in sorted(detected_providers):
+        is_connected = detected_providers[prov_id]
+        is_public_api = prov_id in PUBLIC_API_PROVIDERS
+        model_count = len(KNOWN_MODELS.get(prov_id, []))
+        providers_list.append({
+            "id": prov_id,
+            "name": prov_id.capitalize(),
+            "connected": is_connected,
+            "model_count": model_count if not is_public_api else 300,
+            "public_api": is_public_api,
+            "api_url": "https://openrouter.ai/api/v1/models" if is_public_api else None,
+        })
+
+    return {
+        "found": True,
+        "config_file": str(config_file),
+        "data": data,
+        "model": model,
+        "current_provider": current_provider,
+        "providers": providers_list,
+    }
+
+
+def write_opencode_model(model_name: str) -> dict:
+    """Write a new model name to the opencode config file."""
+    config_file = find_opencode_config()
+    if not config_file:
+        return {"success": False, "error": "No opencode config file found"}
+
+    try:
+        data = json.loads(config_file.read_text())
+    except Exception as e:
+        return {"success": False, "error": f"Failed to read config: {e}"}
+
+    old_model = data.get("model")
+    data["model"] = model_name
+
+    try:
+        config_file.write_text(json.dumps(data, indent=2) + "\n")
+        return {
+            "success": True,
+            "config_file": str(config_file),
+            "old_model": old_model,
+            "new_model": model_name,
+        }
+    except Exception as e:
+        return {"success": False, "error": f"Failed to write config: {e}"}
+
+
+def get_provider_from_model(model_name: str) -> str:
+    """Extract provider prefix from model name (e.g. 'anthropic/claude...' → 'anthropic')."""
+    if "/" in model_name:
+        return model_name.split("/")[0]
+    return "opencode"
 
 def find_blender() -> str | None:
     """Find Blender executable path across platforms."""

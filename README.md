@@ -1,4 +1,4 @@
-# blender-mcp
+# blender-mcp v0.7.0
 
 **AI-powered 3D model generation via Blender + MCP protocol.**
 
