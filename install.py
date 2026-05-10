@@ -94,7 +94,7 @@ def install():
     print(f"     2. Edit → Preferences → Add-ons")
     print(f"     3. Search for 'AI Assistant'")
     print(f"     4. Enable it")
-    print(f"     5. In 3D Viewport, press N → AI tab")
+    print(f"     5. In 3D Viewport, open the Sidebar (N) → AI tab")
     print()
 
 

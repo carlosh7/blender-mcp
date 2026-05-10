@@ -5,8 +5,8 @@ bl_info = {
     "author": "carlosh7",
     "version": (0, 1, 0),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > AI",
-    "description": "Chat with AI to create and edit 3D models via blender-mcp",
+    "location": "View3D > Sidebar (N) > AI Tab",
+    "description": "Chat with AI to create and edit 3D models via blender-mcp. Open the sidebar with N and click the AI tab.",
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }

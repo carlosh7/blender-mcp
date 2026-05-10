@@ -104,7 +104,7 @@ Para interactuar con la IA sin salir de Blender:
    - **Windows:** `%APPDATA%\Blender Foundation\Blender\4.0\scripts\addons\ai_assistant\`
 2. En Blender: `Edit → Preferences → Add-ons → buscar "AI Assistant"`
 3. Actívalo
-4. Panel en el sidebar (tecla `N`) → pestaña `🤖 AI`
+4. Panel en el sidebar de Blender → pestaña `🤖 AI` (abre el sidebar con `N`) 
 
 ---
 
