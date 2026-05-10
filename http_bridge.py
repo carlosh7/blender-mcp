@@ -71,7 +71,7 @@ _COLOR_KEYWORDS = {
 def _fetch_provider_models(provider_id: str, cfg: dict) -> dict:
     """Fetch models from a provider's API. Returns {"models": [...], "error": None} or {"error": "..."}."""
     url = cfg["url"]
-    headers = {"User-Agent": "blender-mcp/0.9.0", "Accept": "application/json"}
+    headers = {"User-Agent": "blender-mcp/0.9.2", "Accept": "application/json"}
 
     if cfg.get("auth"):
         api_key = get_api_key(provider_id)
@@ -136,9 +136,14 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
 
         if parsed.path == "/api/health":
+            ai_state = "connected"
+            if server_session is not None:
+                has_pending = len(server_session.get("chat_queue", [])) > 0
+                ai_state = "processing" if has_pending else "connected"
             self._send_json({
                 "status": "ok",
-                "version": "0.9.0",
+                "version": "0.9.2",
+                "ai_state": ai_state,
                 "models_dir": str(MODELS_DIR),
                 "models_count": len(list(MODELS_DIR.glob("*.glb"))),
             })

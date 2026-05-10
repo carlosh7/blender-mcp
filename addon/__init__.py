@@ -18,6 +18,8 @@ from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty
 HTTP_HOST = "http://localhost:9877"
 ADDON_PORT = 9878
 _poll_results = {}
+SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
+HEALTH_FAILS = 0
 
 # ─── Internal command server ───
 _cmd_server = None
@@ -244,27 +246,44 @@ class PN_PT_Chat(Panel):
 
     def draw(self, ctx):
         L = self.layout; c = ctx.scene
+        state = c.aimcp_ai_state
+
+        # Status bar
         row = L.row(align=True)
-        if c.aimcp_connected:
+        if not c.aimcp_connected:
+            row.operator("aimcp.check", text="", icon='ADD')
+            row.label(text="Disconnected", icon='ERROR')
+        elif state == "processing":
             row.operator("aimcp.disconnect", text="", icon='X')
-            m = c.aimcp_model or "?"; row.label(text=f"Online [{m}]", icon='CHECKBOX_HLT')
+            idx = c.aimcp_spinner_idx % len(SPINNER_FRAMES)
+            spinner = SPINNER_FRAMES[idx]
+            m = c.aimcp_model or "?"
+            row.label(text=f"[{m}] {spinner} Processing", icon='SORTTIME')
+        elif state == "disconnected":
+            row.operator("aimcp.check", text="", icon='ADD')
+            row.label(text="[AI Lost] Check opencode", icon='ERROR')
         else:
-            row.operator("aimcp.check", text="Connect", icon='ADD'); row.label(text="Offline", icon='CHECKBOX_DEHLT')
+            row.operator("aimcp.disconnect", text="", icon='X')
+            m = c.aimcp_model or "?"
+            row.label(text=f"[{m}] Connected", icon='CHECKBOX_HLT')
+
         row.separator()
         row.operator("aimcp.capture", text="", icon='CAMERA_DATA')
         row.operator("aimcp.export", text="", icon='EXPORT')
+
         L.separator()
         chat = c.aimcp_chat
         if chat and chat.count > 0:
             row = L.row()
             row.template_list("MCP_UL_Chat", "", chat, "msgs", c, "aimcp_chat_index", rows=min(15, max(8, chat.count)))
-        else: L.label(text="No messages.")
+        else:
+            L.label(text="No messages.")
+
         L.separator()
         row = L.row(align=True); row.scale_y = 3.0; row.prop(c, "aimcp_input", text="")
         row = L.row(align=True); row.scale_y = 1.5
         row.operator("aimcp.send", text="Send to AI", icon='PLAY')
         row.operator("aimcp.clear_chat", text="Clear", icon='X')
-        if c.aimcp_waiting: L.label(text="Waiting for AI response...", icon='SORTTIME')
 
 # ─── Operators ───
 class OP_Check(Operator):
@@ -377,6 +396,7 @@ class OP_Send(Operator):
         ctx.scene.aimcp_input = ""
         ctx.scene.aimcp_status = "Waiting..."
         ctx.scene.aimcp_waiting = True
+        ctx.scene.aimcp_ai_state = "processing"
         ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
         ctx.scene.aimcp_pending_msg_id = ""
         if ctx.area: ctx.area.tag_redraw()
@@ -387,7 +407,9 @@ class OP_Send(Operator):
                 mid = result["message_id"]
                 ctx.scene.aimcp_pending_msg_id = mid
                 _poll_results[mid] = None
+                _poll_fails = 0
                 def poll_worker():
+                    nonlocal _poll_fails
                     while _poll_results.get(mid) is None:
                         try:
                             r = urllib.request.urlopen(
@@ -395,7 +417,11 @@ class OP_Send(Operator):
                             status = json.loads(r.read())
                             if status.get("status") in ("done", "error", "not_found"):
                                 _poll_results[mid] = status; return
-                        except: pass
+                        except:
+                            _poll_fails += 1
+                            if _poll_fails >= 5:
+                                _poll_results[mid] = {"status": "error", "response": "[System] Connection lost. Check opencode."}
+                                return
                         time.sleep(2)
                 threading.Thread(target=poll_worker, daemon=True).start()
                 def check():
@@ -466,9 +492,42 @@ def register():
     Scene.aimcp_model = StringProperty(default="")
     Scene.aimcp_status = StringProperty(default="")
     Scene.aimcp_models = PointerProperty(type=ModelsData)
+    Scene.aimcp_ai_state = StringProperty(default="connected")
+    Scene.aimcp_spinner_idx = IntProperty(default=0)
     for pid in PROVIDER_ORDER:
         setattr(Scene, f"aimcp_search_{pid.replace('-','_')}", StringProperty(default=""))
     start_cmd_server()
+
+    # Spinner animation timer (0.3s)
+    def spinner_tick():
+        for s in bpy.data.scenes:
+            if s.aimcp_waiting:
+                s.aimcp_spinner_idx = (s.aimcp_spinner_idx + 1) % len(SPINNER_FRAMES)
+        return 0.3
+    bpy.app.timers.register(spinner_tick, first_interval=0.3)
+
+    # Health check timer (5s)
+    def health_check():
+        global HEALTH_FAILS
+        for s in bpy.data.scenes:
+            try:
+                r = urllib.request.urlopen("http://localhost:9877/api/health", timeout=2)
+                d = json.loads(r.read())
+                s.aimcp_connected = True
+                HEALTH_FAILS = 0
+                if d.get("ai_state") == "disconnected":
+                    s.aimcp_ai_state = "disconnected"
+                elif s.aimcp_waiting:
+                    s.aimcp_ai_state = "processing"
+                else:
+                    s.aimcp_ai_state = "connected"
+            except:
+                HEALTH_FAILS += 1
+                if HEALTH_FAILS >= 2:
+                    s.aimcp_connected = False
+                    s.aimcp_ai_state = "disconnected"
+        return 5.0
+    bpy.app.timers.register(health_check, first_interval=5.0)
 
 def unregister():
     stop_cmd_server()
@@ -477,7 +536,8 @@ def unregister():
         except: pass
     attrs = ["aimcp_models", "aimcp_status", "aimcp_model", "aimcp_port", "aimcp_host",
              "aimcp_pending_msg_id", "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing",
-             "aimcp_connected", "aimcp_input", "aimcp_chat"]
+             "aimcp_connected", "aimcp_input", "aimcp_chat",
+             "aimcp_ai_state", "aimcp_spinner_idx"]
     for pid in PROVIDER_ORDER:
         attrs.append(f"aimcp_search_{pid.replace('-','_')}")
     for a in attrs:
