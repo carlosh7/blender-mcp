@@ -1,10 +1,10 @@
-# blender-mcp — AI Assistant for Blender v0.9.0
+# blender-mcp — AI Assistant for Blender v0.9.2
 # Panels: Config (Properties) + Chat (3D View Sidebar)
 # Includes internal HTTP server (port 9878) for direct bpy commands from MCP/HTTP bridge
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 9, 0),
+    "version": (0, 9, 2),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
