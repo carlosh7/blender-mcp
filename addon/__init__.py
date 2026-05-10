@@ -257,16 +257,27 @@ class OP_ApplyModel(Operator):
     def execute(self, ctx):
         mid = self.model_id
         ctx.scene.aimcp_model = mid
+        ctx.scene.aimcp_status = "Saving..."
+        if ctx.area: ctx.area.tag_redraw()
         h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        try:
-            body = json.dumps({"model": mid}).encode()
-            req = urllib.request.Request(f"http://{h}:{p}/api/set-model",
-                data=body, headers={"Content-Type": "application/json"}, method="POST")
-            r = json.loads(urllib.request.urlopen(req, timeout=5).read())
-            ctx.scene.aimcp_status = "Saved: " + mid if r.get("success") else "Local: " + mid
-        except:
-            ctx.scene.aimcp_status = "Local: " + mid
-        if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
+        def save():
+            try:
+                body = json.dumps({"model": mid}).encode()
+                req = urllib.request.Request(f"http://{h}:{p}/api/set-model",
+                    data=body, headers={"Content-Type": "application/json"}, method="POST")
+                r = json.loads(urllib.request.urlopen(req, timeout=5).read())
+                msg = "Saved: " + mid if r.get("success") else "Local: " + mid
+                def ok():
+                    ctx.scene.aimcp_status = msg
+                    if ctx.area: ctx.area.tag_redraw()
+                bpy.app.timers.register(ok, first_interval=0.01)
+            except:
+                def err():
+                    ctx.scene.aimcp_status = "Local: " + mid
+                    if ctx.area: ctx.area.tag_redraw()
+                bpy.app.timers.register(err, first_interval=0.01)
+        threading.Thread(target=save, daemon=True).start()
+        return {'FINISHED'}
 
 class OP_ClearSearch(Operator):
     bl_idname = "aimcp.clear_search"; bl_label = "Clear"
@@ -399,17 +410,6 @@ def register():
     for pid in ["deepseek", "opencode-go", "openrouter"]:
         key = f"aimcp_search_{pid.replace('-','_')}"
         setattr(bpy.types.Scene, key, StringProperty(default=""))
-    # Load current model from opencode config (non-blocking, delayed)
-    def load_model():
-        try:
-            r = urllib.request.urlopen("http://localhost:9877/api/providers", timeout=2)
-            d = json.loads(r.read())
-            if d.get("current_model"):
-                for s in bpy.data.scenes:
-                    s.aimcp_model = d["current_model"]
-        except: pass
-        return None
-    bpy.app.timers.register(load_model, first_interval=2.0)
 
 def unregister():
     for cls in reversed(classes):
