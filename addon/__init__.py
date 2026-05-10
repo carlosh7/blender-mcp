@@ -3,7 +3,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 2, 4),
+    "version": (0, 2, 5),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar (N) > AI",
     "description": "Chat panel to interact with AI via blender-mcp server",
