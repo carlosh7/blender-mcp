@@ -11,7 +11,7 @@ bl_info = {
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }
-import bpy, os, json, time, urllib.request, threading
+import bpy, os, json, sys, time, urllib.request, threading
 sys.path.insert(0, os.path.dirname(__file__))
 import blender_socket as bsock
 from bpy.types import Panel, Operator, PropertyGroup, UIList
