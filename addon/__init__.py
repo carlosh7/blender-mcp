@@ -1,10 +1,10 @@
-# blender-mcp — AI Assistant for Blender v0.8.0
+# blender-mcp — AI Assistant for Blender v0.8.1
 # Panels: Config (Properties) + Chat (3D View Sidebar)
 # AI chat via MCP tools (read-chat / respond-chat)
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 8, 0),
+    "version": (0, 8, 1),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "Chat with AI to create 3D models via connected provider APIs.",
@@ -275,31 +275,55 @@ class OP_Disconnect(Operator):
 
 class OP_Send(Operator):
     bl_idname = "aimcp.send"; bl_label = "Send"
-    connected: BoolProperty(default=False)
     def execute(self, ctx):
         txt = ctx.scene.aimcp_input.strip()
         if not txt: return {'CANCELLED'}
         ctx.scene.aimcp_chat.add("user", txt)
         ctx.scene.aimcp_input = ""
-        ctx.scene.aimcp_status = "Sending..."
+        ctx.scene.aimcp_status = "Waiting..."
         ctx.scene.aimcp_waiting = True
         ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
+        ctx.scene.aimcp_pending_msg_id = ""
         if ctx.area: ctx.area.tag_redraw()
 
         def send():
             result = http_post("/api/chat", {"message": txt})
-            def update():
-                if "response" in result:
-                    ctx.scene.aimcp_chat.add("assistant", result["response"])
-                    ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
-                elif "error" in result:
-                    ctx.scene.aimcp_chat.add("assistant", f"Error: {result['error'][:200]}")
-                else:
-                    ctx.scene.aimcp_chat.add("assistant", "No response received.")
-                ctx.scene.aimcp_status = ""
-                ctx.scene.aimcp_waiting = False
-                if ctx.area: ctx.area.tag_redraw()
-            bpy.app.timers.register(update, first_interval=0.01)
+            if result and result.get("message_id"):
+                ctx.scene.aimcp_pending_msg_id = result["message_id"]
+                # Start polling timer
+                def poll():
+                    if not ctx.scene.aimcp_pending_msg_id:
+                        return None
+                    mid = ctx.scene.aimcp_pending_msg_id
+                    try:
+                        r = urllib.request.urlopen(
+                            f"http://{ctx.scene.aimcp_host}:{ctx.scene.aimcp_port}/api/chat/status?message_id={mid}",
+                            timeout=3)
+                        status = json.loads(r.read())
+                        if status.get("status") == "done":
+                            resp = status.get("response", "")
+                            ctx.scene.aimcp_chat.add("assistant", resp)
+                            ctx.scene.aimcp_chat_index = ctx.scene.aimcp_chat.count - 1
+                            ctx.scene.aimcp_status = ""
+                            ctx.scene.aimcp_waiting = False
+                            ctx.scene.aimcp_pending_msg_id = ""
+                            if ctx.area: ctx.area.tag_redraw()
+                            return None  # stop timer
+                        # Still waiting
+                        return 2.0  # poll again in 2s
+                    except:
+                        ctx.scene.aimcp_waiting = False
+                        ctx.scene.aimcp_pending_msg_id = ""
+                        ctx.scene.aimcp_status = "Poll error"
+                        if ctx.area: ctx.area.tag_redraw()
+                        return None
+                bpy.app.timers.register(poll, first_interval=0.5)
+            else:
+                def err():
+                    ctx.scene.aimcp_waiting = False
+                    ctx.scene.aimcp_status = "Send failed"
+                    if ctx.area: ctx.area.tag_redraw()
+                bpy.app.timers.register(err, first_interval=0.01)
 
         threading.Thread(target=send, daemon=True).start()
         return {'FINISHED'}
@@ -343,6 +367,7 @@ def register():
     bpy.types.Scene.aimcp_connected = BoolProperty(default=False)
     bpy.types.Scene.aimcp_refreshing = BoolProperty(default=False)
     bpy.types.Scene.aimcp_waiting = BoolProperty(default=False)
+    bpy.types.Scene.aimcp_pending_msg_id = StringProperty(default="")
     bpy.types.Scene.aimcp_chat_index = IntProperty(default=0)
     bpy.types.Scene.aimcp_host = StringProperty(default="localhost")
     bpy.types.Scene.aimcp_port = IntProperty(default=9877, min=1024, max=65535)
@@ -368,8 +393,8 @@ def unregister():
         try: bpy.utils.unregister_class(cls)
         except: pass
     attrs = ["aimcp_models", "aimcp_status", "aimcp_model", "aimcp_port", "aimcp_host",
-             "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing", "aimcp_connected",
-             "aimcp_input", "aimcp_chat"]
+             "aimcp_pending_msg_id", "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing",
+             "aimcp_connected", "aimcp_input", "aimcp_chat"]
     for pid in ["deepseek", "opencode-go", "openrouter"]:
         attrs.append(f"aimcp_search_{pid.replace('-','_')}")
     for a in attrs:

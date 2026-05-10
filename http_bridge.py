@@ -42,11 +42,36 @@ except ImportError:
 _model_cache = {}
 CACHE_TTL = 300  # 5 minutes
 
+# Chat status store: {message_id: {"status": "processing"/"done"/"error", "response": "...", "message": "...", "timestamp": ...}}
+_chat_statuses = {}
+_chat_lock = threading.Lock()
+
+# Object detection for auto-processing
+_OBJECT_KEYWORDS = {
+    "chair": "chair-folding", "silla": "chair-folding", "asiento": "chair-folding",
+    "table": "table-round-150", "mesa": "table-round-150",
+    "mesa redonda": "table-round-150", "mesa rectangular": "table-rect",
+    "stage": "stage-custom", "escenario": "stage-custom", "tarima": "platform-2x2",
+    "platform": "platform-2x2",
+    "speaker": "speaker", "altavoz": "speaker", "bocina": "speaker",
+    "screen": "led-flat", "pantalla": "led-flat", "monitor": "led-flat",
+    "truss": "truss-straight",
+    "barrier": "barrier", "valla": "barrier", "barrera": "barrier",
+}
+
+_COLOR_KEYWORDS = {
+    "rojo": "#ff0000", "azul": "#0000ff", "verde": "#00ff00",
+    "negro": "#000000", "blanco": "#ffffff", "gris": "#888888",
+    "amarillo": "#ffff00", "dorado": "#ffd700", "plateado": "#c0c0c0",
+    "madera": "#8B4513", "roble": "#8B4513", "oscuro": "#333333",
+    "popo": "#7B3F00", "caca": "#7B3F00", "marron": "#7B3F00", "marrón": "#7B3F00",
+}
+
 
 def _fetch_provider_models(provider_id: str, cfg: dict) -> dict:
     """Fetch models from a provider's API. Returns {"models": [...], "error": None} or {"error": "..."}."""
     url = cfg["url"]
-    headers = {"User-Agent": "blender-mcp/0.8.0", "Accept": "application/json"}
+    headers = {"User-Agent": "blender-mcp/0.8.1", "Accept": "application/json"}
 
     if cfg.get("auth"):
         api_key = get_api_key(provider_id)
@@ -113,7 +138,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/health":
             self._send_json({
                 "status": "ok",
-                "version": "0.8.0",
+                "version": "0.8.1",
                 "models_dir": str(MODELS_DIR),
                 "models_count": len(list(MODELS_DIR.glob("*.glb"))),
             })
@@ -131,6 +156,24 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 })
             except Exception as e:
                 self._send_json({"error": str(e)}, 500)
+
+        elif parsed.path == "/api/chat/status":
+            from urllib.parse import parse_qs
+            params = parse_qs(parsed.query)
+            msg_id = params.get("message_id", [None])[0]
+            if not msg_id:
+                self._send_json({"error": "message_id required"}, 400)
+                return
+            with _chat_lock:
+                status = _chat_statuses.get(msg_id)
+            if not status:
+                self._send_json({"status": "not_found", "message_id": msg_id})
+            else:
+                self._send_json({
+                    "status": status["status"],
+                    "message_id": msg_id,
+                    "response": status.get("response", ""),
+                })
 
         elif parsed.path == "/api/providers":
             config = read_opencode_config()
@@ -210,38 +253,31 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "Empty message"}, 400)
                 return
 
-            if server_session is None:
-                self._send_json({"error": "MCP server session not available. Run in --mode all."}, 500)
-                return
-
-            # Queue message for AI processing
             msg_id = str(uuid.uuid4())
-            entry = {
-                "id": msg_id,
-                "message": message,
-                "timestamp": time.time(),
-            }
-            server_session["chat_queue"].append(entry)
+            with _chat_lock:
+                _chat_statuses[msg_id] = {
+                    "status": "processing",
+                    "message": message,
+                    "response": None,
+                    "timestamp": time.time(),
+                }
 
-            # Poll for response (up to 120s, check every 0.5s)
-            deadline = time.time() + 120
-            response_text = None
-            while time.time() < deadline:
-                if msg_id in server_session.get("chat_responses", {}):
-                    response_text = server_session["chat_responses"].pop(msg_id, None)
-                    break
-                time.sleep(0.5)
-
-            if response_text:
-                self._send_json({"response": response_text, "message_id": msg_id})
-            else:
-                # Timeout - remove from queue
-                server_session["chat_queue"] = [m for m in server_session["chat_queue"] if m["id"] != msg_id]
-                self._send_json({
-                    "response": "⏱ I didn't get a response in time. Check that opencode is running and connected.",
-                    "message_id": msg_id,
-                    "timeout": True,
+            # Queue for AI (opencode) to see
+            if server_session is not None:
+                server_session["chat_queue"].append({
+                    "id": msg_id,
+                    "message": message,
+                    "timestamp": time.time(),
                 })
+
+            # Auto-process in background thread (Blender pipeline)
+            threading.Thread(target=_auto_process_chat, args=(msg_id, message), daemon=True).start()
+
+            # Respond immediately — Blender will poll for status
+            self._send_json({
+                "status": "queued",
+                "message_id": msg_id,
+            })
 
         elif parsed.path == "/api/generate":
             body = self._read_body()
@@ -280,13 +316,79 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         else:
             self._send_json({"error": "Not found"}, 404)
 
+def _auto_process_chat(msg_id: str, message: str):
+    """Process a chat message in background using the real Blender pipeline."""
+    msg_lower = message.lower()
+    response = None
+
+    # Detect object type
+    matched_type = None
+    matched_word = None
+    for word, mtype in _OBJECT_KEYWORDS.items():
+        if word in msg_lower:
+            matched_type = mtype
+            matched_word = word
+            break
+
+    if matched_type:
+        # Detect color
+        color = None
+        for cname, chex in _COLOR_KEYWORDS.items():
+            if cname in msg_lower:
+                color = chex
+                break
+
+        try:
+            from server import generate_blender_script, run_blender, session
+            name = matched_type
+            script, output_path = generate_blender_script(matched_type, name=name, color=color)
+            result = run_blender(script)
+
+            if os.path.exists(output_path):
+                size = os.path.getsize(output_path)
+                final_path = str(output_path)
+                if session.get("check_path"):
+                    dst = Path(session["check_path"]) / f"{name}.glb"
+                    import shutil
+                    shutil.copy2(output_path, dst)
+                    final_path = str(dst)
+
+                color_msg = f" color" if color else ""
+                response = f"✅ Created {matched_word}{color_msg}! File: {os.path.basename(final_path)} ({size/1024:.0f} KB)"
+            else:
+                response = f"❌ Failed to generate {matched_word}. Blender error."
+        except Exception as e:
+            response = f"❌ Error generating: {str(e)[:100]}"
+    else:
+        response = f"📝 Message received: \"{message[:100]}\". I can create 3D models like chairs, tables, stages, screens, etc."
+
+    # Check if AI already responded via MCP
+    if server_session is not None and msg_id in server_session.get("chat_responses", {}):
+        ai_response = server_session["chat_responses"].pop(msg_id, None)
+        if ai_response:
+            response = ai_response
+
+    # Store final status
+    with _chat_lock:
+        if msg_id in _chat_statuses:
+            _chat_statuses[msg_id]["status"] = "done"
+            _chat_statuses[msg_id]["response"] = response
+            _chat_statuses[msg_id]["timestamp"] = time.time()
+
+    # Clean old statuses (keep last 50)
+    with _chat_lock:
+        ids = sorted(_chat_statuses.keys(), key=lambda i: _chat_statuses[i]["timestamp"], reverse=True)
+        for old_id in ids[50:]:
+            del _chat_statuses[old_id]
+
+
 def start_http_server(port: int = HTTP_PORT):
     global server_instance
     server_instance = HTTPServer(("0.0.0.0", port), MCPBridgeHandler)
     thread = threading.Thread(target=server_instance.serve_forever, daemon=True)
     thread.start()
     print(f"[HTTP Bridge] Server running on http://0.0.0.0:{port}")
-    print(f"[HTTP Bridge] Endpoints: GET /api/health, GET /api/models, GET /api/providers, POST /api/fetch-all-models, POST /api/set-model, POST /api/chat, POST /api/generate")
+    print(f"[HTTP Bridge] Endpoints: GET /api/health, GET /api/models, GET /api/providers, GET /api/chat/status, POST /api/fetch-all-models, POST /api/set-model, POST /api/chat, POST /api/generate")
     return server_instance
 
 
