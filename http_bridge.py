@@ -354,19 +354,20 @@ def _auto_process_chat(msg_id: str, message: str):
         try:
             from server import generate_blender_script
             name = matched_type
-            script, _ = generate_blender_script(matched_type, name=name, color=color)
+            script, _ = generate_blender_script(matched_type, name=name, color=color, keep_scene=True)
 
             # Try to execute in running Blender addon first
             addon_result = _execute_in_blender_addon(script)
 
             if addon_result.get("status") == "ok":
-                color_msg = f" color" if color else ""
-                response = f"✅ {matched_word}{color_msg} created in scene!"
+                color_msg = f" {color}" if color else ""
+                pfx = name.replace(" ", "_")
+                response = f"✅ {matched_word}{color_msg} created! [{pfx}]"
             else:
-                # Fall back to headless generation
+                # Fall back to headless generation with keep_scene=False
                 from server import run_blender, session
-                result = run_blender(script)
-                _, output_path = generate_blender_script(matched_type, name=name, color=color)
+                script_headless, output_path = generate_blender_script(matched_type, name=name, color=color, keep_scene=False)
+                result = run_blender(script_headless)
                 if os.path.exists(output_path):
                     size = os.path.getsize(output_path)
                     final_path = str(output_path)

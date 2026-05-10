@@ -210,8 +210,10 @@ async def handle_list_tools() -> list[types.Tool]:
 
 def generate_blender_script(model_type: str, name: str = None, color: str = None,
                              material: str = None, scale: float = 1.0,
-                             iterative: bool = False) -> tuple[str, str]:
+                             iterative: bool = False,
+                             keep_scene: bool = False) -> tuple[str, str]:
     """Generate a Blender Python script for the given model type.
+    When keep_scene=True: no clear, no export, objects are tracked, renamed and grouped.
     Returns (script_code, output_path).
     """
     out_name = name or model_type
@@ -219,7 +221,6 @@ def generate_blender_script(model_type: str, name: str = None, color: str = None
     color_override = color or ""
     mat_override = material or ""
 
-    # Color mapping
     color_map = {
         "chair-folding": (0.58, 0.64, 0.72, 0.12, 0.16, 0.20),
         "chair-executive": (0.12, 0.16, 0.20, 0.39, 0.45, 0.48),
@@ -241,7 +242,6 @@ def generate_blender_script(model_type: str, name: str = None, color: str = None
     p1, p2, p3, s1, s2, s3 = c
 
     if color:
-        # Parse hex color "#ff0000"
         hex_color = color.lstrip("#")
         if len(hex_color) == 6:
             r, g, b = int(hex_color[0:2], 16) / 255, int(hex_color[2:4], 16) / 255, int(hex_color[4:6], 16) / 255
@@ -251,7 +251,27 @@ def generate_blender_script(model_type: str, name: str = None, color: str = None
     clear_cmd = "bpy.ops.object.select_all(action='SELECT')\nbpy.ops.object.delete(use_global=False)"
     keep_cmd = "# Keep existing scene (iterative mode)"
 
-    script = textwrap.dedent(f'''\
+    if keep_scene:
+        header = textwrap.dedent(f'''\
+import bpy, os, math
+
+# ─── Track existing objects to identify new ones ───
+_before = set(D.objects.keys())
+_mats_before = set(D.materials.keys())
+
+def make_mat(name, r, g, b, roughness=0.5, metalness=0.0):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes['Principled BSDF']
+    bsdf.inputs['Base Color'].default_value = (r, g, b, 1)
+    bsdf.inputs['Roughness'].default_value = roughness
+    bsdf.inputs['Metallic'].default_value = metalness
+    return mat
+
+S = {scale}
+''')
+    else:
+        header = textwrap.dedent(f'''\
 import bpy, os, math
 
 # ─── Clean or keep scene ───
@@ -269,8 +289,6 @@ def make_mat(name, r, g, b, roughness=0.5, metalness=0.0):
 S = {scale}
 ''')
 
-    # Category-specific model generation
-    cat = AVAILABLE_MODELS.get(model_type, {}).get("category", "")
     gen_script = ""
 
     if model_type == "chair-folding":
@@ -366,8 +384,8 @@ for i in range(6):
 '''
     elif model_type == "barrier":
         gen_script = f'''
-red = make_mat('red', {p1}, {p2}, {p3}, 0.5, 0.0)
-white = make_mat('white', {s1}, {s2}, {s3}, 0.5, 0.0)
+red = make_mat('barrier_red', {p1}, {p2}, {p3}, 0.5, 0.0)
+white = make_mat('barrier_white', {s1}, {s2}, {s3}, 0.5, 0.0)
 for y, c in [(0.85*S, 'red'), (0.55*S, 'white'), (0.25*S, 'red')]:
     mat = red if c == 'red' else white
     bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, y))
@@ -386,10 +404,29 @@ bpy.context.active_object.scale = (0.5*S, 0.5*S, 0.5*S)
 bpy.context.active_object.data.materials.append(mat)
 '''
 
-    script += gen_script
+    script = header + gen_script
 
-    # Export
-    script += textwrap.dedent(f'''\
+    if keep_scene:
+        # Rename and group new objects
+        pfx = out_name.replace(" ", "_")
+        script += textwrap.dedent(f'''\
+
+# ─── Rename and group newly created objects ───
+_new_objects = [o for o in D.objects if o.name not in _before]
+for i, obj in enumerate(_new_objects):
+    obj.name = f"{pfx}_{{i+1:02d}}"
+# Create empty parent
+parent = bpy.data.objects.new("{pfx}", None)
+C.collection.objects.link(parent)
+for obj in _new_objects:
+    obj.parent = parent
+# Select the parent
+bpy.ops.object.select_all(action='DESELECT')
+parent.select_set(True)
+C.view_layer.objects.active = parent
+''')
+    else:
+        script += textwrap.dedent(f'''\
 
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)

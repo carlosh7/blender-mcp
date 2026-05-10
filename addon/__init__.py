@@ -91,21 +91,31 @@ def start_cmd_server():
                     name = body.get("name", model_type)
                     color = body.get("color")
                     try:
-                        # Import server generation functions
+                        # Auto-save if no file open
+                        if not bpy.data.filepath:
+                            bpy.ops.wm.save_as_mainfile(filepath="untitled.blend")
+                        # Import and generate with keep_scene=True (no clear, no export)
                         import sys
                         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                         if root not in sys.path:
                             sys.path.insert(0, root)
                         from server import generate_blender_script
-                        script, _ = generate_blender_script(model_type, name=name, color=color)
-                        # Execute the script
+                        script, _ = generate_blender_script(model_type, name=name, color=color, keep_scene=True)
                         exec(script, {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops})
+                        # Zoom to created object
+                        pfx = name.replace(" ", "_")
+                        if pfx in bpy.data.objects:
+                            bpy.ops.object.select_all(action='DESELECT')
+                            bpy.data.objects[pfx].select_set(True)
+                            bpy.context.view_layer.objects.active = bpy.data.objects[pfx]
+                            bpy.ops.view3d.view_selected()
                         for area in bpy.context.screen.areas:
                             if area.type == 'VIEW_3D':
                                 area.tag_redraw()
-                        self._send({"status": "ok", "object": name})
+                        self._send({"status": "ok", "object": pfx})
                     except Exception as e:
-                        self._send({"status": "error", "error": str(e)}, 500)
+                        import traceback
+                        self._send({"status": "error", "error": str(e), "traceback": traceback.format_exc()}, 500)
 
                 else:
                     self._send({"error": "Not found"}, 404)
