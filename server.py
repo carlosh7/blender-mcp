@@ -394,7 +394,7 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
         color = arguments.get("color")
         material = arguments.get("material", "")
         scale = float(arguments.get("scale", 1.0))
-        use_gui = bool(arguments.get("gui", False))
+        use_gui = bool(arguments.get("gui", False)) or session.get("gui", False)
         iterative = bool(arguments.get("iterative", False))
 
         # Store for iterative editing
@@ -434,15 +434,24 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[types.Text
 
 async def main():
     parser = argparse.ArgumentParser(description="blender-mcp: AI-powered 3D model generation via Blender")
-    parser.add_argument("--mode", choices=["standalone", "check", "gui"], default="standalone",
-                        help="Operation mode: standalone (default), check (integrate with check-3d-planner), gui (visible Blender)")
+    parser.add_argument("--mode", choices=["standalone", "check", "gui", "all"], default="standalone",
+                        help="Operation mode. 'all' enables everything simultaneously.")
     parser.add_argument("--check-path", type=str, default=None,
                         help="Path to check-3d-planner's public/models directory")
-    parser.add_argument("--port", type=int, default=9876,
+    parser.add_argument("--gui", action="store_true", default=False,
+                        help="Open Blender with GUI visible (even in standalone/check mode)")
+    parser.add_argument("--ws-port", type=int, default=9876,
                         help="WebSocket port for Blender addon connection")
     args = parser.parse_args()
 
+    # Resolve mode aliases
+    if args.mode == "all":
+        args.mode = "standalone"  # base mode
+        args.gui = True
+        args.check_path = args.check_path or str(MODELS_DIR.parent / "check-3d-planner" / "public" / "models")
+
     session["mode"] = args.mode
+    session["gui"] = args.gui
     if args.check_path:
         session["check_path"] = os.path.abspath(args.check_path)
         os.makedirs(session["check_path"], exist_ok=True)

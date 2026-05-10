@@ -105,4 +105,9 @@ def print_summary():
     print(f"{'='*50}\n")
 
 if __name__ == "__main__":
-    print_summary()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--install-addon":
+        from install import install as install_addon
+        install_addon()
+    else:
+        print_summary()
