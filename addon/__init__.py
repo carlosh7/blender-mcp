@@ -132,24 +132,29 @@ class PN_PT_Chat(Panel):
         L = self.layout; c = ctx.scene
         state = c.aimcp_ai_state
 
-        # Status bar
-        row = L.row(align=True)
+        # Status bar (model name on top, state below)
+        m = c.aimcp_model or "?"
+        if len(m) > 18: m = m[:17] + ".."
         if not c.aimcp_connected:
-            row.operator("aimcp.check", text="", icon='ADD')
-            row.label(text="Disconnected", icon='ERROR')
+            row = L.row(align=True)
+            row.operator("aimcp.check", text="Connect", icon='ADD')
         elif state == "processing":
+            row = L.row(align=True)
             row.operator("aimcp.disconnect", text="", icon='X')
+            row.label(text=m)
             idx = c.aimcp_spinner_idx % len(SPINNER_FRAMES)
-            spinner = SPINNER_FRAMES[idx]
-            m = c.aimcp_model or "?"
-            row.label(text=f"[{m}] {spinner} Processing", icon='SORTTIME')
+            row.label(text=SPINNER_FRAMES[idx], icon='SORTTIME')
+            row = L.row(align=True)
+            row.label(text="Processing...")
         elif state == "disconnected":
-            row.operator("aimcp.check", text="", icon='ADD')
-            row.label(text="[AI Lost] Check opencode", icon='ERROR')
+            row = L.row(align=True)
+            row.operator("aimcp.check", text="AI Lost", icon='ERROR')
+            row.label(text=m)
         else:
+            row = L.row(align=True)
             row.operator("aimcp.disconnect", text="", icon='X')
-            m = c.aimcp_model or "?"
-            row.label(text=f"[{m}] Connected", icon='CHECKBOX_HLT')
+            row.label(text=m)
+            row.label(text="", icon='CHECKBOX_HLT')
 
         row.separator()
         row.operator("aimcp.capture", text="", icon='CAMERA_DATA')
@@ -268,6 +273,7 @@ class OP_ClearSearch(Operator):
 class OP_Disconnect(Operator):
     bl_idname = "aimcp.disconnect"; bl_label = "Disconnect"
     def execute(self, ctx):
+        bsock.stop_socket_server()
         ctx.scene.aimcp_connected = False; ctx.scene.aimcp_status = ""
         if ctx.area: ctx.area.tag_redraw(); return {'FINISHED'}
 
@@ -392,7 +398,7 @@ def register():
         if changed:
             _redraw_areas()
         return 5.0
-    bpy.app.timers.register(health_check, first_interval=5.0)
+    bpy.app.timers.register(health_check, first_interval=1.0)
 
     # ─── Socket server (replaces HTTP bridge) ───
     try:

@@ -136,6 +136,7 @@ def start_socket_server():
     global _socket_server
     if _socket_server is None:
         _socket_server = BlenderSocketServer()
+    if not _socket_server.running:
         _socket_server.start()
     return _socket_server
 
