@@ -1,3 +1,3 @@
 [HTTP Bridge] Server running on http://0.0.0.0:9877
-[HTTP Bridge] Endpoints: GET /api/health, GET /api/models, GET /api/providers, GET /api/models-list, POST /api/set-model, POST /api/chat, POST /api/generate
+[HTTP Bridge] Endpoints: GET /api/health, GET /api/models, GET /api/providers, POST /api/fetch-all-models, POST /api/set-model, POST /api/chat, POST /api/generate
 HTTP bridge ready

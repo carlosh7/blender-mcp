@@ -18,52 +18,24 @@ OPENCODE_CONFIG_PATHS = [
     Path.home() / "check-3d-planner" / "opencode.json",
 ]
 
-# Known model lists per provider (when we can't query the API)
-KNOWN_MODELS = {
-    "anthropic": [
-        "anthropic/claude-sonnet-4-5", "anthropic/claude-haiku-4-5",
-        "anthropic/claude-opus-4-5", "anthropic/claude-3-5-sonnet",
-        "anthropic/claude-3-5-haiku", "anthropic/claude-3-opus",
-        "anthropic/claude-3-sonnet", "anthropic/claude-3-haiku",
-    ],
-    "openai": [
-        "openai/gpt-4o", "openai/gpt-4o-mini", "openai/gpt-4-turbo",
-        "openai/gpt-4", "openai/gpt-3.5-turbo",
-        "openai/o1", "openai/o1-mini", "openai/o3-mini",
-        "openai/o1-pro", "openai/gpt-4.5-preview",
-    ],
-    "deepseek": [
-        "deepseek/deepseek-chat", "deepseek/deepseek-reasoner",
-        "deepseek/deepseek-coder",
-    ],
-    "mistral": [
-        "mistralai/mistral-large", "mistralai/mistral-medium",
-        "mistralai/mistral-small", "mistralai/codestral",
-        "mistralai/mistral-7b-v0.3",
-    ],
-    "google": [
-        "google/gemini-2.0-flash", "google/gemini-2.0-pro",
-        "google/gemini-1.5-pro", "google/gemini-1.5-flash",
-    ],
-    "groq": [
-        "groq/llama-3.3-70b", "groq/llama-3.1-8b",
-        "groq/mixtral-8x7b", "groq/gemma-7b",
-    ],
-    "meta": [
-        "meta/llama-3.3-70b", "meta/llama-3.1-405b",
-        "meta/llama-3.1-70b", "meta/llama-3.1-8b",
-    ],
-    "cohere": [
-        "cohere/command-r-plus", "cohere/command-r",
-    ],
-    "opencode-go": [
-        "opencode-go/gpt-5.1-codex", "opencode-go/claude-sonnet-4-5",
-        "opencode-go/claude-haiku-4-5",
-    ],
+# API config per provider for fetching live model lists
+PROVIDER_API_CONFIG = {
+    "deepseek": {
+        "url": "https://api.deepseek.com/v1/models",
+        "auth": True,
+        "name": "DeepSeek",
+    },
+    "opencode-go": {
+        "url": "https://opencode.ai/zen/go/v1/models",
+        "auth": True,
+        "name": "OpenCode Go",
+    },
+    "openrouter": {
+        "url": "https://openrouter.ai/api/v1/models",
+        "auth": False,
+        "name": "OpenRouter",
+    },
 }
-
-# Providers that have public model listing APIs
-PUBLIC_API_PROVIDERS = ["openrouter"]
 
 
 def find_opencode_config() -> Path | None:
@@ -105,42 +77,33 @@ def read_opencode_config() -> dict:
                     detected_providers[prov_id] = True
         except: pass
 
-    # 2. Check opencode.json provider section
-    for prov_id in KNOWN_MODELS:
+    # 2. Check opencode.json for explicit provider configs
+    for prov_id in PROVIDER_API_CONFIG:
         key = data.get(prov_id, {}).get("api_key") or data.get("provider", {}).get(prov_id, {}).get("api_key")
         if key:
             detected_providers[prov_id] = True
 
     # 3. Check environment variables
     env_keys = {
-        "anthropic": "ANTHROPIC_API_KEY",
-        "openai": "OPENAI_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
-        "mistral": "MISTRAL_API_KEY",
-        "google": "GOOGLE_API_KEY",
-        "groq": "GROQ_API_KEY",
         "openrouter": "OPENROUTER_API_KEY",
     }
     for prov_id, env_var in env_keys.items():
         if os.environ.get(env_var):
             detected_providers[prov_id] = True
 
-    # Build providers list (only connected providers)
+    # Build providers list (only connected providers managed by blender-mcp)
     providers_list = []
     for prov_id in sorted(detected_providers):
-        is_public_api = prov_id in PUBLIC_API_PROVIDERS
-        model_count = len(KNOWN_MODELS.get(prov_id, []))
-        providers_list.append({
-            "id": prov_id,
-            "name": prov_id.capitalize(),
-            "connected": True,
-            "model_count": model_count if not is_public_api else 300,
-            "public_api": is_public_api,
-            "api_url": "https://openrouter.ai/api/v1/models" if is_public_api else None,
-        })
-
-    # Check if current model's provider is among connected providers
-    current_provider_connected = any(p["id"] == current_model_provider for p in providers_list)
+        cfg = PROVIDER_API_CONFIG.get(prov_id)
+        if cfg:
+            providers_list.append({
+                "id": prov_id,
+                "name": cfg["name"],
+                "connected": True,
+                "api_url": cfg["url"],
+                "auth_required": cfg["auth"],
+            })
 
     return {
         "found": True,
@@ -148,7 +111,6 @@ def read_opencode_config() -> dict:
         "data": data,
         "model": model,
         "current_provider": current_model_provider,
-        "current_provider_connected": current_provider_connected,
         "providers": providers_list,
     }
 
@@ -184,6 +146,43 @@ def get_provider_from_model(model_name: str) -> str:
     if "/" in model_name:
         return model_name.split("/")[0]
     return "opencode"
+
+
+def get_api_key(provider_id: str) -> str | None:
+    """Get API key for a provider from auth.json or env vars."""
+    # Check env vars first
+    env_map = {
+        "deepseek": "DEEPSEEK_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    env_var = env_map.get(provider_id)
+    if env_var:
+        key = os.environ.get(env_var)
+        if key:
+            return key
+
+    # Check auth.json
+    auth_path = Path.home() / ".local/share/opencode/auth.json"
+    if auth_path.exists():
+        try:
+            auth_data = json.loads(auth_path.read_text())
+            entry = auth_data.get(provider_id)
+            if isinstance(entry, dict):
+                return entry.get("key")
+        except: pass
+
+    # Check opencode config
+    config_file = find_opencode_config()
+    if config_file:
+        try:
+            data = json.loads(config_file.read_text())
+            key = data.get(provider_id, {}).get("api_key") or data.get("provider", {}).get(provider_id, {}).get("api_key")
+            if key:
+                return key
+        except: pass
+
+    return None
+
 
 def find_blender() -> str | None:
     """Find Blender executable path across platforms."""

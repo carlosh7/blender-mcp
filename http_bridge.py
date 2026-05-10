@@ -4,9 +4,9 @@ Provides REST endpoints for the Blender addon to communicate with the MCP server
 Runs on port 9877 by default.
 Endpoints:
   GET  /api/health          → { status: "ok" }
-  GET  /api/models          → list of available model types
+  GET  /api/models          → list of available 3D model types
   GET  /api/providers       → detect connected providers from opencode config
-  GET  /api/models?provider= → list models for a provider
+  POST /api/fetch-all-models → fetch live models from all connected providers
   POST /api/set-model       → set model in opencode config
   POST /api/chat            → process a chat message
   POST /api/generate        → generate a 3D model
@@ -14,10 +14,11 @@ Endpoints:
 import json
 import os
 import sys
+import time
 import threading
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 from pathlib import Path
 
 ROOT = Path(__file__).parent.resolve()
@@ -27,16 +28,54 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 HTTP_PORT = 9877
 server_instance = None
 
-# Import config module
 sys.path.insert(0, str(ROOT))
-from config import (
-    read_opencode_config, write_opencode_model,
-    KNOWN_MODELS, PUBLIC_API_PROVIDERS,
-)
+from config import read_opencode_config, write_opencode_model, PROVIDER_API_CONFIG, get_api_key
+
+# Model cache: {provider_id: {"data": [...], "cached_at": timestamp}}
+_model_cache = {}
+CACHE_TTL = 300  # 5 minutes
+
+
+def _fetch_provider_models(provider_id: str, cfg: dict) -> dict:
+    """Fetch models from a provider's API. Returns {"models": [...], "error": None} or {"error": "..."}."""
+    url = cfg["url"]
+    headers = {"User-Agent": "blender-mcp/0.7.2", "Accept": "application/json"}
+
+    if cfg.get("auth"):
+        api_key = get_api_key(provider_id)
+        if not api_key:
+            return {"error": f"No API key found for {provider_id}"}
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            raw = json.loads(resp.read())
+    except Exception as e:
+        return {"error": f"Failed to fetch from {provider_id}: {str(e)[:100]}"}
+
+    # Normalize different API response formats
+    models_raw = raw.get("data", raw)
+    if not isinstance(models_raw, list):
+        return {"error": f"Unexpected response format from {provider_id}"}
+
+    models = []
+    seen = set()
+    for m in models_raw:
+        mid = m.get("id", "")
+        if not mid or mid in seen:
+            continue
+        seen.add(mid)
+        models.append({
+            "id": mid,
+            "name": m.get("name") or mid.split("/")[-1].replace("-", " ").title(),
+            "provider": provider_id,
+        })
+
+    return {"models": models, "error": None}
 
 
 class MCPBridgeHandler(BaseHTTPRequestHandler):
-    """HTTP handler that bridges Blender addon requests to the MCP system."""
 
     def log_message(self, format, *args):
         print(f"[HTTP] {args[0]} {args[1]} {args[2]}")
@@ -67,20 +106,12 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/health":
             self._send_json({
                 "status": "ok",
+                "version": "0.7.2",
                 "models_dir": str(MODELS_DIR),
                 "models_count": len(list(MODELS_DIR.glob("*.glb"))),
-                "suggested_models": [
-                    "claude-sonnet-4-5", "claude-haiku-4-5",
-                    "gpt-4o", "gpt-4o-mini",
-                    "deepseek-chat", "deepseek-reasoner",
-                    "mistral-large", "llama-3.3-70b",
-                    "gemini-2.0-flash",
-                ],
-                "openrouter": "https://openrouter.ai/models — 300+ models available",
             })
 
         elif parsed.path == "/api/models":
-            # Return available model types from the server module
             try:
                 from server import AVAILABLE_MODELS
                 self._send_json({
@@ -94,132 +125,24 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._send_json({"error": str(e)}, 500)
 
-        elif parsed.path == "/api/opencode-config":
-            """Read opencode config to find configured model(s)."""
-            config_paths = [
-                Path.home() / ".config" / "opencode" / "opencode.json",
-                Path.home() / ".config" / "opencode" / "opencode.jsonc",
-                Path.cwd() / "opencode.json",
-                Path.cwd() / "opencode.jsonc",
-                Path.home() / "Check" / "opencode.json",
-                Path.home() / "check-3d-planner" / "opencode.json",
-            ]
-            model = None
-            provider = None
-            all_models = []
-            agents_models = []
-
-            for p in config_paths:
-                if p.exists():
-                    try:
-                        data = json.loads(p.read_text())
-                        m = data.get("model")
-                        if m:
-                            model = m
-                            all_models.append(m)
-                        if "provider" in data:
-                            prov = data["provider"]
-                            if isinstance(prov, dict):
-                                provider = list(prov.keys())[0]
-                        agents = data.get("agent", {})
-                        if isinstance(agents, dict):
-                            for agent_name, agent_cfg in agents.items():
-                                if isinstance(agent_cfg, dict) and agent_cfg.get("model"):
-                                    agents_models.append({
-                                        "agent": agent_name,
-                                        "model": agent_cfg["model"],
-                                    })
-                    except: pass
-
-            env_model = os.environ.get("OPENCODE_MODEL")
-            if env_model and env_model not in all_models:
-                all_models.append(env_model)
-
-            self._send_json({
-                "model": model or "unknown",
-                "provider": provider or "opencode",
-                "all_models": all_models,
-                "agents": agents_models,
-                "config_files_found": [str(p) for p in config_paths if p.exists()],
-                "hint": "Set the model in opencode config or type any model name here.",
-            })
-
         elif parsed.path == "/api/providers":
-            """List all providers detected from opencode config."""
             config = read_opencode_config()
+            providers = config.get("providers", [])
+            # Add model counts from cache if available
+            for p in providers:
+                pid = p["id"]
+                cached = _model_cache.get(pid)
+                if cached and cached["data"]:
+                    p["model_count"] = len(cached["data"])
+                else:
+                    p["model_count"] = 0
+
             self._send_json({
                 "found": config["found"],
                 "config_file": config.get("config_file"),
                 "current_model": config.get("model", ""),
                 "current_provider": config.get("current_provider", "opencode"),
-                "current_provider_connected": config.get("current_provider_connected", False),
-                "providers": config.get("providers", []),
-            })
-
-        elif parsed.path == "/api/models-list":
-            """List models for a specific provider. Query: ?provider=openrouter&page=1&page_size=50"""
-            params = parse_qs(parsed.query)
-            provider = params.get("provider", [None])[0]
-            page = int(params.get("page", [1])[0])
-            page_size = int(params.get("page_size", [50])[0])
-            search = params.get("search", [""])[0].lower()
-
-            if not provider:
-                self._send_json({"error": "provider query param required"}, 400)
-                return
-
-            if provider in PUBLIC_API_PROVIDERS:
-                # Fetch live models from OpenRouter public API
-                try:
-                    req = urllib.request.Request(
-                        "https://openrouter.ai/api/v1/models",
-                        headers={"User-Agent": "blender-mcp/0.7"},
-                    )
-                    with urllib.request.urlopen(req, timeout=10) as resp:
-                        or_data = json.loads(resp.read())
-                    raw_list = or_data.get("data", or_data)
-                    models_list = []
-                    if isinstance(raw_list, list):
-                        for m in raw_list:
-                            mid = m.get("id", "")
-                            models_list.append({
-                                "id": mid,
-                                "name": m.get("name", mid),
-                                "provider": "openrouter",
-                                "context_length": m.get("context_length"),
-                                "pricing": m.get("pricing", {}).get("prompt", "?") if isinstance(m.get("pricing"), dict) else "?",
-                            })
-                except Exception as e:
-                    self._send_json({
-                        "provider": provider,
-                        "error": f"Failed to fetch from OpenRouter: {str(e)[:100]}",
-                        "models": [],
-                        "total": 0,
-                    })
-                    return
-            else:
-                # Use curated list
-                models_list = [
-                    {"id": mid, "name": mid.split("/")[-1].replace("-", " ").title(), "provider": provider}
-                    for mid in KNOWN_MODELS.get(provider, [])
-                ]
-
-            # Apply search filter
-            if search:
-                models_list = [m for m in models_list if search in m["id"].lower() or search in m["name"].lower()]
-
-            total = len(models_list)
-            start = (page - 1) * page_size
-            end = start + page_size
-            page_models = models_list[start:end]
-
-            self._send_json({
-                "provider": provider,
-                "models": page_models,
-                "total": total,
-                "page": page,
-                "page_size": page_size,
-                "has_more": end < total,
+                "providers": providers,
             })
 
         else:
@@ -228,18 +151,50 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
 
-        if parsed.path == "/api/set-model":
-            """Set the model in opencode config."""
+        if parsed.path == "/api/fetch-all-models":
+            body = self._read_body()
+            force_refresh = body.get("force", False)
+            now = time.time()
+
+            config = read_opencode_config()
+            providers = config.get("providers", [])
+            results = {}
+
+            for p in providers:
+                pid = p["id"]
+                cfg = PROVIDER_API_CONFIG.get(pid)
+                if not cfg:
+                    results[pid] = {"error": "No API config for this provider"}
+                    continue
+
+                # Check cache
+                cached = _model_cache.get(pid)
+                if cached and not force_refresh and (now - cached["cached_at"]) < CACHE_TTL:
+                    results[pid] = {"models": cached["data"], "cached": True}
+                    continue
+
+                # Fetch live
+                result = _fetch_provider_models(pid, cfg)
+                if result["models"]:
+                    _model_cache[pid] = {"data": result["models"], "cached_at": now}
+                    results[pid] = {"models": result["models"], "cached": False}
+                else:
+                    # Keep stale cache if fetch fails
+                    if cached:
+                        results[pid] = {"models": cached["data"], "cached": True, "fetch_error": result["error"]}
+                    else:
+                        results[pid] = {"models": [], "error": result["error"]}
+
+            self._send_json({"providers": results})
+
+        elif parsed.path == "/api/set-model":
             body = self._read_body()
             model_name = body.get("model", "")
             if not model_name:
                 self._send_json({"error": "model field required"}, 400)
                 return
             result = write_opencode_model(model_name)
-            if result["success"]:
-                self._send_json(result)
-            else:
-                self._send_json(result, 500)
+            self._send_json(result, 200 if result["success"] else 500)
 
         elif parsed.path == "/api/chat":
             body = self._read_body()
@@ -250,7 +205,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "Empty message"}, 400)
                 return
 
-            # Process via template matching (simple approach without MCP client)
             response = self._process_chat(message, model)
             self._send_json(response)
 
@@ -270,7 +224,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
                 if os.path.exists(output_path):
                     size = os.path.getsize(output_path)
-                    # Copy to check path if configured
                     final_path = str(output_path)
                     if session.get("check_path"):
                         dst = Path(session["check_path"]) / f"{name}.glb"
@@ -293,10 +246,8 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "Not found"}, 404)
 
     def _process_chat(self, message: str, model: str = "default") -> dict:
-        """Process a chat message using template matching and auto-generate if possible."""
         msg_lower = message.lower()
 
-        # Keywords → model type mapping
         kw_map = {
             "chair": "chair-folding", "silla": "chair-folding", "asiento": "chair-folding",
             "table": "table-round-150", "mesa": "table-round-150", "mesa redonda": "table-round-150",
@@ -309,7 +260,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             "barrier": "barrier", "valla": "barrier", "barrera": "barrier",
         }
 
-        # Find matching model type
         matched_type = None
         matched_word = None
         for word, mtype in kw_map.items():
@@ -321,12 +271,12 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
         if matched_type:
             try:
                 from server import generate_blender_script, run_blender, session
-                # Check for color in message
                 color = None
                 color_words = {"rojo": "#ff0000", "azul": "#0000ff", "verde": "#00ff00",
                                "negro": "#000000", "blanco": "#ffffff", "gris": "#888888",
                                "amarillo": "#ffff00", "dorado": "#ffd700", "plateado": "#c0c0c0",
-                               "madera": "#8B4513", "roble": "#8B4513", "oscuro": "#333333"}
+                               "madera": "#8B4513", "roble": "#8B4513", "oscuro": "#333333",
+                               "popo": "#7B3F00", "caca": "#7B3F00", "marron": "#7B3F00", "marrón": "#7B3F00"}
                 for cname, chex in color_words.items():
                     if cname in msg_lower:
                         color = chex
@@ -357,7 +307,6 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 return {"response": f"❌ Error: {str(e)[:80]}", "action": "error"}
 
-        # Help
         if any(w in msg_lower for w in ["help", "ayuda", "?"]):
             return {
                 "response": "Try: 'create a chair', 'make a blue table', 'build a stage', 'red speaker'.",
@@ -371,18 +320,16 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
 
 
 def start_http_server(port: int = HTTP_PORT):
-    """Start the HTTP bridge server in a background thread."""
     global server_instance
     server_instance = HTTPServer(("0.0.0.0", port), MCPBridgeHandler)
     thread = threading.Thread(target=server_instance.serve_forever, daemon=True)
     thread.start()
     print(f"[HTTP Bridge] Server running on http://0.0.0.0:{port}")
-    print(f"[HTTP Bridge] Endpoints: GET /api/health, GET /api/models, GET /api/providers, GET /api/models-list, POST /api/set-model, POST /api/chat, POST /api/generate")
+    print(f"[HTTP Bridge] Endpoints: GET /api/health, GET /api/models, GET /api/providers, POST /api/fetch-all-models, POST /api/set-model, POST /api/chat, POST /api/generate")
     return server_instance
 
 
 def stop_http_server():
-    """Stop the HTTP bridge server."""
     global server_instance
     if server_instance:
         server_instance.shutdown()
@@ -393,7 +340,7 @@ if __name__ == "__main__":
     print("Starting HTTP bridge server...")
     start_http_server()
     try:
-        threading.Event().wait()  # Keep alive
+        threading.Event().wait()
     except KeyboardInterrupt:
         stop_http_server()
         print("Stopped.")
