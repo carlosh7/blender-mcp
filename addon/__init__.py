@@ -1,12 +1,12 @@
-# blender-mcp Addon for Blender
-# Provides: AI chat panel, scene capture, live script execution
+# blender-mcp Addon for Blender — v0.2.4
+# Minimal but functional: chat panel, scene capture, export GLB
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 2, 0),
+    "version": (0, 2, 4),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar (N) > AI Tab",
-    "description": "Chat with AI to create and edit 3D models via blender-mcp. Open sidebar with N, click AI tab.",
+    "location": "View3D > Sidebar (N) > AI",
+    "description": "Chat panel to interact with AI via blender-mcp server",
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }
@@ -16,211 +16,148 @@ from bpy.types import Panel, Operator, PropertyGroup
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 import os
 
+# ─── Chat Message (single item in collection) ───
+class ChatMsg(PropertyGroup):
+    role: StringProperty()
+    text: StringProperty()
 
-# ─── Chat Message Item ───
-class ChatMessageItem(PropertyGroup):
-    role: StringProperty(name="Role", default="user")
-    text: StringProperty(name="Text", default="")
-    time: StringProperty(name="Time", default="")
+# ─── Chat Data (scene storage) ───
+class ChatData(PropertyGroup):
+    msgs: CollectionProperty(type=ChatMsg)
+    count: IntProperty(default=0)
 
+    def add(self, role, text):
+        m = self.msgs.add()
+        m.role = role
+        m.text = text
+        self.count = len(self.msgs)
 
-# ─── Chat Container ───
-class ChatContainer(PropertyGroup):
-    messages: CollectionProperty(type=ChatMessageItem)
-    count: IntProperty(name="Count", default=0)
-    max_messages: IntProperty(default=20)
+# ─── App State ───
+class AppState(PropertyGroup):
+    connected: BoolProperty(default=False)
 
-    def add_message(self, role: str, text: str):
-        while len(self.messages) >= self.max_messages:
-            self.messages.remove(0)
-        item = self.messages.add()
-        item.role = role
-        item.text = text
-        self.count = len(self.messages)
-
-
-# ─── Properties ───
-class AIMCPProperties(PropertyGroup):
-    server_host: StringProperty(name="Server Host", default="localhost")
-    server_port: IntProperty(name="Server Port", default=9876, min=1024, max=65535)
-    connected: BoolProperty(name="Connected", default=False)
-
-
-# ─── Operators ───
-class AIMCP_OT_Connect(Operator):
+# ─── Connect ───
+class OP_Connect(Operator):
     bl_idname = "aimcp.connect"
     bl_label = "Connect"
-    bl_description = "Connect to blender-mcp server"
-
-    def execute(self, context):
-        context.scene.aimcp_props.connected = True
-        context.scene.aimcp_chat.add_message("system", "Connected to blender-mcp server")
-        context.area.tag_redraw()
-        self.report({'INFO'}, "Connected")
+    def execute(self, ctx):
+        ctx.scene.aimcp_connected = True
+        ctx.scene.aimcp_chat.add("system", "Connected ✅")
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
-
-class AIMCP_OT_Disconnect(Operator):
+class OP_Disconnect(Operator):
     bl_idname = "aimcp.disconnect"
     bl_label = "Disconnect"
-    bl_description = "Disconnect from MCP server"
-
-    def execute(self, context):
-        context.scene.aimcp_props.connected = False
-        context.scene.aimcp_chat.add_message("system", "Disconnected")
-        context.area.tag_redraw()
-        self.report({'INFO'}, "Disconnected")
+    def execute(self, ctx):
+        ctx.scene.aimcp_connected = False
+        ctx.scene.aimcp_chat.add("system", "Disconnected")
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
-
-class AIMCP_OT_SendMessage(Operator):
-    bl_idname = "aimcp.send_message"
+class OP_Send(Operator):
+    bl_idname = "aimcp.send"
     bl_label = "Send"
-    bl_description = "Send message to AI assistant"
-
-    def execute(self, context):
-        text = context.scene.aimcp_input.strip()
-        if not text:
-            return {'CANCELLED'}
-        context.scene.aimcp_chat.add_message("user", text)
-        context.scene.aimcp_input = ""
-        context.scene.aimcp_chat.add_message("assistant", f"⏳ Processing... (connect blender-mcp server)")
-        context.area.tag_redraw()
+    def execute(self, ctx):
+        txt = ctx.scene.aimcp_input.strip()
+        if not txt: return {'CANCELLED'}
+        ctx.scene.aimcp_chat.add("user", txt)
+        ctx.scene.aimcp_input = ""
+        ctx.scene.aimcp_chat.add("assistant", "🤖 Processing...")
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
-
-class AIMCP_OT_CaptureScene(Operator):
-    bl_idname = "aimcp.capture_scene"
+class OP_Capture(Operator):
+    bl_idname = "aimcp.capture"
     bl_label = "Capture Scene"
-    bl_description = "Send current scene info to AI"
-
-    def execute(self, context):
-        obj_count = len(bpy.data.objects)
-        mesh_count = sum(1 for o in bpy.data.objects if o.type == 'MESH')
-        context.scene.aimcp_chat.add_message("system", f"Scene: {obj_count} objects ({mesh_count} meshes)")
-        context.area.tag_redraw()
-        self.report({'INFO'}, f"Scene: {obj_count} objects")
+    def execute(self, ctx):
+        n = len(bpy.data.objects)
+        ctx.scene.aimcp_chat.add("system", f"Scene: {n} objects")
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
-
-class AIMCP_OT_ExportGLB(Operator):
+class OP_Export(Operator):
     bl_idname = "aimcp.export_glb"
     bl_label = "Export GLB"
-    bl_description = "Export scene as GLTF/GLB"
-
-    def execute(self, context):
-        output = os.path.join(os.path.expanduser("~"), "blender-mcp", "models", "exported_model.glb")
-        os.makedirs(os.path.dirname(output), exist_ok=True)
+    def execute(self, ctx):
+        out = os.path.expanduser("~/blender-mcp/models/scene.glb")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
         bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.export_scene.gltf(filepath=output, export_format='GLB')
-        context.scene.aimcp_chat.add_message("system", f"Exported to {output}")
-        context.area.tag_redraw()
-        self.report({'INFO'}, f"Exported to {output}")
+        bpy.ops.export_scene.gltf(filepath=out, export_format='GLB')
+        ctx.scene.aimcp_chat.add("system", f"Exported ✅")
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
-
-class AIMCP_OT_ClearChat(Operator):
-    bl_idname = "aimcp.clear_chat"
-    bl_label = "Clear Chat"
-
-    def execute(self, context):
-        context.scene.aimcp_chat.messages.clear()
-        context.scene.aimcp_chat.count = 0
-        context.area.tag_redraw()
+class OP_Clear(Operator):
+    bl_idname = "aimcp.clear"
+    bl_label = "Clear"
+    def execute(self, ctx):
+        ctx.scene.aimcp_chat.msgs.clear()
+        ctx.scene.aimcp_chat.count = 0
+        if ctx.area: ctx.area.tag_redraw()
         return {'FINISHED'}
 
-
-# ─── Main Panel ───
-class AIMCP_PT_MainPanel(Panel):
+# ─── Panel ───
+class PN_Main(Panel):
     bl_label = "🤖 AI Assistant"
-    bl_idname = "AIMCP_PT_MainPanel"
+    bl_idname = "PN_Main"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'AI'
-    bl_options = {'DEFAULT_CLOSED'}
 
-    @classmethod
-    def poll(cls, context):
-        return context.area is not None
+    def draw(self, ctx):
+        L = self.layout
 
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.aimcp_props
-        chat = context.scene.aimcp_chat
-
-        # ─── Connection status bar (always visible) ───
-        row = layout.row(align=True)
-        if props.connected:
-            row.operator("aimcp.disconnect", text="Disconnect", icon='LINK_BREAK')
-            row.label(text="● Online")
+        # Status bar
+        r = L.row(align=True)
+        if ctx.scene.aimcp_connected:
+            r.operator("aimcp.disconnect", text="Disconnect")
+            r.label(text="● Online")
         else:
-            row.operator("aimcp.connect", text="Connect", icon='LINKED')
-            row.label(text="○ Offline")
+            r.operator("aimcp.connect", text="Connect")
+            r.label(text="○ Offline")
 
-        # ─── Action buttons ───
-        col = layout.column(align=True)
-        col.scale_y = 1.3
-        row = col.row(align=True)
-        row.operator("aimcp.capture_scene", text="📷 Scene", icon='CAMERA_DATA')
-        row.operator("aimcp.export_glb", text="📤 Export", icon='EXPORT')
+        # Actions
+        c = L.column(align=True)
+        c.scale_y = 1.3
+        r2 = c.row(align=True)
+        r2.operator("aimcp.capture", text="📷 Scene")
+        r2.operator("aimcp.export_glb", text="📤 Export")
 
-        # ─── Chat history (scrollable area) ───
-        layout.separator()
-        box = layout.box()
+        # Chat
+        L.separator()
+        b = L.box()
+        chat = ctx.scene.aimcp_chat
         if chat.count == 0:
-            box.label(text="💬 No messages yet")
+            b.label(text="💬 No messages")
         else:
-            for msg in chat.messages:
-                if msg.role == "user":
-                    box.label(text=f"🧑 {msg.text[:80]}")
-                elif msg.role == "assistant":
-                    box.label(text=f"🤖 {msg.text[:80]}")
-                else:
-                    box.label(text=f"ℹ️ {msg.text[:80]}")
-            row = box.row(align=True)
-            row.operator("aimcp.clear_chat", text="Clear", icon='X')
+            for m in chat.msgs:
+                icon = "🧑" if m.role == "user" else "🤖" if m.role == "assistant" else "ℹ️"
+                b.label(text=f"{icon} {m.text[:80]}")
+            b.operator("aimcp.clear", text="Clear", icon='X')
 
-        # ─── Input area (ALWAYS visible) ───
-        layout.separator()
-        row = layout.row(align=True)
-        row.prop(context.scene, "aimcp_input", text="")
-        op = row.operator("aimcp.send_message", text="Send", icon='PLAY')
-        row.scale_x = 0.6
-        layout.separator()
-        layout.scale_y = 0.5
-        layout.label(text="Connected" if props.connected else "Disconnected")
+        # Input
+        L.separator()
+        r3 = L.row(align=True)
+        r3.prop(ctx.scene, "aimcp_input", text="")
+        r3.operator("aimcp.send", text="Send", icon='PLAY')
 
-
-# ─── Registration ───
-classes = [
-    ChatMessageItem,
-    ChatContainer,
-    AIMCPProperties,
-    AIMCP_OT_Connect,
-    AIMCP_OT_Disconnect,
-    AIMCP_OT_SendMessage,
-    AIMCP_OT_CaptureScene,
-    AIMCP_OT_ExportGLB,
-    AIMCP_OT_ClearChat,
-    AIMCP_PT_MainPanel,
-]
-
+# ─── Register ───
+classes = [ChatMsg, ChatData, AppState, OP_Connect, OP_Disconnect, OP_Send, OP_Capture, OP_Export, OP_Clear, PN_Main]
 
 def register():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-    bpy.types.Scene.aimcp_props = PointerProperty(type=AIMCPProperties)
-    bpy.types.Scene.aimcp_chat = PointerProperty(type=ChatContainer)
-    bpy.types.Scene.aimcp_input = StringProperty(name="", default="", description="Write your message here...")
-
+    for c in classes:
+        bpy.utils.register_class(c)
+    bpy.types.Scene.aimcp_chat = PointerProperty(type=ChatData)
+    bpy.types.Scene.aimcp_input = StringProperty(description="Write your message...")
+    bpy.types.Scene.aimcp_connected = BoolProperty(default=False)
 
 def unregister():
+    del bpy.types.Scene.aimcp_connected
     del bpy.types.Scene.aimcp_input
     del bpy.types.Scene.aimcp_chat
-    del bpy.types.Scene.aimcp_props
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
-
+    for c in reversed(classes):
+        bpy.utils.unregister_class(c)
 
 if __name__ == "__main__":
     register()
