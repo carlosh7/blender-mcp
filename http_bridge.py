@@ -84,26 +84,60 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(e)}, 500)
 
         elif parsed.path == "/api/opencode-config":
-            """Read opencode config to find configured model."""
+            """Read opencode config to find configured model(s)."""
             config_paths = [
                 Path.home() / ".config" / "opencode" / "opencode.json",
                 Path.home() / ".config" / "opencode" / "opencode.jsonc",
                 Path.cwd() / "opencode.json",
+                Path.cwd() / "opencode.jsonc",
+                # Check project roots
+                Path.home() / "Check" / "opencode.json",
+                Path.home() / "check-3d-planner" / "opencode.json",
             ]
             model = None
             provider = None
+            all_models = []
+            agents_models = []
+
             for p in config_paths:
                 if p.exists():
                     try:
                         data = json.loads(p.read_text())
-                        model = data.get("model", model)
+                        # Main model
+                        m = data.get("model")
+                        if m:
+                            model = m
+                            all_models.append(m)
+                        # Provider
                         if "provider" in data:
-                            provider = list(data["provider"].keys())[0] if isinstance(data["provider"], dict) else provider
+                            prov = data["provider"]
+                            if isinstance(prov, dict):
+                                provider = list(prov.keys())[0]
+                        # Agent-specific models
+                        agents = data.get("agent", {})
+                        if isinstance(agents, dict):
+                            for agent_name, agent_cfg in agents.items():
+                                if isinstance(agent_cfg, dict) and agent_cfg.get("model"):
+                                    agents_models.append({
+                                        "agent": agent_name,
+                                        "model": agent_cfg["model"],
+                                    })
+                        # MCP configured models (from opencode)
+                        # Also read model from MCP env
                     except: pass
+
+            # Also try environment variable
+            env_model = os.environ.get("OPENCODE_MODEL")
+            if env_model and env_model not in all_models:
+                all_models.append(env_model)
+
             self._send_json({
                 "model": model or "unknown",
                 "provider": provider or "opencode",
+                "all_models": all_models,
+                "agents": agents_models,
                 "config_files_found": [str(p) for p in config_paths if p.exists()],
+                "hint": "Set the model in opencode config or type any model name here.",
             })
 
         else:

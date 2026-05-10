@@ -96,11 +96,29 @@ class PN_PT_Config(Panel):
         row.prop(c, "aimcp_provider", text="Provider")
         row.enabled = False
 
-        # Suggestions
-        box.label(text="Suggestions:", icon='INFO')
+        # Clickable model suggestions from opencode config
         suggestions = getattr(c, "aimcp_model_suggestions", "")
-        if suggestions:
-            box.label(text=suggestions, icon='BLANK1')
+        if suggestions and suggestions != "Type any model name from your provider":
+            box.label(text="Detected models:", icon='INFO')
+            for line in suggestions.split("\n"):
+                if line.strip():
+                    # Check if it's a model name (starts with "  Agent" or "Detected:")
+                    if line.startswith("  Agent"):
+                        # Extract model name after ": "
+                        parts = line.split(": ")
+                        if len(parts) > 1:
+                            model_name = parts[-1].strip()
+                            op = box.operator("aimcp.set_model", text=f"Use: {model_name}")
+                            op.model_name = model_name
+                    elif "Detected:" in line:
+                        models_str = line.split("Detected:")[1].strip()
+                        for m in models_str.split(", "):
+                            m = m.strip()
+                            if m:
+                                op = box.operator("aimcp.set_model", text=f"▶ {m}")
+                                op.model_name = m
+        else:
+            box.label(text="Click ↻ to scan opencode config", icon='BLANK1')
 
         # Status
         L.separator()
@@ -174,19 +192,39 @@ class OP_CheckConnection(Operator):
         return {'FINISHED'}
 
 class OP_RefreshModels(Operator):
-    bl_idname = "aimcp.refresh_models"; bl_label = "Refresh Models"
-    bl_description = "Load available models from server and test connection"
+    bl_idname = "aimcp.refresh_models"; bl_label = "↻ Refresh"
+    bl_description = "Test connection, detect configured AI models, and update config"
     def execute(self, ctx):
         host = ctx.scene.aimcp_server_host
         port = ctx.scene.aimcp_server_port
         try:
-            r = urllib.request.urlopen(f"http://{host}:{port}/api/health", timeout=3)
+            # Fetch health + model info
+            r = urllib.request.urlopen(f"http://{host}:{port}/api/opencode-config", timeout=3)
             data = json.loads(r.read())
             ctx.scene.aimcp_connected = True
-            ctx.scene.aimcp_status = f"Connected."
-            ctx.scene.aimcp_model_suggestions = "Type any model from opencode (Claude, GPT, DeepSeek, etc.)"
+
+            # Auto-fill detected model from opencode config
+            detected = data.get("model")
+            if detected and detected != "unknown":
+                ctx.scene.aimcp_model = detected
+                ctx.scene.aimcp_provider = data.get("provider", "opencode")
+
+            # Build suggestions text
+            all_models = data.get("all_models", [])
+            agents = data.get("agents", [])
+            hints = []
+            if all_models:
+                hints.append("Detected: " + ", ".join(all_models[:5]))
+            for a in agents:
+                hints.append(f"  Agent '{a['agent']}': {a['model']}")
+            if not hints:
+                hints.append("Type any model name from your provider")
+
+            ctx.scene.aimcp_model_suggestions = "\n".join(hints)
+            ctx.scene.aimcp_status = f"Connected. Model: {detected or 'type manually'}"
+
             if ctx.area: ctx.area.tag_redraw()
-            self.report({'INFO'}, "Connected to server")
+            self.report({'INFO'}, f"Connected. Model: {detected or 'unknown'}")
         except Exception as e:
             ctx.scene.aimcp_connected = False
             ctx.scene.aimcp_status = f"Failed: {str(e)[:60]}"
@@ -200,6 +238,18 @@ class OP_Disconnect(Operator):
         ctx.scene.aimcp_connected = False
         ctx.scene.aimcp_status = "Disconnected"
         if ctx.area: ctx.area.tag_redraw()
+        return {'FINISHED'}
+
+class OP_SetModel(Operator):
+    bl_idname = "aimcp.set_model"; bl_label = "Set Model"
+    bl_description = "Set the AI model from the detected list"
+    model_name: StringProperty(default="")
+    def execute(self, ctx):
+        if self.model_name:
+            ctx.scene.aimcp_model = self.model_name
+            ctx.scene.aimcp_status = f"Model set to: {self.model_name}"
+            if ctx.area: ctx.area.tag_redraw()
+            self.report({'INFO'}, f"Model: {self.model_name}")
         return {'FINISHED'}
 
 class OP_Send(Operator):
@@ -265,7 +315,7 @@ class OP_Clear(Operator):
 # ─── Register ───
 classes = [
     ChatMsg, ChatData, MCP_UL_Chat,
-    OP_CheckConnection, OP_RefreshModels, OP_Disconnect, OP_Send,
+    OP_CheckConnection, OP_RefreshModels, OP_Disconnect, OP_SetModel, OP_Send,
     OP_Capture, OP_Export, OP_Clear,
     PN_PT_Config, PN_PT_Chat,
 ]
