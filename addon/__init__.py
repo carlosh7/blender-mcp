@@ -4,7 +4,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 7, 0),
+    "version": (0, 7, 1),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "Chat with AI to create 3D models. Config panel in Properties, chat in 3D View sidebar.",

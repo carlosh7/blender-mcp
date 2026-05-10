@@ -56,6 +56,10 @@ KNOWN_MODELS = {
     "cohere": [
         "cohere/command-r-plus", "cohere/command-r",
     ],
+    "opencode-go": [
+        "opencode-go/gpt-5.1-codex", "opencode-go/claude-sonnet-4-5",
+        "opencode-go/claude-haiku-4-5",
+    ],
 }
 
 # Providers that have public model listing APIs

@@ -185,7 +185,7 @@ class MCPBridgeHandler(BaseHTTPRequestHandler):
                             models_list.append({
                                 "id": mid,
                                 "name": m.get("name", mid),
-                                "provider": mid.split("/")[0] if "/" in mid else "openrouter",
+                                "provider": "openrouter",
                                 "context_length": m.get("context_length"),
                                 "pricing": m.get("pricing", {}).get("prompt", "?") if isinstance(m.get("pricing"), dict) else "?",
                             })
