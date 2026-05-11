@@ -200,7 +200,11 @@ def main():
     t = threading.Thread(target=_auto_process, daemon=True)
     t.start()
     logger.info("Auto-processor thread started")
-    mcp.run()
+    # Use SSE transport for persistence
+    import uvicorn
+    starlette_app = mcp.sse_app()
+    logger.info(f"SSE endpoint ready, starting HTTP on port 9879")
+    uvicorn.run(starlette_app, host="127.0.0.1", port=9879, log_level="info")
 
 if __name__ == "__main__":
     main()
