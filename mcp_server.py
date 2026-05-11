@@ -5,7 +5,6 @@ Replaces server.py + http_bridge.py.
 Connect: opencode mcp uses this via opencode.json → uvx blender-mcp (or python mcp_server.py)
 """
 import json, socket, os, sys, time, logging, threading
-import textwrap
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 
@@ -130,58 +129,18 @@ def poll_response(message_id: str) -> str:
     return json.dumps(result)
 
 
-# ─── Auto-processor: detects object keywords and generates models ───
+# ─── Agent Host: processes all Blender chat messages via LLM ───
 _processed_ids = set()
-_OBJECT_KEYWORDS = {
-    "silla": "chair-folding", "chair": "chair-folding", "asiento": "chair-folding",
-    "mesa": "table-round-150", "table": "table-round-150",
-    "escenario": "stage-custom", "stage": "stage-custom", "tarima": "platform-2x2",
-    "platform": "platform-2x2",
-    "altavoz": "speaker", "speaker": "speaker", "bocina": "speaker",
-    "pantalla": "led-flat", "screen": "led-flat", "monitor": "led-flat",
-    "truss": "truss-straight",
-    "valla": "barrier", "barrera": "barrier", "barrier": "barrier",
-}
-_COLOR_KEYWORDS = {
-    "rojo": "#ff0000", "azul": "#0000ff", "verde": "#00ff00",
-    "negro": "#000000", "blanco": "#ffffff", "gris": "#888888",
-    "amarillo": "#ffff00", "dorado": "#ffd700", "plateado": "#c0c0c0",
-    "madera": "#8B4513", "roble": "#8B4513", "oscuro": "#333333",
-}
-
-
-def _build_chair_script(color, scale):
-    c = color or "#3b404a"
-    r, g, b = int(c[1:3], 16) / 255, int(c[3:5], 16) / 255, int(c[5:7], 16) / 255
-    return textwrap.dedent(f"""\
-import bpy, math
-S = {scale}
-def make_mat(name, r, g, b, rough=0.5, metal=0.0):
-    mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes['Principled BSDF']
-    bsdf.inputs['Base Color'].default_value = (r, g, b, 1)
-    bsdf.inputs['Roughness'].default_value = rough
-    bsdf.inputs['Metallic'].default_value = metal
-    return mat
-metal = make_mat('metal', {r}, {g}, {b}, 0.3, 0.8)
-plastic = make_mat('plastic', {r*0.8}, {g*0.8}, {b*0.8}, 0.6, 0.0)
-bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.44*S))
-bpy.context.active_object.scale = (0.2*S, 0.2*S, 0.02*S)
-bpy.context.active_object.data.materials.append(plastic)
-bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.68*S))
-bpy.context.active_object.scale = (0.2*S, 0.15*S, 0.02*S)
-bpy.context.active_object.data.materials.append(plastic)
-for x, z in [(-0.085*S, -0.085*S), (0.085*S, -0.085*S), (-0.085*S, 0.085*S), (0.085*S, 0.085*S)]:
-    bpy.ops.mesh.primitive_cylinder_add(vertices=8, radius=0.01*S, depth=0.44*S, location=(x, 0, 0.22*S))
-    bpy.context.active_object.data.materials.append(metal)
-""")
-
-
 _last_ping = 0
 
+def _agent_send(cmd_type, params=None):
+    """Helper: send command to Blender and return result."""
+    b = get_blender()
+    return b.send_command(cmd_type, params or {})
+
+
 def _auto_process():
-    """Background thread: polls Blender chat, auto-generates 3D objects from keywords."""
+    """Background thread: keeps ping alive, forwards chat messages to agent_host."""
     global _last_ping
     while True:
         try:
@@ -194,6 +153,7 @@ def _auto_process():
                     _last_ping = now
                 except:
                     pass
+            # Check for new messages
             result = b.send_command("read_chat")
             messages = result.get("messages", [])
             for msg in messages:
@@ -201,61 +161,36 @@ def _auto_process():
                 if mid in _processed_ids:
                     continue
                 _processed_ids.add(mid)
-                text = msg.get("message", "").lower()
-                # Detect object keyword
-                matched_type = None
-                matched_word = None
-                for word, mtype in _OBJECT_KEYWORDS.items():
-                    if word in text:
-                        matched_type = mtype
-                        matched_word = word
-                        break
-                if matched_type:
-                    # Detect color
-                    color = None
-                    for cname, chex in _COLOR_KEYWORDS.items():
-                        if cname in text:
-                            color = chex
-                            break
-                    # Generate script and execute
-                    try:
-                        if matched_type == "chair-folding":
-                            code = _build_chair_script(color, 1.0)
-                        else:
-                            code = f"""
-import bpy
-S = 1.0
-# {matched_type} - basic placeholder
-bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0.5*S))
-bpy.context.active_object.scale = (0.5*S, 0.5*S, 0.5*S)
-"""
-                        b.send_command("execute_code", {"code": code})
-                        response = f"Created {matched_word}!" + (f" ({color})" if color else "")
-                    except Exception as e:
-                        response = f"Error creating {matched_word}: {str(e)[:80]}"
-                else:
-                    response = None  # Leave for AI
-                if response:
-                    b.send_command("respond_chat", {"message_id": mid, "response": response})
-            # Keep set bounded
+                text = msg.get("message", "")
+                logger.info(f"New chat message: {text[:80]}")
+                # Acknowledge immediately so spinner stops
+                try:
+                    b.send_command("respond_chat", {
+                        "message_id": mid,
+                        "response": "Processing..."
+                    })
+                except:
+                    pass
+                # Process via agent_host (LLM)
+                try:
+                    import agent_host
+                    response = agent_host.process_message(text, _agent_send)
+                except Exception as e:
+                    response = f"Error processing: {str(e)[:100]}"
+                    logger.error(f"Agent error: {e}")
+                # Send final response
+                try:
+                    b.send_command("respond_chat", {
+                        "message_id": mid,
+                        "response": response
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to send response: {e}")
             if len(_processed_ids) > 500:
                 _processed_ids.clear()
         except Exception:
-            pass  # Blender not connected yet
+            pass
         time.sleep(2)
-
-
-@mcp.prompt()
-def blender_workflow() -> str:
-    """Workflow for creating 3D content in Blender"""
-    return """When working with Blender via this MCP server:
-
-1. Check the chat periodically with `read_chat` for user messages.
-2. For creating objects, use `execute_blender_code` with small Python scripts using bpy.
-3. Respond to chat messages with `respond_chat` to confirm what was done.
-4. Create objects step by step. Verify each step before proceeding.
-5. Common objects: chair (silla), table (mesa), stage (escenario), speaker (altavoz), screen (pantalla).
-"""
 
 
 def main():
