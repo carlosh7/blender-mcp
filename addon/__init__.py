@@ -4,7 +4,7 @@
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 12, 2),
+    "version": (0, 13, 2),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
@@ -170,7 +170,7 @@ class PN_PT_Chat(Panel):
         chat = c.aimcp_chat
         if chat and chat.count > 0:
             row = L.row()
-            row.template_list("MCP_UL_Chat", "", chat, "msgs", c, "aimcp_chat_index", rows=min(15, max(8, chat.count)))
+            row.template_list("MCP_UL_Chat", "", chat, "msgs", c, "aimcp_chat_index", rows=8)
         else:
             L.label(text="No messages.")
 
