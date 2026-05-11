@@ -1,4 +1,4 @@
-# blender-mcp — AI Assistant for Blender v0.9.2
+# blender-mcp — AI Assistant for Blender v0.12.0
 # Panels: Config (Properties) + Chat (3D View Sidebar)
 # Includes internal HTTP server (port 9878) for direct bpy commands from MCP/HTTP bridge
 bl_info = {
@@ -11,30 +11,13 @@ bl_info = {
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }
-import bpy, os, json, sys, time, urllib.request, threading
+import bpy, os, json, sys, time, threading
 sys.path.insert(0, os.path.dirname(__file__))
 import blender_socket as bsock
 from bpy.types import Panel, Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
 
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
-
-# ─── Helpers ───
-def http_get(path):
-    try:
-        r = urllib.request.urlopen(f"{HTTP_HOST}{path}", timeout=3)
-        return json.loads(r.read())
-    except: return None
-
-def http_post(path, data):
-    try:
-        body = json.dumps(data).encode()
-        req = urllib.request.Request(f"{HTTP_HOST}{path}", data=body,
-            headers={"Content-Type": "application/json"}, method="POST")
-        r = urllib.request.urlopen(req, timeout=180)
-        return json.loads(r.read())
-    except Exception as e:
-        return {"error": str(e)}
 
 # ─── Chat ───
 class ChatMsg(PropertyGroup):
@@ -77,48 +60,41 @@ class PN_PT_Config(Panel):
     def draw(self, ctx):
         L = self.layout; c = ctx.scene
         box = L.box()
-        box.label(text="Server", icon='LINKED')
+        box.label(text="Status", icon='LINKED')
         row = box.row(align=True)
-        row.prop(c, "aimcp_host", text=""); row.prop(c, "aimcp_port", text="")
-        row = box.row(align=True)
-        if c.aimcp_connected: row.label(text="Online", icon='CHECKBOX_HLT')
-        else: row.label(text="Offline", icon='CHECKBOX_DEHLT')
-        row.operator("aimcp.check", text="Check")
+        is_connected = bsock._socket_server is not None and bsock._socket_server.running
+        if is_connected:
+            row.label(text="Socket: Online", icon='CHECKBOX_HLT')
+        else:
+            row.label(text="Socket: Offline", icon='CHECKBOX_DEHLT')
 
         L.separator()
         box = L.box()
         box.label(text="AI Model", icon='SETTINGS')
-        current = c.aimcp_model
-        box.label(text=f"Current: {current}" if current else "Current: (none)")
+        current = c.aimcp_model or "(reading from opencode.json...)"
+        box.label(text=f"Current: {current}")
         row = box.row(align=True)
-        row.operator("aimcp.refresh", text="Refresh all", icon='FILE_REFRESH')
-        if c.aimcp_refreshing: row.label(text="", icon='SORTTIME')
+        row.operator("aimcp.refresh", text="Refresh", icon='FILE_REFRESH')
 
         md = c.aimcp_models
         if md and md.count > 0:
             for prov_id in PROVIDER_ORDER:
                 prov_models = [m for m in md.items if m.provider == prov_id]
                 if not prov_models: continue
-                count = len(prov_models)
                 prov_box = box.box()
                 label = PROVIDER_LABELS.get(prov_id, prov_id)
-                row = prov_box.row(align=True); row.label(text=f"{label} ({count})", icon='DOT')
-                search_key = f"aimcp_search_{prov_id.replace('-','_')}"
-                search_val = getattr(c, search_key, "")
-                row = prov_box.row(align=True); row.prop(c, search_key, text="", icon='VIEWZOOM')
-                if search_val: row.operator("aimcp.clear_search", text="", icon='X').search_prop = search_key
-                s = search_val.lower()
-                visible = [m for m in prov_models if not s or s in m.model_id.lower() or s in m.model_name.lower()]
-                for m in visible:
+                row = prov_box.row(align=True); row.label(text=label, icon='DOT')
+                for m in prov_models:
                     row = prov_box.row(align=True)
                     if m.model_id == current:
                         row.label(text="", icon='RADIOBUT_ON')
                         row.label(text=f"{m.model_name}  [{m.model_id}]")
                     else:
-                        op = row.operator("aimcp.select", text=m.model_name, icon='RADIOBUT_OFF'); op.model_id = m.model_id
-                if len(prov_models) > 20: prov_box.label(text=f"Showing {len(visible)} of {len(prov_models)}")
-                if visible: row = prov_box.row(align=True); row.operator("aimcp.apply_model", text=f"Apply {PROVIDER_LABELS.get(prov_id,prov_id)}", icon='CHECKMARK').model_id = visible[0].model_id
-        else: box.label(text="Click 'Refresh all' to load models")
+                        op = row.operator("aimcp.select", text=m.model_id, icon='RADIOBUT_OFF'); op.model_id = m.model_id
+        else:
+            row = box.row(align=True)
+            row.operator("aimcp.refresh", text="Load models", icon='FILE_REFRESH')
+
         L.separator()
         status = c.aimcp_status
         if status: L.label(text=status, icon='INFO')
@@ -196,32 +172,42 @@ class OP_Check(Operator):
 class OP_Refresh(Operator):
     bl_idname = "aimcp.refresh"; bl_label = "Refresh"
     def execute(self, ctx):
-        h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        ctx.scene.aimcp_refreshing = True; ctx.scene.aimcp_status = "Refreshing..."
+        ctx.scene.aimcp_status = "Loading..."
         if ctx.area: ctx.area.tag_redraw()
-        def fetch():
+        # Read current model from opencode config
+        model = ""
+        config_paths = [
+            os.path.expanduser("~/.config/opencode/opencode.json"),
+            os.path.expanduser("~/Check/opencode.json"),
+            os.path.join(os.path.dirname(__file__), "..", "..", "..", "opencode.json"),
+        ]
+        for p in config_paths:
+            if os.path.exists(p):
+                try:
+                    d = json.loads(open(p).read())
+                    if d.get("model"): model = d["model"]; break
+                except: pass
+
+        # Read connected providers from auth.json
+        auth_path = os.path.expanduser("~/.local/share/opencode/auth.json")
+        providers = []
+        if os.path.exists(auth_path):
             try:
-                req = urllib.request.Request(f"http://{h}:{p}/api/fetch-all-models",
-                    data=json.dumps({"force": True}).encode(),
-                    headers={"Content-Type": "application/json"}, method="POST")
-                r = urllib.request.urlopen(req, timeout=30)
-                data = json.loads(r.read())["providers"]
-                def update():
-                    md = ctx.scene.aimcp_models; md.clear_all()
-                    for pid, result in data.items():
-                        for m in result.get("models", []):
-                            md.add(m["id"], m.get("name", m["id"]), pid)
-                    ctx.scene.aimcp_status = f"{md.count} models loaded"
-                    ctx.scene.aimcp_refreshing = False
-                    if ctx.area: ctx.area.tag_redraw()
-                bpy.app.timers.register(update, first_interval=0.01)
-            except Exception as e:
-                def err():
-                    ctx.scene.aimcp_status = f"Error: {str(e)[:80]}"
-                    ctx.scene.aimcp_refreshing = False
-                    if ctx.area: ctx.area.tag_redraw()
-                bpy.app.timers.register(err, first_interval=0.01)
-        threading.Thread(target=fetch, daemon=True).start(); return {'FINISHED'}
+                auth = json.loads(open(auth_path).read())
+                for prov_id in auth:
+                    if isinstance(auth[prov_id], dict) and auth[prov_id].get("key"):
+                        providers.append(prov_id)
+            except: pass
+
+        def update():
+            md = ctx.scene.aimcp_models; md.clear_all()
+            if model: ctx.scene.aimcp_model = model
+            for prov_id in providers:
+                md.add(prov_id, PROVIDER_LABELS.get(prov_id, prov_id), prov_id)
+            ctx.scene.aimcp_status = f"{len(providers)} providers: {', '.join(providers)}"
+            if ctx.area: ctx.area.tag_redraw()
+        bpy.app.timers.register(update, first_interval=0.01)
+        return {'FINISHED'}
 
 class OP_SelectModel(Operator):
     bl_idname = "aimcp.select"; bl_label = "Select"
@@ -234,23 +220,25 @@ class OP_ApplyModel(Operator):
     bl_idname = "aimcp.apply_model"; bl_label = "Apply"
     model_id: StringProperty()
     def execute(self, ctx):
-        mid = self.model_id; ctx.scene.aimcp_model = mid; ctx.scene.aimcp_status = "Saving..."
+        mid = self.model_id
+        ctx.scene.aimcp_model = mid
+        ctx.scene.aimcp_status = "Saved"
+        # Write to opencode config
+        config_paths = [
+            os.path.expanduser("~/.config/opencode/opencode.json"),
+            os.path.expanduser("~/Check/opencode.json"),
+        ]
+        for p in config_paths:
+            if os.path.exists(p):
+                try:
+                    d = json.loads(open(p).read())
+                    d["model"] = mid
+                    open(p, "w").write(json.dumps(d, indent=2) + "\n")
+                    ctx.scene.aimcp_status = f"Saved to {os.path.basename(p)}"
+                    break
+                except: pass
         if ctx.area: ctx.area.tag_redraw()
-        h = ctx.scene.aimcp_host; p = ctx.scene.aimcp_port
-        def save():
-            try:
-                body = json.dumps({"model": mid}).encode()
-                req = urllib.request.Request(f"http://{h}:{p}/api/set-model",
-                    data=body, headers={"Content-Type": "application/json"}, method="POST")
-                r = json.loads(urllib.request.urlopen(req, timeout=5).read())
-                msg = "Saved: " + mid if r.get("success") else "Local: " + mid
-                def ok(): ctx.scene.aimcp_status = msg; ctx.scene.aimcp_model = mid
-                if ctx.area: ctx.area.tag_redraw()
-                bpy.app.timers.register(ok, first_interval=0.01)
-            except:
-                def err(): ctx.scene.aimcp_status = "Local: " + mid
-                bpy.app.timers.register(err, first_interval=0.01)
-        threading.Thread(target=save, daemon=True).start(); return {'FINISHED'}
+        return {'FINISHED'}
 
 class OP_ClearSearch(Operator):
     bl_idname = "aimcp.clear_search"; bl_label = "Clear"
@@ -340,8 +328,6 @@ def register():
     Scene.aimcp_waiting = BoolProperty(default=False)
     Scene.aimcp_pending_msg_id = StringProperty(default="")
     Scene.aimcp_chat_index = IntProperty(default=0)
-    Scene.aimcp_host = StringProperty(default="localhost")
-    Scene.aimcp_port = IntProperty(default=9877, min=1024, max=65535)
     Scene.aimcp_model = StringProperty(default="")
     Scene.aimcp_status = StringProperty(default="")
     Scene.aimcp_models = PointerProperty(type=ModelsData)
@@ -408,7 +394,7 @@ def unregister():
     for cls in reversed(classes):
         try: bpy.utils.unregister_class(cls)
         except: pass
-    attrs = ["aimcp_models", "aimcp_status", "aimcp_model", "aimcp_port", "aimcp_host",
+    attrs = ["aimcp_models", "aimcp_status", "aimcp_model",
              "aimcp_pending_msg_id", "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing",
              "aimcp_connected", "aimcp_input", "aimcp_chat",
              "aimcp_ai_state", "aimcp_spinner_idx"]
