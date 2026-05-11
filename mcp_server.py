@@ -6,9 +6,14 @@ Connect: opencode mcp uses this via opencode.json → uvx blender-mcp (or python
 """
 import json, socket, os, sys, time, logging, threading
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from mcp.server.fastmcp import FastMCP
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler("/tmp/blender-mcp.log")]
+)
 logger = logging.getLogger("blender-mcp")
 
 SOCKET_HOST = os.getenv("BLENDER_HOST", "localhost")
@@ -163,21 +168,34 @@ def _auto_process():
                 _processed_ids.add(mid)
                 text = msg.get("message", "")
                 logger.info(f"New chat message: {text[:80]}")
-                # Acknowledge immediately so spinner stops
-                try:
-                    b.send_command("respond_chat", {
-                        "message_id": mid,
-                        "response": "Processing..."
-                    })
-                except:
-                    pass
+
+                # Progress updater thread
+                def progress_updater(mid, b_conn):
+                    for i in range(1, 8):
+                        time.sleep(3)
+                        try:
+                            b_conn.send_command("respond_chat", {
+                                "message_id": mid,
+                                "response": f"Processing... ({i*3}s)"
+                            })
+                        except:
+                            return
+                t_start = time.time()
+                threading.Thread(target=progress_updater, args=(mid, b), daemon=True).start()
+
                 # Process via agent_host (LLM)
                 try:
-                    import agent_host
+                    if 'agent_host' not in sys.modules:
+                        import agent_host
+                    else:
+                        agent_host = sys.modules['agent_host']
+                    logger.info(f"Calling agent_host.process_message...")
                     response = agent_host.process_message(text, _agent_send)
+                    elapsed = time.time() - t_start
+                    logger.info(f"agent_host response in {elapsed:.1f}s: {response[:80]}")
                 except Exception as e:
-                    response = f"Error processing: {str(e)[:100]}"
-                    logger.error(f"Agent error: {e}")
+                    response = f"Error: {str(e)[:150]}"
+                    logger.error(f"Agent error: {e}", exc_info=True)
                 # Send final response
                 try:
                     b.send_command("respond_chat", {
