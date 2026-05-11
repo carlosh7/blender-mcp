@@ -7,7 +7,6 @@ Connect: opencode mcp uses this via opencode.json → uvx blender-mcp (or python
 import json, socket, os, sys, time, logging, threading
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,7 +21,6 @@ ROOT = Path(__file__).parent.resolve()
 
 # ─── Blender Socket Connection ───
 _connection = None
-_connection_lock = threading.Lock()
 
 class BlenderConnection:
     def __init__(self, host=SOCKET_HOST, port=SOCKET_PORT):
@@ -51,33 +49,32 @@ class BlenderConnection:
             self.sock = None
 
     def send_command(self, cmd_type, params=None):
-        with _connection_lock:
-            if not self.sock and not self.connect():
-                raise ConnectionError("Not connected to Blender")
-            cmd = {"type": cmd_type, "params": params or {}}
-            try:
-                self.sock.sendall(json.dumps(cmd).encode('utf-8'))
-                self.sock.settimeout(180.0)
-                buffer = b''
-                while True:
-                    chunk = self.sock.recv(65536)
-                    if not chunk:
-                        break
-                    buffer += chunk
-                    try:
-                        resp = json.loads(buffer.decode('utf-8'))
-                        if resp.get("status") == "error":
-                            raise Exception(resp.get("message", "Blender error"))
-                        return resp.get("result", {})
-                    except json.JSONDecodeError:
-                        continue
-                raise Exception("No response from Blender")
-            except (ConnectionError, BrokenPipeError) as e:
-                self.sock = None
-                raise Exception(f"Connection lost: {e}")
-            except socket.timeout:
-                self.sock = None
-                raise Exception("Blender timeout")
+        if not self.sock and not self.connect():
+            raise ConnectionError("Not connected to Blender")
+        cmd = {"type": cmd_type, "params": params or {}}
+        try:
+            self.sock.sendall(json.dumps(cmd).encode('utf-8'))
+            self.sock.settimeout(180.0)
+            buffer = b''
+            while True:
+                chunk = self.sock.recv(65536)
+                if not chunk:
+                    break
+                buffer += chunk
+                try:
+                    resp = json.loads(buffer.decode('utf-8'))
+                    if resp.get("status") == "error":
+                        raise Exception(resp.get("message", "Blender error"))
+                    return resp.get("result", {})
+                except json.JSONDecodeError:
+                    continue
+            raise Exception("No response from Blender")
+        except (ConnectionError, BrokenPipeError) as e:
+            self.sock = None
+            raise Exception(f"Connection lost: {e}")
+        except socket.timeout:
+            self.sock = None
+            raise Exception("Blender timeout")
 
 def get_blender():
     global _connection
@@ -89,6 +86,7 @@ def get_blender():
 
 
 # ─── FastMCP Server ───
+from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("blender-mcp", log_level="INFO")
 
 @mcp.tool()
@@ -169,19 +167,21 @@ def _auto_process():
                 text = msg.get("message", "")
                 logger.info(f"New chat message: {text[:80]}")
 
-                # Progress updater thread
-                def progress_updater(mid, b_conn):
+                # Progress updater thread (uses own socket, avoids lock contention)
+                def progress_updater(mid):
+                    pc = BlenderConnection()
                     for i in range(1, 8):
                         time.sleep(3)
                         try:
-                            b_conn.send_command("respond_chat", {
+                            pc.connect()
+                            pc.send_command("respond_chat", {
                                 "message_id": mid,
                                 "response": f"Processing... ({i*3}s)"
                             })
                         except:
                             return
                 t_start = time.time()
-                threading.Thread(target=progress_updater, args=(mid, b), daemon=True).start()
+                threading.Thread(target=progress_updater, args=(mid,), daemon=True).start()
 
                 # Process via agent_host (LLM)
                 try:
