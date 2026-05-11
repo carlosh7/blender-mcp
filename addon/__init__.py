@@ -1,21 +1,44 @@
-# blender-mcp — AI Assistant for Blender v0.12.0
+# blender-mcp — AI Assistant for Blender v0.12.2
 # Panels: Config (Properties) + Chat (3D View Sidebar)
 # Includes internal HTTP server (port 9878) for direct bpy commands from MCP/HTTP bridge
 bl_info = {
     "name": "AI Assistant (blender-mcp)",
     "author": "carlosh7",
-    "version": (0, 12, 0),
+    "version": (0, 12, 2),
     "blender": (4, 0, 0),
     "location": "Properties > Scene > AI Config | View3D > Sidebar (N) > AI Chat",
     "description": "AI chat with direct bpy execution in Blender scene.",
     "doc_url": "https://github.com/carlosh7/blender-mcp",
     "category": "3D View",
 }
-import bpy, os, json, sys, time, threading
+import bpy, os, json, sys, time, threading, urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
 import blender_socket as bsock
 from bpy.types import Panel, Operator, PropertyGroup, UIList
 from bpy.props import StringProperty, IntProperty, BoolProperty, PointerProperty, CollectionProperty
+
+# ─── Provider API config for fetching model lists ───
+_PROVIDER_API = {
+    "deepseek": {"url": "https://api.deepseek.com/v1/models", "auth": True},
+    "opencode-go": {"url": "https://opencode.ai/zen/go/v1/models", "auth": True},
+    "openrouter": {"url": "https://openrouter.ai/api/v1/models", "auth": False},
+}
+def _get_api_key(provider_id):
+    """Get API key for a provider from auth.json or env vars."""
+    auth_path = os.path.expanduser("~/.local/share/opencode/auth.json")
+    if os.path.exists(auth_path):
+        try:
+            auth = json.loads(open(auth_path).read())
+            entry = auth.get(provider_id)
+            if isinstance(entry, dict) and entry.get("key"):
+                return entry["key"]
+        except: pass
+    # Check env vars
+    env_map = {"deepseek": "DEEPSEEK_API_KEY", "openrouter": "OPENROUTER_API_KEY"}
+    env_var = env_map.get(provider_id)
+    if env_var:
+        return os.environ.get(env_var)
+    return None
 
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
 
@@ -174,14 +197,11 @@ class OP_Refresh(Operator):
     def execute(self, ctx):
         ctx.scene.aimcp_status = "Loading..."
         if ctx.area: ctx.area.tag_redraw()
+
         # Read current model from opencode config
         model = ""
-        config_paths = [
-            os.path.expanduser("~/.config/opencode/opencode.json"),
-            os.path.expanduser("~/Check/opencode.json"),
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "opencode.json"),
-        ]
-        for p in config_paths:
+        for p in [os.path.expanduser("~/.config/opencode/opencode.json"),
+                  os.path.expanduser("~/Check/opencode.json")]:
             if os.path.exists(p):
                 try:
                     d = json.loads(open(p).read())
@@ -199,14 +219,45 @@ class OP_Refresh(Operator):
                         providers.append(prov_id)
             except: pass
 
-        def update():
-            md = ctx.scene.aimcp_models; md.clear_all()
-            if model: ctx.scene.aimcp_model = model
+        # Fetch models from each provider API (in thread)
+        def fetch_all():
+            all_models = []
             for prov_id in providers:
-                md.add(prov_id, PROVIDER_LABELS.get(prov_id, prov_id), prov_id)
-            ctx.scene.aimcp_status = f"{len(providers)} providers: {', '.join(providers)}"
-            if ctx.area: ctx.area.tag_redraw()
-        bpy.app.timers.register(update, first_interval=0.01)
+                cfg = _PROVIDER_API.get(prov_id)
+                if not cfg: continue
+                try:
+                    headers = {"User-Agent": "blender-mcp/0.12", "Accept": "application/json"}
+                    if cfg["auth"]:
+                        key = _get_api_key(prov_id)
+                        if not key: continue
+                        headers["Authorization"] = f"Bearer {key}"
+                    req = urllib.request.Request(cfg["url"], headers=headers)
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        raw = json.loads(resp.read())
+                    raw_list = raw.get("data", raw)
+                    if isinstance(raw_list, list):
+                        for m in raw_list:
+                            mid = m.get("id", "")
+                            if not mid: continue
+                            all_models.append({
+                                "id": mid,
+                                "name": m.get("name") or mid.split("/")[-1].replace("-", " ").title(),
+                                "provider": prov_id,
+                            })
+                except: pass
+
+            def update():
+                md = ctx.scene.aimcp_models; md.clear_all()
+                if model: ctx.scene.aimcp_model = model
+                for m in all_models:
+                    md.add(m["id"], m["name"], m["provider"])
+                prov_count = len(set(m["provider"] for m in all_models))
+                prov_names = ", ".join(PROVIDER_LABELS.get(p, p) for p in sorted(set(m["provider"] for m in all_models)))
+                ctx.scene.aimcp_status = f"{len(all_models)} models from {prov_count} providers"
+                if ctx.area: ctx.area.tag_redraw()
+            bpy.app.timers.register(update, first_interval=0.01)
+
+        threading.Thread(target=fetch_all, daemon=True).start()
         return {'FINISHED'}
 
 class OP_SelectModel(Operator):
