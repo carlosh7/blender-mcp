@@ -6,7 +6,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 79),
+    "version": (0, 8, 80),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -50,8 +50,6 @@ def register():
     from .addon import _axsock as bsock
     from .addon import properties as _props
     from .addon import preferences as _prefs
-    from .addon import operators as _ops
-    from .addon import panels as _panels
     
     # Iniciar Socket Server (9876)
     try:
@@ -59,16 +57,21 @@ def register():
         print("[AXIOM] ✅ Precisión Socket listo (:9876)")
     except Exception as e: print(f"[AXIOM] Socket Error: {e}")
 
-    # --- REGISTRO DE CLASES (PRIMERO) ---
+    # --- REGISTRO ETAPA 1: TIPOS BASE (Independientes) ---
     try:
-        from .addon.properties import ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat
+        from .addon.chat_types import ChatMsg, ModelItem
+        for cls in [ChatMsg, ModelItem]:
+            bpy.utils.register_class(cls)
+            
+        # --- REGISTRO ETAPA 2: PROPIEDADES COMPLEJAS (Dependen de Etapa 1) ---
+        from .addon.properties import ChatData, ModelsData, MCP_UL_Chat
         from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
         
         # Paneles
         from .addon.panels import chat as _chat_panel, config as _config_panel, integrations as _int_panel
         classes = [
             _chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config,
-            ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat, 
+            ChatData, ModelsData, MCP_UL_Chat, 
             BLENDERMCP_OT_OpenWeb
         ]
         for p in _int_panel.PANELS: classes.append(p)
@@ -77,7 +80,7 @@ def register():
             try: bpy.utils.register_class(cls)
             except: pass
 
-        # --- REGISTRO DE PROPIEDADES Y PREFERENCIAS (DESPUÉS) ---
+        # --- REGISTRO ETAPA 3: ESCENA Y PREFERENCIAS ---
         _props.register_properties()
         _prefs.register_preferences()
         
@@ -91,7 +94,7 @@ def register():
         embedded.register_embedded_operators()
         model_ops.register_model_operators()
             
-        # ⚡ PROPIEDADES DE ESCENA (Vinculadas a las clases ya registradas)
+        # ⚡ PROPIEDADES DE ESCENA
         Scene = bpy.types.Scene
         from bpy.props import PointerProperty, StringProperty, BoolProperty, IntProperty
         

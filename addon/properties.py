@@ -8,15 +8,12 @@ from bpy.props import (
     EnumProperty, PointerProperty, CollectionProperty,
 )
 from bpy.types import PropertyGroup, UIList
+from .chat_types import ChatMsg, ModelItem
 
 # ─── Chat Classes ───
-class ChatMsg(PropertyGroup):
-    role: StringProperty()
-    text: StringProperty()
-    is_new: BoolProperty(default=False)
 
 class ChatData(PropertyGroup):
-    msgs: CollectionProperty(type="ChatMsg")
+    msgs: CollectionProperty(type=ChatMsg)
     count: IntProperty(default=0)
     def add(self, r, t, is_update=False, scene=None):
         if is_update:
@@ -36,11 +33,9 @@ class MCP_UL_Chat(UIList):
         row.label(text=f"[{tag}] {item.text}")
 
 # ─── Model Classes ───
-class ModelItem(PropertyGroup):
-    model_id: StringProperty(); model_name: StringProperty(); provider: StringProperty()
 
 class ModelsData(PropertyGroup):
-    items: CollectionProperty(type="ModelItem")
+    items: CollectionProperty(type=ModelItem)
     count: IntProperty(default=0)
     def add(self, mid, name, prov):
         m = self.items.add(); m.model_id = mid; m.model_name = name; m.provider = prov; self.count = len(self.items)
@@ -49,9 +44,9 @@ def register_properties():
     """Register all shared properties onto bpy.types.Scene."""
     Scene = bpy.types.Scene
 
-    # ⚡ Registro de Propiedades de Escena (Usando Strings para evitar fallos de orden)
-    Scene.aimcp_chat = PointerProperty(type="ChatData")
-    Scene.aimcp_models = PointerProperty(type="ModelsData")
+    # ⚡ Registro de Propiedades de Escena (Usando Clases ya registradas)
+    Scene.aimcp_chat = PointerProperty(type=ChatData)
+    Scene.aimcp_models = PointerProperty(type=ModelsData)
 
     # ─── Integration Toggles (Fase 1) ───
     Scene.blendermcp_port = IntProperty(
