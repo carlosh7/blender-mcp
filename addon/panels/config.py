@@ -24,6 +24,9 @@ class PN_PT_Config(Panel):
         box.label(text="Status", icon='LINKED')
         row = box.row(align=True)
         is_connected = bsock._socket_server is not None and bsock._socket_server.running
+        if not is_connected:
+            running_val = bsock._socket_server.running if bsock._socket_server else None
+            print(f"[DEBUG] Socket Offline — _socket_server={bsock._socket_server}, running={running_val}")
         row.label(text="Socket: Online" if is_connected else "Socket: Offline",
                   icon='CHECKBOX_HLT' if is_connected else 'CHECKBOX_DEHLT')
 

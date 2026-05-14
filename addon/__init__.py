@@ -1,9 +1,9 @@
-# blender-mcp v0.8.16 — Embedded-first Blender MCP
+# blender-mcp v0.8.17 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 16),
+    "version": (0, 8, 17),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -11,7 +11,7 @@ bl_info = {
     "category": "3D View",
 }
 
-import bpy, os, json, time, mathutils, sys, threading, subprocess
+import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib
 from pathlib import Path
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, PointerProperty
 from bpy.types import Panel, Operator, PropertyGroup, UIList
@@ -233,7 +233,9 @@ classes = [
 ]
 
 def register():
-    # 0. Dependencies + embedded server + auto-process + auto-config + client
+    # 0. Recargar módulo socket para evitar usar versión cacheada
+    importlib.reload(bsock)
+
     _ensure_deps()
     _start_embedded()
     try:
