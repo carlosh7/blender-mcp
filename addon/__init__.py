@@ -1,9 +1,9 @@
-# blender-mcp v0.8.20 — Embedded-first Blender MCP
+# blender-mcp v0.8.21 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 20),
+    "version": (0, 8, 21),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -324,30 +324,26 @@ def register():
         _delayed_step += 1
 
         if _delayed_step == 1:
-            # Step 1: load history + start model refresh
             for s in bpy.data.scenes:
                 load_history(s.aimcp_chat)
             try:
                 bpy.ops.aimcp.refresh()
             except:
                 pass
-            return 2.0  # wait 2s for refresh to complete
+            return 2.0
 
-    if _delayed_step == 2:
-        # Step 2: auto-select model from opencode config
-        model = _read_opencode_model()
-        if model:
-            for s in bpy.data.scenes:
-                s.aimcp_model = model
-                s.aimcp_connection_status = "🟡 Verificando..."
-                threading.Thread(
-                    target=_auto_verify_model,
-                    args=(model, s.name),
-                    daemon=True,
-                ).start()
+        if _delayed_step == 2:
+            model = _read_opencode_model()
+            if model:
+                for s in bpy.data.scenes:
+                    s.aimcp_model = model
+                    s.aimcp_connection_status = "🟡 Verificando..."
+                    threading.Thread(
+                        target=_auto_verify_model,
+                        args=(model, s.name),
+                        daemon=True,
+                    ).start()
         return None
-
-    return None
 
 def _read_opencode_model():
     """Read configured model from opencode config files."""
