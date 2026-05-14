@@ -1,14 +1,23 @@
-import bpy, os, sys, subprocess, importlib, threading, traceback, time
+import bpy, os, sys, subprocess, importlib, threading, traceback, time, socket
 
 bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 96),
+    "version": (0, 8, 97),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
 }
+
+def _check_port(port):
+    """Verificación física de conectividad en el puerto local."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.2)
+            return s.connect_ex(('127.0.0.1', port)) == 0
+    except:
+        return False
 
 def _ensure_deps():
     print("[AXIOM] 🔍 Validando dependencias de bajo nivel...")
@@ -25,8 +34,8 @@ def _ensure_deps():
     return True
 
 def register():
-    ver = "0.8.96"
-    print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE INTEGRIDAD TOTAL v{ver}")
+    ver = "0.8.97"
+    print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE VERIFICACIÓN TOTAL v{ver}")
     
     if not _ensure_deps():
         print("[AXIOM] ❌ FALLO CRÍTICO: No se pudieron validar las dependencias.")
@@ -40,40 +49,32 @@ def register():
     bsock.start_socket_server()
     _start_servers()
 
-    # Pequeña pausa técnica para binding real
-    time.sleep(0.5)
+    # Pausa técnica para permitir el binding de los tres servidores
+    time.sleep(1.0)
 
     try:
-        # 2. REPORTE DE RED HONESTO
-        sock_ok = bsock._socket_server.listening if bsock._socket_server else False
-        if sock_ok:
-            print("[AXIOM] ✅ SOCKET SERVER: ACTIVO (9876)")
-        else:
-            err = bsock._socket_server.last_error if bsock._socket_server else "No init"
-            print(f"[AXIOM] ❌ SOCKET SERVER: FALLO ({err})")
+        # 2. AUDITORÍA FÍSICA DE PUERTOS (SIN ENGAÑOS)
+        s_9876 = _check_port(9876) # Socket
+        s_9877 = _check_port(9877) # HTTP Bridge
+        s_9879 = _check_port(9879) # MCP SSE
+        
+        print(f"[AXIOM] {'✅' if s_9876 else '❌'} PORT 9876 (SOCKET): {'OPERATIVO' if s_9876 else 'DESCONECTADO'}")
+        print(f"[AXIOM] {'✅' if s_9877 else '❌'} PORT 9877 (HTTP): {'OPERATIVO' if s_9877 else 'DESCONECTADO'}")
+        print(f"[AXIOM] {'✅' if s_9879 else '❌'} PORT 9879 (MCP): {'OPERATIVO' if s_9879 else 'DESCONECTADO'}")
 
-        # 3. VALIDACIÓN RNA (TIPOS BASE)
+        # 3. VALIDACIÓN RNA Y COMPONENTES
         from .addon.chat_types import ChatMsg, ModelItem
-        for cls in [ChatMsg, ModelItem]:
-            try: 
-                bpy.utils.register_class(cls)
-                print(f"[AXIOM] ✅ RNA VALIDATION: {cls.__name__} (READY)")
-            except: pass
-            
-        # 4. VALIDACIÓN DE INTERFAZ Y DATOS
         from .addon.properties import ChatData, ModelsData, MCP_UL_Chat
         from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
         from .addon.panels import chat, config, integrations
         
-        classes = [chat.PN_PT_Chat, config.PN_PT_Config, ChatData, ModelsData, MCP_UL_Chat, BLENDERMCP_OT_OpenWeb]
+        classes = [ChatMsg, ModelItem, chat.PN_PT_Chat, config.PN_PT_Config, ChatData, ModelsData, MCP_UL_Chat, BLENDERMCP_OT_OpenWeb]
         for p in integrations.PANELS: classes.append(p)
         for cls in classes:
-            try: 
-                bpy.utils.register_class(cls)
-                print(f"[AXIOM] ✅ COMPONENT VALIDATION: {cls.__name__} (REGISTERED)")
+            try: bpy.utils.register_class(cls)
             except: pass
 
-        # 5. VALIDACIÓN DE OPERADORES
+        # 4. OPERADORES Y ESCENA
         from .addon.operators import connect, chat as chat_ops, capture, export, setup, embedded, model_ops
         connect.register_connect_operators()
         chat_ops.register_chat_operators()
@@ -82,26 +83,15 @@ def register():
         setup.register_setup_operators()
         embedded.register_embedded_operators()
         model_ops.register_model_operators()
-        print("[AXIOM] ✅ OPERATORS VALIDATION: ALL PIPES ESTABLISHED")
-        
-        # 6. VINCULACIÓN DE ESCENA
         _props.register_properties()
         _prefs.register_preferences()
-        print("[AXIOM] ✅ SCENE LINKING: DATA POINTERS SYNCED")
         
-        # 7. TELEMETRÍA Y STATUS
-        try:
-            from .addon.operators.model_ops import _status_ticker
-            if not bpy.app.timers.is_registered(_status_ticker):
-                bpy.app.timers.register(_status_ticker, first_interval=0.2)
-                print("[AXIOM] ✅ TELEMETRY SYSTEM: ACTIVE")
-        except: pass
-        
-        # 8. VEREDICTO FINAL
-        if sock_ok:
+        # 5. VEREDICTO DE INTEGRIDAD
+        all_ok = s_9876 and s_9877 and s_9879
+        if all_ok:
             print(f"[AXIOM] ⭐ REPORTE DE INTEGRIDAD v{ver}: SISTEMA OPERATIVO AL 100%\n")
         else:
-            print(f"[AXIOM] ⚠️ REPORTE DE INTEGRIDAD v{ver}: SISTEMA DEGRADADO (Revisa Sockets)\n")
+            print(f"[AXIOM] 🚨 REPORTE DE INTEGRIDAD v{ver}: FALLO EN LA RED (REVISA CONSOLA)\n")
         
         # AUTO-LOAD
         def auto_refresh():
@@ -111,32 +101,27 @@ def register():
         bpy.app.timers.register(auto_refresh, first_interval=1.0)
         
     except Exception as e:
-        print(f"[AXIOM] ❌ FALLO EN LA SECUENCIA DE INTEGRIDAD: {e}")
+        print(f"[AXIOM] ❌ FALLO EN LA SECUENCIA: {e}")
         traceback.print_exc()
 
 def _start_servers():
-    # IMPORTACIONES FUERA DEL HILO PARA EVITAR 'no known parent package'
     try:
         from .http_bridge import start_http_server
         from .mcp_server import mcp
     except Exception as e:
-        print(f"[AXIOM] ❌ ERROR DE IMPORTACIÓN EN SERVIDORES: {e}")
+        print(f"[AXIOM] ❌ ERROR DE CARGA: {e}")
         return
 
     def run_mcp():
         try:
             import uvicorn
-            print("[AXIOM] 📡 MCP SERVER: INICIANDO SSE BRIDGE (9879)")
             uvicorn.run(mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
-        except Exception as e:
-            print(f"[AXIOM] ℹ️ MCP SERVER STATUS: {e}")
+        except: pass
 
     def run_http():
         try:
             start_http_server()
-            print("[AXIOM] 🌐 HTTP BRIDGE: ACTIVO (9877)")
-        except Exception as e:
-            print(f"[AXIOM] ℹ️ HTTP BRIDGE STATUS: {e}")
+        except: pass
 
     threading.Thread(target=run_mcp, daemon=True).start()
     threading.Thread(target=run_http, daemon=True).start()
