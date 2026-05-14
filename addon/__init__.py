@@ -386,8 +386,6 @@ def _prefer_flash(model):
                 return flash_model
     return model
 
-def _read_opencode_model():
-
 def _auto_verify_model(model_id, scene_name):
     """Auto-verify model at startup (thread-safe)."""
     try:
