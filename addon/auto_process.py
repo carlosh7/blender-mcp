@@ -289,10 +289,11 @@ def _get_prefs_context():
 
 # ─── Ejecución de código en main thread ───
 
-def _strip_unlink(code):
+def _strip_bad_code(code):
     import re
     code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
     code = re.sub(r'^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+    code = re.sub(r'(\.scale\s*=\s*\([^)]*?)\s*/\s*2\s*,', r'\1,', code)
     return code
 
 def _exec_code_main(code_blocks):
@@ -301,7 +302,7 @@ def _exec_code_main(code_blocks):
 
     def execute():
         for code in code_blocks:
-            code = _strip_unlink(code)
+            code = _strip_bad_code(code)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, _HELPER_NAMESPACE)
