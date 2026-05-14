@@ -93,25 +93,11 @@ def _discover_tools():
 
 
 def start_embedded_server():
-    """Start embedded MCP server (SSE :45677) + HTTP API (:9877)."""
+    """Start HTTP API (:9877) for Antigravity. No SSE server (use stdio_bridge for opencode)."""
     global _server_instance, _http_instance
     if _server_instance:
         return _server_instance
-
-    # Start FastMCP SSE server
-    mcp = _discover_tools()
-
-    def run_mcp():
-        try:
-            import uvicorn
-            uvicorn.run(mcp.sse_app(), host="localhost", port=45677, log_level="warning")
-        except Exception as e:
-            print(f"[EMBEDDED MCP] Server error: {e}")
-
-    thread = threading.Thread(target=run_mcp, daemon=True)
-    thread.start()
-    _server_instance = {"mcp": mcp, "thread": thread}
-    print(f"[EMBEDDED MCP] SSE on http://localhost:45677/sse")
+    _server_instance = True
 
     # Start HTTP REST API for Antigravity
     try:

@@ -9,6 +9,7 @@ import os
 import time
 import threading
 import traceback
+import urllib.request
 import logging
 from . import _axsock as bsock
 
@@ -47,25 +48,9 @@ def _tick():
             text = msg["message"]
             print(f"[AUTO] mid={mid[:8]} text={text[:40]} elapsed={elapsed:.1f}s")
 
-            # 1. Try embedded client (Ollama, OpenAI, etc.)
-            try:
-                from .operators.embedded import _embedded_client
-                if _embedded_client is not None:
-                    print(f"[AUTO] embedded client available, processing...")
-                    _process_with_client(mid, text)
-                    continue
-            except Exception as e:
-                print(f"[AUTO] embedded check error: {e}")
-                pass
-
-            # 2. Try auto-start client if API key available
-            if elapsed > 3:
-                print(f"[AUTO] Trying auto-start client...")
-                started = _try_auto_start_client()
-                print(f"[AUTO] auto-start result: {started}")
-                if started:
-                    _process_with_client(mid, text)
-                    continue
+            if _try_auto_start_client():
+                _process_with_client(mid, text)
+                continue
 
             # 3. After 30s, show specific diagnostic
             if elapsed > 30:
@@ -108,12 +93,19 @@ def _get_api_key(provider):
     return ""
 
 
-def _process_with_client(mid, text):
-    from .operators.embedded import _embedded_client
+_CHAT_URLS = {
+    "opencode-go": "https://opencode.ai/zen/go/v1/chat/completions",
+    "openai": "https://api.openai.com/v1/chat/completions",
+    "deepseek": "https://api.deepseek.com/v1/chat/completions",
+    "openrouter": "https://openrouter.ai/api/v1/chat/completions",
+    "google": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+}
 
+
+def _process_with_client(mid, text):
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
-    model = getattr(scene, "aimcp_model", getattr(_embedded_client, 'default_model', ''))
+    model = getattr(scene, "aimcp_model", "")
     print(f"[AUTO] provider={provider} model={model}")
     api_key = _get_api_key(provider)
     print(f"[AUTO] api_key={'✅' if api_key else '❌'}")
@@ -126,42 +118,77 @@ def _process_with_client(mid, text):
     _respond(mid, "⏳ Pensando...", is_status=True)
 
     def process():
-        print(f"[AUTO] Sending to LLM: model={model}")
+        print(f"[AUTO] Llamando a {provider} con modelo {model}")
         try:
-            result = _embedded_client.send_message(
-                model, api_key, [{"role": "user", "content": text}]
-            )
-            content = result.get("content", "")
-            print(f"[AUTO] LLM response: content={'✅' if content else '❌'}")
+            # Intentar con embedded client si está disponible
+            from .operators.embedded import _embedded_client
+            if _embedded_client is not None:
+                result = _embedded_client.send_message(
+                    model, api_key, [{"role": "user", "content": text}]
+                )
+                content = result.get("content", "")
+                print(f"[AUTO] embedded response: {'✅' if content else '❌'}")
+                if content:
+                    _respond(mid, content)
+                elif result.get("error"):
+                    _respond(mid, "❌ " + result["error"][:100])
+                else:
+                    _respond(mid, "⚠️ Sin respuesta")
+                _cleanup(mid)
+                return
+        except:
+            pass
+
+        # Fallback: llamada REST directa (OpenAI-compatible)
+        url = _CHAT_URLS.get(provider)
+        if not url:
+            _respond(mid, f"❌ Provider {provider} no soportado")
+            _cleanup(mid)
+            return
+
+        try:
+            body = json.dumps({
+                "model": model,
+                "messages": [{"role": "user", "content": text}],
+                "max_tokens": 4096,
+                "temperature": 0.4,
+            }).encode()
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "User-Agent": "blender-mcp/0.8",
+            }
+            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+            print(f"[AUTO] REST call to {url}")
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read())
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            print(f"[AUTO] REST response: {'✅' if content else '❌'}")
             if content:
                 _respond(mid, content)
-            elif result.get("error"):
-                _respond(mid, "❌ " + result["error"][:100])
             else:
                 _respond(mid, "⚠️ El modelo no generó respuesta")
+        except urllib.error.HTTPError as e:
+            err = e.read().decode()[:200]
+            print(f"[AUTO] HTTP Error {e.code}: {err}")
+            _respond(mid, f"❌ HTTP {e.code}")
         except Exception as e:
-            print(f"[AUTO] LLM error: {traceback.format_exc()}")
-            _respond(mid, f"❌ Error: {str(e)[:80]}")
+            print(f"[AUTO] Error: {traceback.format_exc()}")
+            _respond(mid, f"❌ Error: {str(e)[:60]}")
+        _cleanup(mid)
         _cleanup(mid)
 
     threading.Thread(target=process, daemon=True).start()
 
 
 def _try_auto_start_client():
-    from .operators.embedded import _embedded_client, _auto_start_client
-    if _embedded_client is not None:
-        return True
+    """Check if API key is available (no need for embedded client, REST fallback works)."""
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
-    print(f"[AUTO] _try_auto_start: provider={provider}")
     api_key = _get_api_key(provider)
-    print(f"[AUTO] _try_auto_start: key={'✅' if api_key else '❌'}")
-    if api_key:
-        _auto_start_client(provider, api_key)
-        success = _embedded_client is not None
-        print(f"[AUTO] _try_auto_start: client started={'✅' if success else '❌'}")
-        return success
-    return False
+    has_key = bool(api_key)
+    print(f"[AUTO] _try_auto_start: provider={provider} key={'✅' if has_key else '❌'}")
+    return has_key
 
 
 def _respond(mid, text, is_status=False):
