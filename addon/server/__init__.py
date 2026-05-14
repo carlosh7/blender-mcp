@@ -1,7 +1,6 @@
 """
-blender-mcp — Embedded MCP Server (inside Blender)
-FastMCP server with SSE transport on localhost:45677.
-Tools registered from addon/handlers/ modules.
+blender-mcp — Embedded MCP Server + HTTP API (inside Blender)
+FastMCP server (SSE :45677) + Mini REST API (:9877)
 """
 import bpy
 import json
@@ -12,6 +11,7 @@ from typing import Any
 
 logger = logging.getLogger("blender-mcp-embedded")
 _server_instance = None
+_http_instance = None
 _timer_queue = []
 
 
@@ -93,29 +93,45 @@ def _discover_tools():
 
 
 def start_embedded_server():
-    """Start the embedded FastMCP server with SSE transport inside Blender."""
-    global _server_instance
+    """Start embedded MCP server (SSE :45677) + HTTP API (:9877)."""
+    global _server_instance, _http_instance
     if _server_instance:
         return _server_instance
 
+    # Start FastMCP SSE server
     mcp = _discover_tools()
 
-    def run_server():
+    def run_mcp():
         import asyncio
-        from mcp.server.fastmcp import FastMCP
         try:
             asyncio.run(mcp.run_sse_async(host="localhost", port=45677))
         except Exception as e:
             print(f"[EMBEDDED MCP] Server error: {e}")
 
-    thread = threading.Thread(target=run_server, daemon=True)
+    thread = threading.Thread(target=run_mcp, daemon=True)
     thread.start()
     _server_instance = {"mcp": mcp, "thread": thread}
-    print(f"[EMBEDDED MCP] Server on http://localhost:45677/sse")
+    print(f"[EMBEDDED MCP] SSE on http://localhost:45677/sse")
+
+    # Start HTTP REST API for Antigravity
+    try:
+        from .mini_http import start as start_http
+        start_http()
+        _http_instance = True
+    except Exception as e:
+        print(f"[EMBEDDED MCP] HTTP API error: {e}")
+
     return _server_instance
 
 
 def stop_embedded_server():
-    global _server_instance
+    global _server_instance, _http_instance
     _server_instance = None
+    if _http_instance:
+        try:
+            from .mini_http import stop as stop_http
+            stop_http()
+        except:
+            pass
+        _http_instance = None
     print("[EMBEDDED MCP] Server stopped")

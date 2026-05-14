@@ -24,6 +24,7 @@ def start():
         print(f"[blender-mcp] ✅ Auto-config: {', '.join(creados)}")
     else:
         print("[blender-mcp] Auto-config: ningún cliente externo detectado")
+    print("[blender-mcp] 📡 Antigravity: HTTP API en http://localhost:9877/api/")
 
 
 def _server_url():
