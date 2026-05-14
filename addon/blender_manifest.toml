@@ -2,15 +2,5 @@ schema_version = "1.0.0"
 id = "axiom_engine"
 name = "AXIOM Precision Engine"
 version = "0.8.52"
-tagline = "AI-powered Blender control via MCP"
-description = "Control Blender from any MCP client or use the built-in AI agent."
 type = "add-on"
-
-[maintainer]
-name = "CarlosH"
-
-license = "MIT"
-website = "https://github.com/carlosh7/blender-mcp"
-blender_version_min = "4.0.0"
-tags = ["ai", "mcp", "3d"]
-permissions = ["network", "filesystem", "clipboard"]
+maintainer = "CarlosH"
