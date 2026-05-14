@@ -8,6 +8,7 @@ import json
 import os
 import time
 import threading
+import traceback
 import logging
 from . import _axsock as bsock
 
@@ -44,20 +45,27 @@ def _tick():
 
             elapsed = time.time() - _message_start[mid]
             text = msg["message"]
+            print(f"[AUTO] mid={mid[:8]} text={text[:40]} elapsed={elapsed:.1f}s")
 
             # 1. Try embedded client (Ollama, OpenAI, etc.)
             try:
                 from .operators.embedded import _embedded_client
                 if _embedded_client is not None:
+                    print(f"[AUTO] embedded client available, processing...")
                     _process_with_client(mid, text)
                     continue
-            except:
+            except Exception as e:
+                print(f"[AUTO] embedded check error: {e}")
                 pass
 
             # 2. Try auto-start client if API key available
-            if elapsed > 3 and _try_auto_start_client():
-                _process_with_client(mid, text)
-                continue
+            if elapsed > 3:
+                print(f"[AUTO] Trying auto-start client...")
+                started = _try_auto_start_client()
+                print(f"[AUTO] auto-start result: {started}")
+                if started:
+                    _process_with_client(mid, text)
+                    continue
 
             # 3. After 30s, show specific diagnostic
             if elapsed > 30:
@@ -106,7 +114,9 @@ def _process_with_client(mid, text):
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
     model = getattr(scene, "aimcp_model", getattr(_embedded_client, 'default_model', ''))
+    print(f"[AUTO] provider={provider} model={model}")
     api_key = _get_api_key(provider)
+    print(f"[AUTO] api_key={'✅' if api_key else '❌'}")
 
     if not api_key:
         _respond(mid, "❌ No hay API key para " + provider)
@@ -116,11 +126,13 @@ def _process_with_client(mid, text):
     _respond(mid, "⏳ Pensando...", is_status=True)
 
     def process():
+        print(f"[AUTO] Sending to LLM: model={model}")
         try:
             result = _embedded_client.send_message(
                 model, api_key, [{"role": "user", "content": text}]
             )
             content = result.get("content", "")
+            print(f"[AUTO] LLM response: content={'✅' if content else '❌'}")
             if content:
                 _respond(mid, content)
             elif result.get("error"):
@@ -128,6 +140,7 @@ def _process_with_client(mid, text):
             else:
                 _respond(mid, "⚠️ El modelo no generó respuesta")
         except Exception as e:
+            print(f"[AUTO] LLM error: {traceback.format_exc()}")
             _respond(mid, f"❌ Error: {str(e)[:80]}")
         _cleanup(mid)
 
@@ -140,10 +153,14 @@ def _try_auto_start_client():
         return True
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
+    print(f"[AUTO] _try_auto_start: provider={provider}")
     api_key = _get_api_key(provider)
+    print(f"[AUTO] _try_auto_start: key={'✅' if api_key else '❌'}")
     if api_key:
         _auto_start_client(provider, api_key)
-        return _embedded_client is not None
+        success = _embedded_client is not None
+        print(f"[AUTO] _try_auto_start: client started={'✅' if success else '❌'}")
+        return success
     return False
 
 
