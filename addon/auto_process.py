@@ -73,13 +73,10 @@ def _tick():
 def _check_in_flight():
     now = time.time()
     for mid, started in list(_in_flight.items()):
-        if now - started > 20:
-            _respond(mid, "⏳ DeepSeek sigue pensando... (ya van >20s)", is_status=True)
+        elapsed = now - started
+        if elapsed > 30:
+            _respond(mid, f"⏳ Generando... (ya van {elapsed:.0f}s)", is_status=True)
             return 2.0
-        if now - started > 40:
-            _respond(mid, "⚠️ DeepSeek tardó más de 40s. Se excedió timeout.", is_status=False)
-            _cleanup(mid)
-            return 0.5
     return 0.5
 
 
@@ -171,6 +168,14 @@ ORGANIZACIÓN DE ESCENA:
   3. Después de crear CADA parte, haz: col.objects.link(parte)
   ⚠️ IMPORTANTE: NO uses NUNCA bpy.context.collection.objects.unlink(). Es innecesario. Los objetos pueden estar en varias colecciones a la vez. Unlink causa error "not in collection".
 - "50 manzanas" → Manzana_001 a Manzana_050
+
+ESTÁNDAR DE DETALLE MÍNIMO:
+- Vehículo: carrocería + parabrisas + ventanas + faros delanteros/traseros + ruedas con llanta.
+- Mueble: todas las partes visibles con proporciones reales (patas, respaldo, asiento, etc.).
+- Fruta/orgánico: forma reconocible + tallo/hojas + color degradado.
+- Edificio/casa: paredes + techo + puerta + ventanas.
+- Personaje: cabeza + torso + brazos + piernas, proporciones básicas.
+- SIEMPRE usa materiales con color en cada parte. NO dejes nada sin material.
 
 OBJETOS COMPLEJOS (curvas, orgánicos):
 - Para formas curvas usa: lattice + proportional editing + Simple Deform modifier.
@@ -343,7 +348,12 @@ def _get_scene_context():
     return ctx
 
 
-def _call_llm(url, headers, model, messages):
+def _get_timeout(text):
+    if len(text) > 50 or any(w in text.lower() for w in ("detalle", "detallado", "completo", "complej", "carro", "vehículo", "edificio", "mueble", "organico", "escena")):
+        return 90
+    return 60
+
+def _call_llm(url, headers, model, messages, text=""):
     body = json.dumps({
         "model": model,
         "messages": messages,
@@ -351,11 +361,11 @@ def _call_llm(url, headers, model, messages):
         "temperature": 0.4,
     }).encode()
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=45) as resp:
+    with urllib.request.urlopen(req, timeout=_get_timeout(text)) as resp:
         return json.loads(resp.read())
 
 
-def _call_anthropic(url, headers, api_key, model, messages):
+def _call_anthropic(url, headers, api_key, model, messages, text=""):
     system = ""
     msgs = []
     for m in messages:
@@ -376,7 +386,7 @@ def _call_anthropic(url, headers, api_key, model, messages):
         "content-type": "application/json",
     }
     req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
-    with urllib.request.urlopen(req, timeout=45) as resp:
+    with urllib.request.urlopen(req, timeout=_get_timeout(text)) as resp:
         return json.loads(resp.read())
 
 
@@ -415,22 +425,31 @@ def _process_with_client(mid, text):
         "User-Agent": "blender-mcp/0.8",
     }
 
-    _respond(mid, "⏳ Pensando...", is_status=True)
+    timeout = _get_timeout(text)
+    if timeout > 60:
+        _respond(mid, "⏳ Generando código detallado...", is_status=True)
+    else:
+        _respond(mid, "⏳ Pensando...", is_status=True)
 
     def process():
         nonlocal text
+        is_timeout_retry = False
 
         for retry in range(_RETRY_LIMIT + 1):
             if retry > 0:
-                print(f"[AUTO] Reintento {retry}/{_RETRY_LIMIT} con feedback de error...")
-                ctx = _get_scene_context()
-                text = text_original
+                if is_timeout_retry:
+                    print(f"[AUTO] Reintento por timeout, prompt simplificado...")
+                    text = f"{text_original}. Genera código CORTO, solo las partes más importantes, máximo 30 líneas."
+                else:
+                    print(f"[AUTO] Reintento {retry}/{_RETRY_LIMIT} con feedback de error...")
+                    ctx = _get_scene_context()
+                    text = text_original
 
             messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
             ctx = _get_scene_context()
             messages.append({"role": "system", "content": ctx})
-            if retry > 0:
+            if retry > 0 and not is_timeout_retry:
                 messages.append({"role": "system", "content": f"El intento anterior falló. Error: {errors[0]}. Escena actualizada arriba. Corrige el código."})
 
             prefs = _get_prefs_context()
@@ -452,21 +471,31 @@ def _process_with_client(mid, text):
             is_anthropic = provider == "anthropic"
             try:
                 if is_anthropic:
-                    result = _call_anthropic(url, headers, api_key, model, messages)
+                    result = _call_anthropic(url, headers, api_key, model, messages, text)
                     content = ""
                     for block in result.get("content", []):
                         if block.get("type") == "text":
                             content += block.get("text", "")
                 else:
-                    result = _call_llm(url, headers, model, messages)
+                    result = _call_llm(url, headers, model, messages, text)
                     content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
             except urllib.error.HTTPError as e:
                 err = e.read().decode()[:200]
                 print(f"[AUTO] HTTP Error {e.code}: {err}")
+                if retry < _RETRY_LIMIT:
+                    text_original = text
+                    text = f"Error HTTP {e.code}. Reintenta con código más simple."
+                    continue
                 _respond(mid, f"❌ HTTP {e.code}")
                 _cleanup(mid)
                 return
             except Exception as e:
+                is_timeout = isinstance(e, TimeoutError) or "timed out" in str(e).lower()
+                if is_timeout and retry < _RETRY_LIMIT:
+                    text_original = text
+                    is_timeout_retry = True
+                    _respond(mid, "⏳ Simplificando y reintentando...", is_status=True)
+                    continue
                 print(f"[AUTO] Error: {traceback.format_exc()}")
                 _respond(mid, f"❌ Error: {str(e)[:60]}")
                 _cleanup(mid)

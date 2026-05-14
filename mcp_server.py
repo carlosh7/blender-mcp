@@ -495,7 +495,7 @@ h1{{font-size:1.5em}} .v{{color:#888;font-size:.9em;margin:.3em 0 1.5em}}
 a{{color:#64b5f6;text-decoration:none}} .f{{margin-top:1.5em;padding-top:1em;border-top:1px solid #2a2a4a;font-size:.8em;color:#666}}
 </style></head>
 <body><div class="card">
-<h1>blender-mcp ●</h1><div class="v">v0.8.61</div>
+<h1>blender-mcp ●</h1><div class="v">v0.8.62</div>
 <div class="s"><span class="g"></span> {tools_count} tools</div>
 <div class="s"><span class="g"></span> Socket: {SOCKET_HOST}:{SOCKET_PORT}</div>
 <div class="s"><span class="g"></span> <a href="/sse">SSE endpoint</a></div>
