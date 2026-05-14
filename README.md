@@ -1,4 +1,4 @@
-# blender-mcp v0.8.0
+# blender-mcp v0.8.1
 
 **The most complete, flexible Blender MCP server** — Control Blender from **any** MCP client (Claude Desktop, Cursor, opencode, VS Code, Windsurf, Antigravity, LM Studio, Ollama...).
 
