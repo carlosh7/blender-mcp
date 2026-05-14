@@ -4,14 +4,13 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 97),
+    "version": (0, 8, 98),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
 }
 
 def _check_port(port):
-    """Verificación física de conectividad en el puerto local."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(0.2)
@@ -34,7 +33,7 @@ def _ensure_deps():
     return True
 
 def register():
-    ver = "0.8.97"
+    ver = "0.8.98"
     print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE VERIFICACIÓN TOTAL v{ver}")
     
     if not _ensure_deps():
@@ -47,22 +46,22 @@ def register():
     
     # 1. LANZAMIENTO DE SERVICIOS
     bsock.start_socket_server()
-    _start_servers()
+    _start_servers(__package__) # Pasar el contexto del paquete
 
-    # Pausa técnica para permitir el binding de los tres servidores
+    # Pausa técnica para permitir el binding
     time.sleep(1.0)
 
     try:
-        # 2. AUDITORÍA FÍSICA DE PUERTOS (SIN ENGAÑOS)
-        s_9876 = _check_port(9876) # Socket
-        s_9877 = _check_port(9877) # HTTP Bridge
-        s_9879 = _check_port(9879) # MCP SSE
+        # 2. AUDITORÍA FÍSICA DE PUERTOS
+        s_9876 = _check_port(9876)
+        s_9877 = _check_port(9877)
+        s_9879 = _check_port(9879)
         
         print(f"[AXIOM] {'✅' if s_9876 else '❌'} PORT 9876 (SOCKET): {'OPERATIVO' if s_9876 else 'DESCONECTADO'}")
         print(f"[AXIOM] {'✅' if s_9877 else '❌'} PORT 9877 (HTTP): {'OPERATIVO' if s_9877 else 'DESCONECTADO'}")
         print(f"[AXIOM] {'✅' if s_9879 else '❌'} PORT 9879 (MCP): {'OPERATIVO' if s_9879 else 'DESCONECTADO'}")
 
-        # 3. VALIDACIÓN RNA Y COMPONENTES
+        # 3. VALIDACIÓN RNA
         from .addon.chat_types import ChatMsg, ModelItem
         from .addon.properties import ChatData, ModelsData, MCP_UL_Chat
         from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
@@ -74,7 +73,7 @@ def register():
             try: bpy.utils.register_class(cls)
             except: pass
 
-        # 4. OPERADORES Y ESCENA
+        # 4. OPERADORES
         from .addon.operators import connect, chat as chat_ops, capture, export, setup, embedded, model_ops
         connect.register_connect_operators()
         chat_ops.register_chat_operators()
@@ -86,14 +85,13 @@ def register():
         _props.register_properties()
         _prefs.register_preferences()
         
-        # 5. VEREDICTO DE INTEGRIDAD
+        # 5. VEREDICTO
         all_ok = s_9876 and s_9877 and s_9879
         if all_ok:
             print(f"[AXIOM] ⭐ REPORTE DE INTEGRIDAD v{ver}: SISTEMA OPERATIVO AL 100%\n")
         else:
-            print(f"[AXIOM] 🚨 REPORTE DE INTEGRIDAD v{ver}: FALLO EN LA RED (REVISA CONSOLA)\n")
+            print(f"[AXIOM] 🚨 REPORTE DE INTEGRIDAD v{ver}: SISTEMA DEGRADADO (Revisa Sockets)\n")
         
-        # AUTO-LOAD
         def auto_refresh():
             try: bpy.ops.aimcp.refresh()
             except: pass
@@ -104,27 +102,28 @@ def register():
         print(f"[AXIOM] ❌ FALLO EN LA SECUENCIA: {e}")
         traceback.print_exc()
 
-def _start_servers():
+def _start_servers(pkg_name):
     try:
-        from .http_bridge import start_http_server
-        from .mcp_server import mcp
+        # USAR IMPORTLIB CON EL NOMBRE DEL PAQUETE PARA EVITAR ERRORES DE CONTEXTO
+        bridge_mod = importlib.import_module(".http_bridge", pkg_name)
+        mcp_mod = importlib.import_module(".mcp_server", pkg_name)
+        
+        def run_mcp():
+            try:
+                import uvicorn
+                uvicorn.run(mcp_mod.mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
+            except: pass
+
+        def run_http():
+            try:
+                bridge_mod.start_http_server()
+            except: pass
+
+        threading.Thread(target=run_mcp, daemon=True).start()
+        threading.Thread(target=run_http, daemon=True).start()
+        
     except Exception as e:
-        print(f"[AXIOM] ❌ ERROR DE CARGA: {e}")
-        return
-
-    def run_mcp():
-        try:
-            import uvicorn
-            uvicorn.run(mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
-        except: pass
-
-    def run_http():
-        try:
-            start_http_server()
-        except: pass
-
-    threading.Thread(target=run_mcp, daemon=True).start()
-    threading.Thread(target=run_http, daemon=True).start()
+        print(f"[AXIOM] ❌ ERROR DE INICIALIZACIÓN DE SERVIDORES: {e}")
 
 def unregister():
     from .addon import _axsock as bsock
@@ -134,6 +133,7 @@ def unregister():
     try: _props.unregister_properties()
     except: pass
     try:
-        from .http_bridge import stop_http_server
-        stop_http_server()
+        # Intentar detener el puente usando import dinámico
+        bridge_mod = importlib.import_module(".http_bridge", __package__)
+        bridge_mod.stop_http_server()
     except: pass
