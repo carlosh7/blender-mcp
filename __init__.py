@@ -4,7 +4,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 90),
+    "version": (0, 8, 92),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -25,7 +25,7 @@ def _ensure_deps():
     return True
 
 def register():
-    ver = "0.8.90"
+    ver = "0.8.92"
     print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE INTEGRIDAD TOTAL v{ver}")
     
     if not _ensure_deps():

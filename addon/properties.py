@@ -65,6 +65,7 @@ def register_properties():
     Scene.aimcp_connection_status = StringProperty(default="")
     Scene.aimcp_chat_index = IntProperty(default=0)
     Scene.aimcp_model = StringProperty(name="Selected Model", default="")
+    Scene.aimcp_pending_msg_id = StringProperty(default="")
 
     # 3. CONFIG & API PROPERTIES (LAS QUE FALTABAN)
     Scene.aimcp_show_opencode_go = BoolProperty(name="OpenCode.go", default=True)
