@@ -1,10 +1,10 @@
 """
-blender-mcp — Chat Operators (embedded-first)
-OP_Send tries embedded client first, then falls back to external proxy.
+blender-mcp — Chat Operators (embedded-first + fallback)
 """
 import bpy
 import time
 import threading
+import os
 from bpy.types import Operator
 from .. import blender_socket as bsock
 
@@ -26,7 +26,7 @@ class OP_Send(Operator):
         if ctx.area:
             ctx.area.tag_redraw()
 
-        # ── Try embedded client first (no external process needed) ──
+        # ── 1. Try embedded client (inside Blender, no external process) ──
         try:
             from ..operators.embedded import _embedded_client
             if _embedded_client is not None:
@@ -35,12 +35,31 @@ class OP_Send(Operator):
         except Exception:
             pass
 
-        # ── Fallback: queue to socket for external mcp_server.py ──
+        # ── 2. Queue to socket for external mcp_server.py ──
         msg_id = str(time.time())
         with bsock._chat_lock:
             bsock._chat_queue.append({"id": msg_id, "message": txt, "timestamp": time.time()})
         ctx.scene.aimcp_pending_msg_id = msg_id
 
+        # Start polling
+        bpy.app.timers.register(self._make_poller(ctx, msg_id), first_interval=0.5)
+
+        # ── 3. If no response in 5s, show help message ──
+        def show_help():
+            if ctx.scene.aimcp_waiting:
+                ctx.scene.aimcp_chat.add(
+                    "system",
+                    "⏳ Aún procesando... Si no hay respuesta en 30s, "
+                    "configura Local AI en Integrations o conecta Claude Desktop.",
+                    scene=ctx.scene,
+                )
+            return None
+        bpy.app.timers.register(show_help, first_interval=5.0)
+
+        return {'FINISHED'}
+
+    def _make_poller(self, ctx, msg_id):
+        """Create polling function that checks for response."""
         def check():
             scene = getattr(bpy.context, "scene", None)
             if not scene:
@@ -63,20 +82,16 @@ class OP_Send(Operator):
             scene.aimcp_pending_msg_id = ""
             bsock._chat_responses.pop(mid + "_status", None)
             return None
-
-        bpy.app.timers.register(check, first_interval=0.5)
-        return {'FINISHED'}
+        return check
 
     def _send_embedded(self, ctx, txt):
-        """Send via embedded client (inside Blender, no external process)."""
+        """Send via embedded client inside Blender."""
         from ..operators.embedded import _embedded_client
         from ..config_cache import get_provider_config
 
         provider = ctx.scene.aimcp_provider or "opencode-go"
-        model = ctx.scene.aimcp_model or _embedded_client.default_model
+        model = ctx.scene.aimcp_model or getattr(_embedded_client, 'default_model', 'gpt-4o-mini')
 
-        # Find API key
-        import os
         env_map = {"opencode-go": "OPENAI_API_KEY", "openai": "OPENAI_API_KEY",
                    "deepseek": "DEEPSEEK_API_KEY", "openrouter": "OPENROUTER_API_KEY",
                    "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_API_KEY"}
@@ -86,16 +101,19 @@ class OP_Send(Operator):
             api_key = cfg.get("api_key", "")
 
         if not api_key:
-            # No API key - queue for external proxy instead
+            # No API key — queue for socket instead
             msg_id = str(time.time())
             with bsock._chat_lock:
                 bsock._chat_queue.append({"id": msg_id, "message": txt, "timestamp": time.time()})
             ctx.scene.aimcp_pending_msg_id = msg_id
+            bpy.app.timers.register(self._make_poller(ctx, msg_id), first_interval=0.5)
             return
 
         def process():
             try:
-                result = _embedded_client.send_message(model, api_key, [{"role": "user", "content": txt}])
+                result = _embedded_client.send_message(
+                    model, api_key, [{"role": "user", "content": txt}]
+                )
                 content = result.get("content", "")
                 if content:
                     def update():

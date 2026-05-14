@@ -1,6 +1,6 @@
 """
 blender-mcp — Embedded Mode Operators
-Auto-start on addon activation. User just types and sends.
+Auto-start on addon activation. Auto-detects Ollama if available.
 """
 import bpy
 import json
@@ -9,8 +9,8 @@ import sys
 import time
 import threading
 import logging
+import urllib.request
 from bpy.types import Operator
-from bpy.props import StringProperty, BoolProperty
 
 logger = logging.getLogger("blender-mcp-embedded")
 
@@ -19,8 +19,19 @@ _embedded_server = None
 _auto_started = False
 
 
+def _check_ollama():
+    """Check if Ollama is running locally."""
+    try:
+        req = urllib.request.Request("http://localhost:11434/api/version", method="GET")
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            data = json.loads(resp.read())
+            return data.get("version", "")
+    except Exception:
+        return None
+
+
 def auto_start():
-    """Called from addon/__init__.py register(). Starts server + client."""
+    """Called from addon/__init__.py register(). Auto-detects Ollama."""
     global _embedded_server, _auto_started
     if _auto_started:
         return
@@ -33,7 +44,42 @@ def auto_start():
     except Exception as e:
         logger.warning(f"Embedded server: {e}")
 
+    # Auto-detect Ollama
+    ollama_ver = _check_ollama()
+    if ollama_ver:
+        logger.info(f"Ollama detected (v{ollama_ver}), auto-starting local AI")
+        _auto_start_client("ollama", "")
+        _auto_started = True
+        return
+
     _auto_started = True
+
+
+def _auto_start_client(provider, api_key):
+    global _embedded_client
+    try:
+        if provider == "ollama":
+            from ..client.ollama import MCPClientOllama
+            _embedded_client = MCPClientOllama()
+        elif provider == "anthropic":
+            from ..client.claude import MCPClientClaude
+            _embedded_client = MCPClientClaude()
+        elif provider == "deepseek":
+            from ..client.openai import MCPClientDeepSeek
+            _embedded_client = MCPClientDeepSeek()
+        elif provider == "openrouter":
+            from ..client.openai import MCPClientOpenRouter
+            _embedded_client = MCPClientOpenRouter()
+        elif provider == "google":
+            from ..client.openai import MCPClientGoogle
+            _embedded_client = MCPClientGoogle()
+        else:
+            from ..client.openai import MCPClientOpenAI
+            _embedded_client = MCPClientOpenAI()
+        _embedded_client.start()
+        logger.info(f"Embedded client started: {provider}")
+    except Exception as e:
+        logger.warning(f"Could not start embedded client: {e}")
 
 
 def auto_stop():
@@ -61,38 +107,23 @@ class BLENDERMCP_OT_StartEmbedded(Operator):
     bl_description = "Connect to local LLM (Ollama/OpenAI) for embedded AI"
 
     def execute(self, context):
-        global _embedded_client, _embedded_server
+        global _embedded_client
         scene = context.scene
 
-        # Server should already be running from auto_start()
-        if _embedded_server is None:
-            from ..server import start_embedded_server
-            _embedded_server = start_embedded_server()
+        provider = scene.aimcp_provider or "opencode-go"
+        env_map = {"opencode-go": "OPENAI_API_KEY", "openai": "OPENAI_API_KEY",
+                   "deepseek": "DEEPSEEK_API_KEY", "openrouter": "OPENROUTER_API_KEY",
+                   "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_API_KEY"}
+        api_key = os.environ.get(env_map.get(provider, ""), "")
 
-        if _embedded_client is None:
-            provider = scene.aimcp_provider or "opencode-go"
-            api_key = os.environ.get("OPENAI_API_KEY") or ""
-            self._start_client(provider, api_key)
-            self.report({'INFO'}, f"Local AI ready")
-
-        scene.aimcp_ai_state = "connected"
+        _auto_start_client(provider, api_key)
+        if _embedded_client:
+            scene.aimcp_ai_state = "connected"
+            self.report({'INFO'}, f"Local AI ready ({provider})")
+        else:
+            scene.aimcp_ai_state = "no_mcp"
+            self.report({'WARNING'}, "Could not start AI. Check API key or Ollama.")
         return {'FINISHED'}
-
-    def _start_client(self, provider, api_key):
-        global _embedded_client
-        providers = {
-            "anthropic": ("addon.client.claude", "MCPClientClaude"),
-            "deepseek": ("addon.client.openai", "MCPClientDeepSeek"),
-            "openrouter": ("addon.client.openai", "MCPClientOpenRouter"),
-            "google": ("addon.client.openai", "MCPClientGoogle"),
-            "ollama": ("addon.client.ollama", "MCPClientOllama"),
-        }
-        import importlib
-        mod_path, cls_name = providers.get(provider, ("addon.client.openai", "MCPClientOpenAI"))
-        mod = importlib.import_module(mod_path)
-        cls = getattr(mod, cls_name)
-        _embedded_client = cls()
-        _embedded_client.start()
 
 
 class BLENDERMCP_OT_StopEmbedded(Operator):

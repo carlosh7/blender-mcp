@@ -40,11 +40,11 @@ def _ensure_deps():
             except Exception as e:
                 print(f"[blender-mcp] ⚠️  Could not install {pkg}: {e}")
 
-# ─── Auto-start embedded MCP server at startup ───
+# ─── Auto-start embedded MCP server + external auto-process at startup ───
 _EMBEDDED_STARTED = False
+_MCP_PROCESS = None
 
 def _start_embedded():
-    """Start the embedded MCP server (runs inside Blender, no external process)."""
     global _EMBEDDED_STARTED
     if _EMBEDDED_STARTED:
         return
@@ -55,6 +55,38 @@ def _start_embedded():
         print("[blender-mcp] ✅ Embedded MCP server ready on :45677")
     except Exception as e:
         print(f"[blender-mcp] ⚠️  Embedded server: {e}")
+
+def _start_mcp_process():
+    """Start mcp_server.py as a subprocess so _auto_process runs."""
+    global _MCP_PROCESS
+    if _MCP_PROCESS is not None:
+        return
+    try:
+        import subprocess, sys
+        root = os.path.dirname(__file__)
+        server_script = os.path.join(root, "..", "mcp_server.py")
+        if os.path.exists(server_script):
+            _MCP_PROCESS = subprocess.Popen(
+                [sys.executable, server_script],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            print(f"[blender-mcp] ✅ MCP auto-process started (PID {_MCP_PROCESS.pid})")
+    except Exception as e:
+        print(f"[blender-mcp] ⚠️  Could not start MCP process: {e}")
+
+def _stop_mcp_process():
+    global _MCP_PROCESS
+    if _MCP_PROCESS:
+        try:
+            _MCP_PROCESS.terminate()
+            _MCP_PROCESS.wait(timeout=5)
+        except:
+            try:
+                _MCP_PROCESS.kill()
+            except:
+                pass
+        _MCP_PROCESS = None
+        print("[blender-mcp] MCP auto-process stopped")
 
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
 
@@ -324,9 +356,10 @@ classes = [
 ]
 
 def register():
-    # 0. Auto-dependencies + embedded server + client
+    # 0. Auto-dependencies + embedded server + auto-process + client
     _ensure_deps()
     _start_embedded()
+    _start_mcp_process()
     try:
         from .operators.embedded import auto_start
         auto_start()
@@ -432,6 +465,7 @@ def unregister():
         auto_stop()
     except:
         pass
+    _stop_mcp_process()
     bsock.stop_socket_server()
     for cls in reversed(classes):
         try:

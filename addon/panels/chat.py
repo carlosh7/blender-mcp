@@ -103,17 +103,15 @@ class PN_PT_Chat(Panel):
     def draw(self, ctx):
         L = self.layout
         c = ctx.scene
-        # Row 1: Status + actions
+        # Row 1: Status
         row = L.row(align=True)
-        is_embedded = hasattr(c, 'blendermcp_agent_mode') and c.blendermcp_agent_mode != 'PROXY'
-        if not c.aimcp_connected and not is_embedded:
-            row.operator("aimcp.check", text="Connect", icon='ADD')
-        elif c.aimcp_waiting:
+        if c.aimcp_waiting:
             row.operator("aimcp.stop_agent", text="STOP", icon='CANCEL')
             row.label(text="Working...", icon='SORTTIME')
         else:
             row.label(text="Ready", icon='CHECKBOX_HLT')
-        row.operator("blendermcp.open_web", text="Web", icon='URL')
+        row.operator("blendermcp.start_embedded", text="", icon='SYSTEM')
+        row.operator("blendermcp.open_web", text="", icon='URL')
         row = L.row(align=True)
         row.operator("aimcp.capture", text="Vision", icon='CAMERA_DATA')
         row.operator("aimcp.export", text="Export", icon='EXPORT')
