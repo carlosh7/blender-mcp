@@ -1,3 +1,0 @@
-"""
-blender-mcp — Autonomous Agent
-"""
