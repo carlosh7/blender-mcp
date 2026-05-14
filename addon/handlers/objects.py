@@ -27,8 +27,18 @@ class ObjectsHandler(BaseHandler):
         if not op:
             return {"error": f"Unknown type: {type}. Use: {', '.join(type_map.keys())}"}
 
+        before = set(o.name for o in bpy.data.objects)
         getattr(bpy.ops.mesh, op)(location=location)
-        obj = bpy.context.active_object
+        # Find the newly created object
+        obj = None
+        for o in bpy.data.objects:
+            if o.name not in before:
+                obj = o
+                break
+        if not obj:
+            obj = bpy.context.object or (bpy.data.objects[-1] if bpy.data.objects else None)
+        if not obj:
+            return {"error": "Failed to create object"}
         if name:
             obj.name = name
         obj.scale = scale

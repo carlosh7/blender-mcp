@@ -15,6 +15,17 @@ class MaterialsHandler(BaseHandler):
         mat = bpy.data.materials.new(name)
         mat.use_nodes = True
         bsdf = mat.node_tree.nodes["Principled BSDF"]
+        # Accept 3 (RGB) or 4 (RGBA) values
+        if hasattr(color, '__iter__'):
+            color = list(color)
+            if len(color) == 3:
+                color = color + [1.0]
+            elif len(color) > 4:
+                color = color[:4]
+            elif len(color) == 0:
+                color = [0.5, 0.5, 0.5, 1.0]
+        else:
+            color = [0.5, 0.5, 0.5, 1.0]
         bsdf.inputs["Base Color"].default_value = color
         bsdf.inputs["Roughness"].default_value = roughness
         bsdf.inputs["Metallic"].default_value = metallic
