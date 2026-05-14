@@ -16,8 +16,7 @@ from pathlib import Path
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, PointerProperty
 from bpy.types import Panel, Operator, PropertyGroup, UIList
 
-sys.path.insert(0, os.path.dirname(__file__))
-import _axsock as bsock
+from . import _axsock as bsock
 from . import spatial
 
 # ─── Auto-install pip dependencies + auto-start servers ───

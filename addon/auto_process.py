@@ -224,6 +224,7 @@ def _call_llm_with_tools(url, headers, model, messages):
     return {
         "content": choice.get("content", ""),
         "tool_calls": choice.get("tool_calls"),
+        "raw_message": choice,
     }
 
 
@@ -287,20 +288,8 @@ def _process_with_client(mid, text):
                 print(f"[AUTO] Sin tool_calls, fin del loop")
                 break
 
-            # Añadir mensaje assistant con tool_calls (requerido por la API)
-            assistant_msg = {"role": "assistant", "content": content or ""}
-            assistant_tool_calls = []
-            for tc in tool_calls:
-                assistant_tool_calls.append({
-                    "id": tc.get("id", f"call_{turn}_{len(assistant_tool_calls)}"),
-                    "type": "function",
-                    "function": {
-                        "name": tc["function"]["name"],
-                        "arguments": tc["function"]["arguments"],
-                    },
-                })
-            assistant_msg["tool_calls"] = assistant_tool_calls
-            messages.append(assistant_msg)
+            # Usar el mensaje RAW que devolvió la API (incluye reasoning_content si existe)
+            messages.append(response.get("raw_message", {"role": "assistant", "content": content or ""}))
 
             for tc in tool_calls:
                 func_name = tc["function"]["name"]
