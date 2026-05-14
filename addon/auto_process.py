@@ -449,11 +449,18 @@ def _exec_code_main(code_blocks):
                     results.append(str(e))
                 continue
             try:
+                import io
+                from contextlib import redirect_stdout
                 bpy.ops.ed.undo_push(message="AI ACTION")
                 compiled = compile(code, "<blender_code>", "exec")
+                buf = io.StringIO()
                 with WeakSandboxForLLM():
-                    exec(compiled, _HELPER_NAMESPACE)
+                    with redirect_stdout(buf):
+                        exec(compiled, _HELPER_NAMESPACE)
                 bpy.context.view_layer.update()
+                output = buf.getvalue().strip()
+                if output:
+                    results.insert(0, "__STDOUT__:" + output)
                 print("[AUTO] Código ejecutado correctamente")
             except Exception as e:
                 err = f"Error: {e}"

@@ -19,7 +19,6 @@ _STOPWORDS = frozenset({
 
 _TITLE_MATCH_WEIGHT = 15.0
 _PATH_MATCH_WEIGHT = 10.0
-_CONTEXT_PARAGRAPHS = 3
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 
@@ -35,20 +34,13 @@ def _tokenize(text):
     return [t for t in tokens if t not in _STOPWORDS and len(t) > 1]
 
 
-def _tfidf_score(query_tokens, doc_text, doc_path):
-    doc_tokens = _tokenize(doc_text)
-    doc_len = len(doc_tokens)
-    if doc_len == 0:
-        return 0.0
-    score = 0.0
-    for qt in query_tokens:
-        tf = doc_tokens.count(qt) / doc_len
-        score += tf
-    path_lower = doc_path.lower()
-    for qt in query_tokens:
-        if qt in path_lower:
-            score += _PATH_MATCH_WEIGHT
-    return score
+def _get_title(filepath):
+    with open(filepath, errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and not line.startswith("=") and not line.startswith("-"):
+                return line[:120]
+    return os.path.basename(filepath)
 
 
 def _extract_snippet(text, query, width=200):
@@ -65,49 +57,72 @@ def _extract_snippet(text, query, width=200):
     return snippet
 
 
-def _get_title(filepath):
-    with open(filepath, errors="replace") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and not line.startswith("=") and not line.startswith("-"):
-                return line[:120]
-    return os.path.basename(filepath)
+def _count_docs_containing(tokens, files):
+    doc_counts = {}
+    total_with_content = 0
+    for fp in files:
+        with open(fp, errors="replace") as f:
+            content = f.read()
+        if not content.strip():
+            continue
+        total_with_content += 1
+        for qt in tokens:
+            if qt in content.lower():
+                doc_counts[qt] = doc_counts.get(qt, 0) + 1
+    return doc_counts, total_with_content
+
+
+def _score_doc(tokens, content, filepath, title, idf_weights):
+    doc_tokens = _tokenize(content)
+    doc_len = len(doc_tokens)
+    if doc_len == 0:
+        return 0.0
+    score = 0.0
+    for qt in tokens:
+        tf = doc_tokens.count(qt) / doc_len
+        idf = idf_weights.get(qt, 1.0)
+        score += tf * idf
+    path_lower = filepath.lower()
+    for qt in tokens:
+        if qt in path_lower:
+            score += _PATH_MATCH_WEIGHT
+    title_lower = title.lower()
+    for qt in tokens:
+        if qt in title_lower:
+            score += _TITLE_MATCH_WEIGHT
+    return score
+
+
+def _search(subdir, query, max_results=10):
+    tokens = _tokenize(query)
+    if not tokens:
+        return {"query": query, "results": [], "total": 0}
+    files = _rst_files(subdir)
+    doc_counts, total = _count_docs_containing(tokens, files)
+    n = total or 1
+    idf_weights = {qt: math.log((n + 1) / (doc_counts.get(qt, 0) + 1)) + 1 for qt in tokens}
+    scored = []
+    for fp in files:
+        with open(fp, errors="replace") as f:
+            content = f.read()
+        if not content.strip():
+            continue
+        title = _get_title(fp)
+        score = _score_doc(tokens, content, fp, title, idf_weights)
+        if score > 0:
+            rel = os.path.relpath(fp, _DATA_DIR)
+            scored.append((score, rel, _extract_snippet(content, query), title))
+    scored.sort(key=lambda x: -x[0])
+    results = [{"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)} for r in scored[:max_results]]
+    return {"query": query, "results": results, "total": len(scored)}
 
 
 def search_api_docs(query, max_results=10):
-    tokens = _tokenize(query)
-    if not tokens:
-        return {"query": query, "results": [], "total": 0}
-    n_files = 0
-    scored = []
-    for fp in _rst_files("api"):
-        n_files += 1
-        with open(fp, errors="replace") as f:
-            content = f.read()
-        score = _tfidf_score(tokens, content, fp)
-        if score > 0:
-            rel = os.path.relpath(fp, _DATA_DIR)
-            scored.append((score, rel, _extract_snippet(content, query), _get_title(fp)))
-    scored.sort(key=lambda x: -x[0])
-    results = [{"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)} for r in scored[:max_results]]
-    return {"query": query, "results": results, "total": len(scored)}
+    return _search("api", query, max_results)
 
 
 def search_manual_docs(query, max_results=10):
-    tokens = _tokenize(query)
-    if not tokens:
-        return {"query": query, "results": [], "total": 0}
-    scored = []
-    for fp in _rst_files("manual"):
-        with open(fp, errors="replace") as f:
-            content = f.read()
-        score = _tfidf_score(tokens, content, fp)
-        if score > 0:
-            rel = os.path.relpath(fp, _DATA_DIR)
-            scored.append((score, rel, _extract_snippet(content, query), _get_title(fp)))
-    scored.sort(key=lambda x: -x[0])
-    results = [{"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)} for r in scored[:max_results]]
-    return {"query": query, "results": results, "total": len(scored)}
+    return _search("manual", query, max_results)
 
 
 def get_python_api_docs(topic):

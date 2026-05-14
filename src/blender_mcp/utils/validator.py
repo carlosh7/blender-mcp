@@ -5,7 +5,11 @@ Bloquea importaciones peligrosas y llamadas inseguras.
 """
 import ast
 
-_BLOCKED_MODULES = {"os", "subprocess", "sys", "shutil", "socket", "pathlib", "requests", "ctypes"}
+_BLOCKED_MODULES = {
+    "os", "subprocess", "sys", "shutil", "socket", "pathlib",
+    "requests", "ctypes", "importlib", "pickle", "marshal",
+    "codecs", "builtins", "webbrowser",
+}
 _BLOCKED_CALLS = {"exec", "eval", "compile", "__import__", "open"}
 
 
