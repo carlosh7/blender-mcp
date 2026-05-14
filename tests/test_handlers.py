@@ -167,3 +167,16 @@ class TestAssetsHandler:
         from handlers.viewport import ViewportHandler
         cmds = ViewportHandler.get_commands()
         assert "jump_to_view3d_object_by_name" in cmds
+        assert "jump_to_tab_by_name" in cmds
+        assert "jump_to_tab_by_space_type" in cmds
+
+    @pytest.mark.skip(reason="Requires Blender Python API (bpy)")
+    def test_weak_sandbox(self):
+        import sys
+        from weak_sandbox import WeakSandboxForLLM
+        with WeakSandboxForLLM():
+            try:
+                sys.exit(0)
+                assert False, "Should have raised"
+            except RuntimeError:
+                pass
