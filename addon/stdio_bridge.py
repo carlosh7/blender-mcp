@@ -84,7 +84,7 @@ def handle_request(req):
     req_id = req.get("id")
 
     if method == "initialize":
-        return {"jsonrpc": "2.0", "id": req_id, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "blender-mcp", "version": "0.8.17"}}}
+        return {"jsonrpc": "2.0", "id": req_id, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "blender-mcp", "version": "0.8.18"}}}
 
     elif method == "notifications/initialized":
         return None  # no response needed

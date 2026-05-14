@@ -3,9 +3,9 @@ blender-mcp — Config Panel
 Model selector with provider browsing, status, connection state.
 """
 import bpy
+import importlib
 from bpy.types import Panel
 from .. import PROVIDER_ORDER, PROVIDER_LABELS
-from .. import blender_socket as bsock
 
 
 class PN_PT_Config(Panel):
@@ -20,13 +20,11 @@ class PN_PT_Config(Panel):
         c = ctx.scene
 
         # ── Status ──
+        bsock = importlib.import_module("blender_socket")
         box = L.box()
         box.label(text="Status", icon='LINKED')
         row = box.row(align=True)
         is_connected = bsock._socket_server is not None and bsock._socket_server.running
-        if not is_connected:
-            running_val = bsock._socket_server.running if bsock._socket_server else None
-            print(f"[DEBUG] Socket Offline — _socket_server={bsock._socket_server}, running={running_val}")
         row.label(text="Socket: Online" if is_connected else "Socket: Offline",
                   icon='CHECKBOX_HLT' if is_connected else 'CHECKBOX_DEHLT')
 
