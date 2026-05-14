@@ -271,6 +271,15 @@ Estrategias:
 - Termina con `print("OK")`.
 - Código en ```python ... ```.
 
+APIS SEGURAS (NO alucines nombres de funciones):
+- Para cilindros: bpy.ops.mesh.primitive_cylinder_add(radius=..., depth=..., location=..., rotation=...)
+- Para cubos: bpy.ops.mesh.primitive_cube_add(size=1, location=...)
+- Para esferas: bpy.ops.mesh.primitive_uv_sphere_add(radius=..., location=...)
+- Para planos: bpy.ops.mesh.primitive_plane_add(size=..., location=...)
+- NO uses bmesh.ops.create_cone, create_cylinder ni create_cube
+- NO uses bmesh.ops con nombres que no conoces
+- NO alucines nombres de funciones. Usa solo bpy.ops.mesh.primitive_* que conoces.
+
 Ejemplo:
 ```python
 import bpy
@@ -592,6 +601,10 @@ def _process_with_client(mid, text):
         is_timeout_retry = False
 
         for retry in range(_RETRY_LIMIT + 1):
+            if bsock._stop_agent:
+                _respond(mid, "⛔ Detenido por el usuario")
+                _cleanup(mid)
+                return
             if retry > 0:
                 if is_timeout_retry:
                     print(f"[AUTO] Reintento por timeout, prompt simplificado...")
@@ -717,7 +730,7 @@ def _respond(mid, text, is_status=False):
                 s.aimcp_chat.add("assistant", text, scene=s)
                 with bsock._chat_lock:
                     bsock._chat_queue[:] = [m for m in bsock._chat_queue if m["id"] != mid]
-            s.aimcp_waiting = False
+                s.aimcp_waiting = False
             s.aimcp_pending_msg_id = ""
             for screen in bpy.data.screens:
                 for area in screen.areas:
