@@ -252,6 +252,7 @@ def _make_lathe(profile, name="LatheObj", location=(0, 0, 0), axis="Y", steps=64
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.select_all(action='DESELECT')
     obj.select_set(True)
+    bpy.ops.object.convert(target='MESH')
     bpy.ops.object.modifier_add(type='SCREW')
     mod = obj.modifiers[-1]
     if axis == "Y":
@@ -281,11 +282,23 @@ def _get_next_position():
     return max(occupied) + 3.0
 
 
+def _render_preview():
+    fp = "/tmp/blender_mcp_preview.png"
+    bpy.context.scene.render.filepath = fp
+    bpy.context.scene.render.resolution_x = 800
+    bpy.context.scene.render.resolution_y = 600
+    bpy.ops.render.render(write_still=True)
+    import base64
+    with open(fp, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+
 _HELPER_NAMESPACE = {
     "bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops,
     "make_curve": _make_bezier_curve,
     "make_collection": _make_collection,
     "make_lathe": _make_lathe,
+    "render_preview": _render_preview,
     "unique_name": _ensure_unique_name,
     "next_pos": _get_next_position,
 }
@@ -351,6 +364,12 @@ def _exec_code_main(code_blocks):
                 err = f"Error: {e}"
                 print(f"[AUTO] {err}")
                 results.append(err)
+        if not results:
+            try:
+                b64 = _render_preview()
+                results.insert(0, "__PREVIEW__:" + b64)
+            except:
+                pass
         done.set()
         return None
 
@@ -557,8 +576,16 @@ def _process_with_client(mid, text):
             if retry == 0:
                 text_original = text
 
+        preview_b64 = None
+        for e in errors:
+            if e.startswith("__PREVIEW__:"):
+                preview_b64 = e[12:]
+                errors.remove(e)
+                break
         if errors:
             content += "\n\n---\n⚠️ Error al ejecutar:\n" + "\n".join(errors)
+        if preview_b64:
+            content += "\n\n![preview](data:image/png;base64," + preview_b64 + ")"
 
         _respond(mid, content)
         _cleanup(mid)
