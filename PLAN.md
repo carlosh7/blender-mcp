@@ -91,9 +91,59 @@ Todas las fases implementadas en una sola sesión. 71/71 tools validadas.
 | `src/blender_mcp/tools/docs.py` | Registro MCP de docs tools |
 | `src/blender_mcp/tools/viewport.py` | Registro MCP de viewport tools |
 
-## Próximos Pasos (post-plan)
+## Bug Tracker — Versiones Planificadas
 
-- Fix: `execute_blender_code` crash (segfault) con código complejo
-- Fix: handler dispatch con `_axsock` importado fuera del package
-- Mejorar robustez de auto-selección de modelo
-- Tests e2e con LLM real
+### v0.8.54 🔴 — Auto-select de modelo + feedback de errores
+| # | Bug | Archivo | Prioridad |
+|---|-----|---------|-----------|
+| 1 | Auto-select elige `pro` en vez de `flash` cuando ambos existen | `addon/__init__.py` (_read_opencode_model + delayed_load) | 🔴 Crítico |
+| 2 | No hay indicador visual de qué modelo está activo en el panel | `addon/panels/chat.py` | 🟡 Medio |
+| 3 | `_exec_code` no reporta errores de sintaxis del código generado (DeepSeek parte líneas) | `addon/auto_process.py` | 🟡 Medio |
+| 4 | Sistema necesita reintentar si el código falla con el error en el prompt | `addon/auto_process.py` (nuevo: _retry_with_feedback) | 🔴 Crítico |
+
+### v0.8.55 🔴 — Robustez del socket server
+| # | Bug | Archivo | Prioridad |
+|---|-----|---------|-----------|
+| 5 | `handler_dispatch` en `_axsock.py` falla cuando se importa fuera del package (__package__ None) | `addon/_axsock.py` | 🔴 Crítico |
+| 6 | Socket no reconecta automáticamente si `mcp_server.py` se reinicia | `addon/_axsock.py` | 🟡 Medio |
+
+### v0.8.56 🔴 — Seguridad en execute_blender_code
+| # | Bug | Archivo | Prioridad |
+|---|-----|---------|-----------|
+| 7 | `execute_blender_code` puede causar segfault con código complejo (bucle infinito, bpy mal usado) | `addon/_axsock.py` + `addon/auto_process.py` | 🔴 Crítico |
+| 8 | Falta timeout de ejecución en `_exec_code` | `addon/auto_process.py` | 🟡 Medio |
+
+### v0.8.57 🟡 — UI/UX
+| # | Bug | Archivo | Prioridad |
+|---|-----|---------|-----------|
+| 9 | Panel de chat no muestra feedback visual mientras DeepSeek procesa (solo "⏳ Pensando...") | `addon/panels/chat.py` | 🟡 Medio |
+| 10 | Cuando el código ejecutado modifica la escena, el viewport no se actualiza automáticamente | `addon/auto_process.py` (_exec_code) | 🟢 Bajo |
+| 11 | No hay botón para cancelar una solicitud en curso | `addon/operators/chat.py` | 🟢 Bajo |
+
+### v0.8.58 🟡 — Tests y CI
+| # | Bug | Archivo | Prioridad |
+|---|-----|---------|-----------|
+| 12 | `validate_tools.py` usa `_axsock._execute()` directo — no prueba socket real | `validate_tools.py` | 🟡 Medio |
+| 13 | CI desactualizado (aún importa `tools_*.py` que ya no existen) | `.github/workflows/test.yml` | 🟡 Medio |
+| 14 | Tests de handlers tienen `@pytest.mark.skip` y nunca se ejecutan | `tests/test_handlers.py` | 🟢 Bajo |
+
+### v0.8.59 🟢 — Mejoras
+| # | Mejora | Archivo | Prioridad |
+|---|--------|---------|-----------|
+| 15 | Que el LLM pueda ver la escena actual ANTES de generar código (screenshot) | `addon/auto_process.py` | 🟢 Bajo |
+| 16 | Auto-detectar si `deepseek-v4-flash` está disponible y usarlo por defecto | `addon/__init__.py` | 🟡 Medio |
+
+---
+
+## Resumen
+
+| Versión | Enfoque | Bugs |
+|---------|---------|------|
+| **v0.8.54** | Auto-select + feedback loop | 4 bugs 🔴 |
+| **v0.8.55** | Socket robustez | 2 bugs |
+| **v0.8.56** | Seguridad código | 2 bugs |
+| **v0.8.57** | UI/UX | 3 bugs 🟡 |
+| **v0.8.58** | Tests/CI | 3 bugs 🟡 |
+| **v0.8.59** | Mejoras | 2 bugs |
+
+Prioridad: seguir orden numérico. Cada versión es independiente y desplegable.
