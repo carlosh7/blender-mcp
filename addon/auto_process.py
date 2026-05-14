@@ -155,6 +155,7 @@ REGLAS ESTRICTAS DE CÓDIGO:
 - Usa `bpy.context.active_object` para objeto recién creado. NUNCA `bpy.context.object`.
 - Para añadir un modifier usa: `obj.modifiers.new(name="...", type='...')`. NO uses `bpy.ops.object.modifier_add`.
 - Materiales: Principled BSDF con RGBA, sin Specular.
+- ESCALAS: `primitive_cube_add(size=1)` crea un cubo de 1m. scale ES el tamaño final. NO dividas por 2. Ej: para 2.74m usa `scale = (2.74, 1.525, 0.02)`.
 - Termina con `print("OK")`.
 - El código en ```python ... ```. Si no hay código, responde solo texto.
 
@@ -179,7 +180,7 @@ OBJETOS COMPLEJOS (curvas, orgánicos):
 PREFERENCIAS DEL USUARIO (se te dan como contexto, úsalas por defecto):
 - Si el usuario dice "me gusta el rojo" o similar, lo recordaré para próximas veces.
 
-Ejemplo:
+Ejemplo objetos simples:
 ```python
 import bpy
 bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
@@ -192,6 +193,13 @@ mat.use_nodes = True
 mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
 s.data.materials.append(mat)
 print("OK")
+```
+
+Ejemplo escalas correctas (NO dividir por 2):
+```python
+bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
+s = bpy.context.active_object
+s.scale = (2.74, 1.525, 0.02)  # tamaño FINAL es 2.74 x 1.525 x 0.02, NO dividir
 ```"""
 
 
