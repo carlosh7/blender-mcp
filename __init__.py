@@ -6,7 +6,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 77),
+    "version": (0, 8, 78),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -59,12 +59,29 @@ def register():
         print("[AXIOM] ✅ Precisión Socket listo (:9876)")
     except Exception as e: print(f"[AXIOM] Socket Error: {e}")
 
-    # Registro de Clases y Propiedades
+    # --- REGISTRO DE CLASES (PRIMERO) ---
     try:
+        from .addon.properties import ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat
+        from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
+        
+        # Paneles
+        from .addon.panels import chat as _chat_panel, config as _config_panel, integrations as _int_panel
+        classes = [
+            _chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config,
+            ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat, 
+            BLENDERMCP_OT_OpenWeb
+        ]
+        for p in _int_panel.PANELS: classes.append(p)
+        
+        for cls in classes:
+            try: bpy.utils.register_class(cls)
+            except: pass
+
+        # --- REGISTRO DE PROPIEDADES Y PREFERENCIAS (DESPUÉS) ---
         _props.register_properties()
         _prefs.register_preferences()
         
-        # Registro de operadores (vía sus módulos internos)
+        # Registro de operadores
         from .addon.operators import connect, chat, capture, export, setup, embedded, model_ops
         connect.register_connect_operators()
         chat.register_chat_operators()
@@ -73,23 +90,8 @@ def register():
         setup.register_setup_operators()
         embedded.register_embedded_operators()
         model_ops.register_model_operators()
-        
-        # Registro de paneles
-        from .addon.panels import chat as _chat_panel, config as _config_panel, integrations as _int_panel
-        bpy.utils.register_class(_chat_panel.PN_PT_Chat)
-        bpy.utils.register_class(_config_panel.PN_PT_Config)
-        for p in _int_panel.PANELS: bpy.utils.register_class(p)
-        
-        # ⚡ REGISTRO DE CLASES DE DATOS (AHORA DESDE PROPERTIES)
-        from .addon.properties import ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat
-        from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
-        
-        classes = [ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat, BLENDERMCP_OT_OpenWeb]
-        for cls in classes:
-            try: bpy.utils.register_class(cls)
-            except: pass
             
-        # ⚡ REGISTRO DE PROPIEDADES DE ESCENA
+        # ⚡ PROPIEDADES DE ESCENA (Vinculadas a las clases ya registradas)
         Scene = bpy.types.Scene
         from bpy.props import PointerProperty, StringProperty, BoolProperty, IntProperty
         
