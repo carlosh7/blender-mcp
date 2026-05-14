@@ -167,17 +167,28 @@ print("OK")
 ```"""
 
 
-def _exec_code(code):
-    ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
-    try:
-        compiled = compile(code, "<blender_code>", "exec")
-        exec(compiled, ns)
-        print("[AUTO] Código ejecutado correctamente")
+def _exec_code_main(code_blocks):
+    """Ejecuta código en el hilo principal de Blender vía timer. Retorna lista de errores."""
+    results = []
+    done = threading.Event()
+
+    def execute():
+        for code in code_blocks:
+            ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
+            try:
+                compiled = compile(code, "<blender_code>", "exec")
+                exec(compiled, ns)
+                print("[AUTO] Código ejecutado correctamente")
+            except Exception as e:
+                err = f"Error: {e}"
+                print(f"[AUTO] {err}")
+                results.append(err)
+        done.set()
         return None
-    except Exception as e:
-        err = f"Error: {e}"
-        print(f"[AUTO] {err}")
-        return err
+
+    bpy.app.timers.register(execute, first_interval=0.0)
+    done.wait(timeout=10)
+    return results
 
 
 def _append_to_log(text, tag="AI"):
@@ -312,14 +323,11 @@ def _process_with_client(mid, text):
 
         print(f"[AUTO] Respuesta recibida ({len(content)} chars)")
 
-        errors = []
         code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
+        errors = []
         if code_blocks:
-            for i, code in enumerate(code_blocks):
-                print(f"[AUTO] Ejecutando código ({i+1}/{len(code_blocks)})...")
-                err = _exec_code(code)
-                if err:
-                    errors.append(err)
+            print(f"[AUTO] Ejecutando {len(code_blocks)} bloque(s) de código en main thread...")
+            errors = _exec_code_main(code_blocks)
 
         if errors:
             content += "\n\n---\n⚠️ Error al ejecutar:\n" + "\n".join(errors)
