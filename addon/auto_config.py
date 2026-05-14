@@ -48,8 +48,13 @@ def _opencode_path():
     return base / "opencode" / "opencode.json"
 
 
+def _bridge_path():
+    """Ruta absoluta al STDIO bridge dentro del addon instalado."""
+    return str(Path(__file__).parent / "stdio_bridge.py")
+
+
 def _config_opencode():
-    """Agrega blender al opencode.json principal (sección mcp)."""
+    """Agrega blender al opencode.json principal (sección mcp) usando STDIO."""
     path = _opencode_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {"$schema": "https://opencode.ai/config.json"}
@@ -61,8 +66,9 @@ def _config_opencode():
             pass
     data.setdefault("mcp", {})
     data["mcp"]["blender"] = {
-        "type": "sse",
-        "url": _server_url(),
+        "type": "stdio",
+        "command": sys.executable,
+        "args": [_bridge_path()],
         "enabled": True,
     }
     path.write_text(json.dumps(data, indent=2))
