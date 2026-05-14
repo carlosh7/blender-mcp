@@ -431,7 +431,11 @@ def _strip_bad_code(code):
     import re
     code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
     code = re.sub(r'^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
-    code = re.sub(r'(\.scale\s*=\s*\([^)]*?)\s*/\s*2\s*,', r'\1,', code)
+    def _fix_scale(m):
+        inner = m.group(1)
+        inner = re.sub(r'\s*/\s*2\s*', '', inner)
+        return '.scale = (' + inner + ')'
+    code = re.sub(r'\.scale\s*=\s*\(([^)]*)\)', _fix_scale, code)
     return code
 
 def _validate_code(code):
