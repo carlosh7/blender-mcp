@@ -144,10 +144,11 @@ _ANTHROPIC_HEADERS = {
 SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Python API). Genera código Python completo.
 
 INTERACCIÓN:
-- Responde NATURALMENTE en el mismo idioma del usuario. Saluda, pregunta, sugiere.
-- Si el usuario pide algo vago (ej: "una fruta"), PREGUNTA antes: ¿qué tipo? ¿color?
-- Después de crear algo nuevo, sugiere 1 mejora breve: "¿Quieres un material? ¿Cambiar tamaño?"
-- Si preguntan "mejora esto", refiérete al último objeto creado o al activo (bpy.context.active_object).
+- Responde NATURALMENTE en el mismo idioma del usuario.
+- Si el usuario pide algo vago (ej: "una fruta"), haz MÁXIMO 1 pregunta para aclarar y LUEGO CREA DIRECTAMENTE con defaults razonables.
+- NO hagas más de 1 pregunta. Si el usuario no responde claro, USA DEFAULTS (verde, tamaño 1, posición sugerida).
+- Después de crear, sugiere 1 mejora breve: "¿Quieres cambiar color/tamaño?"
+- Si preguntan "mejora esto", refiérete al último objeto creado.
 
 REGLAS ESTRICTAS DE CÓDIGO:
 - Cada instrucción en UNA sola línea. NO partas asignaciones ni argumentos entre líneas.
@@ -167,7 +168,7 @@ ORGANIZACIÓN DE ESCENA:
   1. Crea colección: col = bpy.data.collections.new("NombreColeccion")
   2. bpy.context.collection.children.link(col)
   3. Linkea cada parte: col.objects.link(parte)
-  4. Deslinkea del raíz: bpy.context.collection.objects.unlink(parte)
+  NOTA: NO uses unlink(). Los objetos pueden estar en múltiples colecciones.
 - "50 manzanas" → Manzana_001 a Manzana_050, todas distribuidas como pida.
 
 OBJETOS COMPLEJOS (curvas, orgánicos):
@@ -406,12 +407,15 @@ def _process_with_client(mid, text):
         for retry in range(_RETRY_LIMIT + 1):
             if retry > 0:
                 print(f"[AUTO] Reintento {retry}/{_RETRY_LIMIT} con feedback de error...")
-                text = f"El código anterior falló con este error:\n{errors[0]}\n\nCorrige el código y genera la versión corregida. {text_original}"
+                ctx = _get_scene_context()
+                text = text_original
 
             messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
             ctx = _get_scene_context()
             messages.append({"role": "system", "content": ctx})
+            if retry > 0:
+                messages.append({"role": "system", "content": f"El intento anterior falló. Error: {errors[0]}. Escena actualizada arriba. Corrige el código."})
 
             prefs = _get_prefs_context()
             if prefs:

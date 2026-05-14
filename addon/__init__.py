@@ -1,4 +1,4 @@
-# blender-mcp v0.8.56 — Extension for Blender 4.2+
+# blender-mcp v0.8.57 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -346,19 +346,16 @@ def register():
         return None
 
 def _read_opencode_model():
-    """Read configured model from opencode config, auth, or cache."""
     import json
     from .operators.model_ops import get_opencode_config_paths
-    # 1. Try opencode config files
     for p in get_opencode_config_paths():
         if os.path.exists(p):
             try:
                 d = json.loads(open(p).read())
                 if d.get("model"):
-                    return d["model"]
+                    return _prefer_flash(d["model"])
             except:
                 pass
-    # 2. Try opencode auth.json (model key in provider entries)
     from .platform_utils import get_opencode_auth_path
     auth_p = get_opencode_auth_path()
     if auth_p and auth_p.exists():
@@ -366,18 +363,30 @@ def _read_opencode_model():
             auth = json.loads(auth_p.read_text())
             for prov, entry in auth.items():
                 if isinstance(entry, dict) and entry.get("model"):
-                    return entry["model"]
+                    return _prefer_flash(entry["model"])
         except:
             pass
-    # 3. Try local cache
     try:
         from .config_cache import get_last_model
         cached = get_last_model()
         if cached:
-            return cached
+            return _prefer_flash(cached)
     except:
         pass
     return ""
+
+
+def _prefer_flash(model):
+    if "deepseek" in model and "pro" in model:
+        flash_model = model.replace("-pro", "-flash")
+        for s in bpy.data.scenes:
+            md = getattr(s, "aimcp_models", None)
+            if md and any(m.model_id == flash_model for m in md.items):
+                print(f"[blender-mcp] Usando {flash_model} en vez de {model}")
+                return flash_model
+    return model
+
+def _read_opencode_model():
 
 def _auto_verify_model(model_id, scene_name):
     """Auto-verify model at startup (thread-safe)."""
