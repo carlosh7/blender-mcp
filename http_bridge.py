@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.resolve()
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from config import read_opencode_config, write_opencode_model, PROVIDER_API_CONFIG, get_api_key
 

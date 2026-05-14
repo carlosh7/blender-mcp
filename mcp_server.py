@@ -6,9 +6,11 @@ Connect: opencode mcp uses this via opencode.json → uvx blender-mcp (or python
 """
 import json, os, sys, time, logging, threading, tempfile
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
+ROOT = Path(__file__).parent.resolve()
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
-from src.blender_mcp.platform import get_log_dir, SYSTEM as SYS
+from blender_mcp.platform import get_log_dir, SYSTEM as SYS
 
 _log_dir = get_log_dir()
 _log_file = str(_log_dir / "server.log")
@@ -31,26 +33,16 @@ mcp = FastMCP("blender-mcp", log_level="INFO")
 
 _proxy_active = False  # Track if external MCP client handles chat (starts as False)
 
-# ─── Register modular tools (Fase 2+3) ───
-import tools_polyhaven, tools_sketchfab, tools_hyper3d, tools_hunyuan, tools_ambientcg
-tools_polyhaven.register_tools(mcp)
-tools_sketchfab.register_tools(mcp)
-tools_hyper3d.register_tools(mcp)
-tools_hunyuan.register_tools(mcp)
-tools_ambientcg.register_tools(mcp)
-
-import tools_shader_nodes, tools_animation, tools_geometry_nodes, tools_render
-import tools_io, tools_uv_texture, tools_batch, tools_rigging, tools_scene_utils, tools_printing
-tools_shader_nodes.register_tools(mcp)
-tools_animation.register_tools(mcp)
-tools_geometry_nodes.register_tools(mcp)
-tools_render.register_tools(mcp)
-tools_io.register_tools(mcp)
-tools_uv_texture.register_tools(mcp)
-tools_batch.register_tools(mcp)
-tools_rigging.register_tools(mcp)
-tools_scene_utils.register_tools(mcp)
-tools_printing.register_tools(mcp)
+# ─── Register modular tools (src/blender_mcp/tools/) ───
+from blender_mcp.tools import (
+    polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
+    shader_nodes, animation, geometry_nodes, render,
+    io, uv_texture, batch, rigging, scene_utils, printing,
+)
+for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
+             shader_nodes, animation, geometry_nodes, render,
+             io, uv_texture, batch, rigging, scene_utils, printing]:
+    mod.register_tools(mcp)
 
 @mcp.tool()
 def get_scene_info() -> str:
@@ -94,7 +86,7 @@ def generate_3d_model(prompt: str) -> str:
 @mcp.tool()
 def get_scene_visual() -> str:
     """Get a top-down ASCII visualization of the scene for spatial reasoning."""
-    from spatial import get_spatial_summary
+    from blender_mcp.spatial import get_spatial_summary
     b = get_blender()
     scene_info = b.send_command("get_scene_info")
     return get_spatial_summary(scene_info)
@@ -326,7 +318,7 @@ def _agent_send(cmd_type, params=None):
 def _auto_process():
     """Background thread: keeps ping alive, detects proxy mode, forwards to agent_host if needed."""
     global _chat_history, _last_ping, _proxy_active, _auto_connection
-    from tool_cache import invalidate as cache_invalidate
+    from blender_mcp.tool_cache import invalidate as cache_invalidate
     while True:
         try:
             b = _get_auto_connection()

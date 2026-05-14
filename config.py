@@ -1,23 +1,19 @@
 import os
 import sys
-import shutil
 import platform
-import subprocess
 import json
 from pathlib import Path
 
-SYSTEM = platform.system()
+sys.path.insert(0, str(Path(__file__).parent.resolve() / "src"))
+
+from blender_mcp.platform import get_opencode_config_paths, get_opencode_auth_path, find_blender as _find_platform, SYSTEM
 
 # ─── Paths ───
 PLANNER_MODELS_DIR = Path.home() / "check-3d-planner" / "public" / "models"
 MODELS_DIR = Path(__file__).parent.resolve() / "models"
 
 # ─── Cross-platform opencode config paths ───
-def _get_opencode_paths() -> list[Path]:
-    from src.blender_mcp.platform import get_opencode_config_paths
-    return get_opencode_config_paths()
-
-OPENCODE_CONFIG_PATHS = _get_opencode_paths()
+OPENCODE_CONFIG_PATHS = get_opencode_config_paths()
 
 # API config per provider for fetching live model lists
 PROVIDER_API_CONFIG = {
@@ -69,7 +65,6 @@ def read_opencode_config() -> dict:
     detected_providers = {}
 
     # 1. Read auth.json (where /connect stores keys)
-    from src.blender_mcp.platform import get_opencode_auth_path
     auth_path = get_opencode_auth_path()
     if auth_path.exists():
         try:
@@ -164,7 +159,6 @@ def get_api_key(provider_id: str) -> str | None:
             return key
 
     # Check auth.json (cross-platform)
-    from src.blender_mcp.platform import get_opencode_auth_path
     auth_path = get_opencode_auth_path()
     if auth_path.exists():
         try:
@@ -189,8 +183,7 @@ def get_api_key(provider_id: str) -> str | None:
 
 def find_blender() -> str | None:
     """Find Blender executable path across platforms."""
-    from src.blender_mcp.platform import find_blender as _find
-    return _find()
+    return _find_platform()
 
 
 def find_python() -> str | None:

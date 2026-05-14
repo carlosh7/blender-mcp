@@ -10,8 +10,9 @@ logger = logging.getLogger("agent-host")
 
 ROOT = Path(__file__).parent.resolve()
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 from config import PROVIDER_API_CONFIG, get_api_key
-from src.blender_mcp.platform import get_config_dir
+from blender_mcp.platform import get_config_dir
 
 # Provider API base URLs for chat completions
 PROVIDER_CHAT_URLS = {
@@ -261,7 +262,7 @@ def process_message(message: str, blender_send, history=None, status_callback=No
     # Información de objetos para el prompt (con cache)
     objs_info = ""
     try:
-        from tool_cache import get as cache_get, set as cache_set
+        from blender_mcp.tool_cache import get as cache_get, set as cache_set
         scene_info = cache_get("get_scene_info")
         if scene_info is None:
             scene_info = blender_send("get_scene_info")
