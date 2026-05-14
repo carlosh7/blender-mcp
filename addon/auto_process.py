@@ -18,6 +18,7 @@ from . import _axsock as bsock
 logger = logging.getLogger("blender-mcp-auto")
 
 _processed_ids = set()
+_in_flight = {}
 _message_start = {}
 _timer_registered = False
 
@@ -34,14 +35,14 @@ def _tick():
     try:
         with bsock._chat_lock:
             if not bsock._chat_queue:
-                return 0.5
+                return _check_in_flight()
             messages = list(bsock._chat_queue)
 
         for msg in messages:
             mid = msg["id"]
-            if mid in _processed_ids:
+            if mid in _processed_ids or mid in _in_flight:
                 continue
-            _processed_ids.add(mid)
+            _in_flight[mid] = time.time()
 
             if mid not in _message_start:
                 _message_start[mid] = time.time()
@@ -54,17 +55,30 @@ def _tick():
                 _process_with_client(mid, text)
                 continue
 
-            # 3. After 30s, show specific diagnostic
             if elapsed > 30:
-                msg = _diagnose()
-                _respond(mid, msg)
+                del _in_flight[mid]
+                txt = _diagnose()
+                _respond(mid, txt)
                 _cleanup(mid)
 
-        return 0.5
+        return _check_in_flight()
 
     except Exception as e:
         logger.error(f"auto_process error: {e}")
         return 0.5
+
+
+def _check_in_flight():
+    now = time.time()
+    for mid, started in list(_in_flight.items()):
+        if now - started > 20:
+            _respond(mid, "⏳ DeepSeek sigue pensando... (ya van >20s)", is_status=True)
+            return 2.0
+        if now - started > 40:
+            _respond(mid, "⚠️ DeepSeek tardó más de 40s. Se excedió timeout.", is_status=False)
+            _cleanup(mid)
+            return 0.5
+    return 0.5
 
 
 def _detect_provider(model_id):
@@ -94,7 +108,6 @@ def _get_api_key(provider):
     key = os.environ.get(env_map.get(provider, ""), "")
     if key:
         return key
-    # opencode auth.json
     try:
         from .platform_utils import get_opencode_auth_path
         p = get_opencode_auth_path()
@@ -105,7 +118,6 @@ def _get_api_key(provider):
                 return entry["key"]
     except:
         pass
-    # config cache
     try:
         from .config_cache import get_provider_config
         return get_provider_config(provider).get("api_key", "")
@@ -133,10 +145,10 @@ SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Pytho
 
 REGLAS ESTRICTAS:
 - Cada instrucción en UNA sola línea. NO partas asignaciones ni argumentos entre líneas.
-- Usa `bpy.context.active_object` para el objeto recién creado. NUNCA `bpy.context.object`.
-- Todo el código en ```python ... ```. Sin explicaciones.
+- Usa `bpy.context.active_object` para objeto recién creado. NUNCA `bpy.context.object`.
+- Para añadir un modifier usa: `obj.modifiers.new(name="...", type='...')`. NO uses `bpy.ops.object.modifier_add`.
+- Todo el código en ```python ... ```. Sin explicaciones. Sin texto fuera del bloque.
 - Materiales: Principled BSDF con RGBA, sin Specular.
-- Formas orgánicas: lattice + deformación proporcional.
 - Termina con `print("OK")`.
 
 Ejemplo correcto:
@@ -145,6 +157,8 @@ import bpy
 bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
 s = bpy.context.active_object
 s.name = "MiEsfera"
+mod = s.modifiers.new(name="Subdiv", type='SUBSURF')
+mod.levels = 2
 mat = bpy.data.materials.new(name="Mat")
 mat.use_nodes = True
 mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
@@ -154,18 +168,19 @@ print("OK")
 
 
 def _exec_code(code):
-    """Ejecuta código Python completo en Blender. Reporta errores pero no detiene el addon."""
     ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
     try:
         compiled = compile(code, "<blender_code>", "exec")
         exec(compiled, ns)
         print("[AUTO] Código ejecutado correctamente")
+        return None
     except Exception as e:
-        print(f"[AUTO] Error en código: {e}")
+        err = f"Error: {e}"
+        print(f"[AUTO] {err}")
+        return err
 
 
 def _append_to_log(text, tag="AI"):
-    """Guarda mensaje en el chat log automático."""
     try:
         log_path = os.path.expanduser("~/.config/blender-mcp/chat_log.txt")
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
@@ -176,7 +191,6 @@ def _append_to_log(text, tag="AI"):
 
 
 def _call_llm(url, headers, model, messages):
-    """LLamada directa a la API REST (OpenAI-compatible)."""
     body = json.dumps({
         "model": model,
         "messages": messages,
@@ -184,12 +198,11 @@ def _call_llm(url, headers, model, messages):
         "temperature": 0.4,
     }).encode()
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
 
 def _call_anthropic(url, headers, api_key, model, messages):
-    """LLamada directa a la API de Anthropic."""
     system = ""
     msgs = []
     for m in messages:
@@ -210,7 +223,7 @@ def _call_anthropic(url, headers, api_key, model, messages):
         "content-type": "application/json",
     }
     req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
 
 
@@ -299,11 +312,17 @@ def _process_with_client(mid, text):
 
         print(f"[AUTO] Respuesta recibida ({len(content)} chars)")
 
+        errors = []
         code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
         if code_blocks:
             for i, code in enumerate(code_blocks):
                 print(f"[AUTO] Ejecutando código ({i+1}/{len(code_blocks)})...")
-                _exec_code(code)
+                err = _exec_code(code)
+                if err:
+                    errors.append(err)
+
+        if errors:
+            content += "\n\n---\n⚠️ Error al ejecutar:\n" + "\n".join(errors)
 
         _respond(mid, content)
         _cleanup(mid)
@@ -312,7 +331,6 @@ def _process_with_client(mid, text):
 
 
 def _try_auto_start_client():
-    """Check if API key is available (no need for embedded client, REST fallback works)."""
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
     api_key = _get_api_key(provider)
@@ -346,11 +364,9 @@ def _respond(mid, text, is_status=False):
 
 
 def _diagnose():
-    """Diagnóstico: por qué no hay respuesta del LLM."""
     lines = ["❌ No hay respuesta del agente. Diagnóstico:"]
     scene = bpy.context.scene
 
-    # 1. Check API key
     provider = getattr(scene, "aimcp_provider", "?")
     model = getattr(scene, "aimcp_model", "?")
     api_key = _get_api_key(provider)
@@ -368,7 +384,6 @@ def _diagnose():
         lines.append("   • O usa Local AI en Integrations (Ollama)")
         lines.append("   • O conecta Claude Desktop/Cursor como proxy")
 
-    # 2. Check embedded client
     try:
         from .operators.embedded import _embedded_client
         if _embedded_client:
@@ -378,7 +393,6 @@ def _diagnose():
     except:
         pass
 
-    # 3. Check Ollama
     try:
         import urllib.request
         req = urllib.request.Request("http://localhost:11434/api/version")
@@ -391,5 +405,6 @@ def _diagnose():
 
 
 def _cleanup(mid):
-    _processed_ids.discard(mid)
+    _in_flight.pop(mid, None)
+    _processed_ids.add(mid)
     _message_start.pop(mid, None)
