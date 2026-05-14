@@ -6,7 +6,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 76),
+    "version": (0, 8, 77),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -80,25 +80,18 @@ def register():
         bpy.utils.register_class(_config_panel.PN_PT_Config)
         for p in _int_panel.PANELS: bpy.utils.register_class(p)
         
-        # Clases de datos del chat (Importadas de forma robusta)
-        import addon as _addon_pkg
-        if hasattr(_addon_pkg, "classes"):
-            for cls in _addon_pkg.classes:
-                try: bpy.utils.register_class(cls)
-                except: pass
-        else:
-            # Fallback manual si el import anterior falla
-            from .addon.properties import ChatMsg, ChatData, ModelsData, ModelItem
-            from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
-            from .addon import MCP_UL_Chat
-            for cls in [ChatMsg, ChatData, ModelsData, ModelItem, BLENDERMCP_OT_OpenWeb, MCP_UL_Chat]:
-                try: bpy.utils.register_class(cls)
-                except: pass
+        # ⚡ REGISTRO DE CLASES DE DATOS (AHORA DESDE PROPERTIES)
+        from .addon.properties import ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat
+        from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
+        
+        classes = [ChatMsg, ChatData, ModelsData, ModelItem, MCP_UL_Chat, BLENDERMCP_OT_OpenWeb]
+        for cls in classes:
+            try: bpy.utils.register_class(cls)
+            except: pass
             
-        # ⚡ REGISTRO DE PROPIEDADES DE ESCENA (Crucial para eliminar AttributeError)
+        # ⚡ REGISTRO DE PROPIEDADES DE ESCENA
         Scene = bpy.types.Scene
         from bpy.props import PointerProperty, StringProperty, BoolProperty, IntProperty
-        from .addon import ChatData, ModelsData
         
         setattr(Scene, "aimcp_chat", PointerProperty(type=ChatData))
         setattr(Scene, "aimcp_input", StringProperty(default=""))

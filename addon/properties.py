@@ -7,8 +7,42 @@ from bpy.props import (
     BoolProperty, StringProperty, IntProperty, FloatProperty,
     EnumProperty, PointerProperty, CollectionProperty,
 )
-from bpy.types import PropertyGroup
+from bpy.types import PropertyGroup, UIList
 
+# ─── Chat Classes ───
+class ChatMsg(PropertyGroup):
+    role: StringProperty()
+    text: StringProperty()
+    is_new: BoolProperty(default=False)
+
+class ChatData(PropertyGroup):
+    msgs: CollectionProperty(type=ChatMsg)
+    count: IntProperty(default=0)
+    def add(self, r, t, is_update=False, scene=None):
+        if is_update:
+            while len(self.msgs) > 0 and self.msgs[-1].role == r and not self.msgs[-1].is_new:
+                self.msgs.remove(len(self.msgs)-1)
+            if len(self.msgs) > 0 and self.msgs[-1].role == r and self.msgs[-1].is_new:
+                self.msgs.remove(len(self.msgs)-1)
+        m = self.msgs.add()
+        m.role = r; m.text = t; m.is_new = True
+        self.count = len(self.msgs)
+
+class MCP_UL_Chat(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if not item: return
+        row = layout.row(align=True)
+        tag = "U" if item.role == "user" else "AI"
+        row.label(text=f"[{tag}] {item.text}")
+
+# ─── Model Classes ───
+class ModelItem(PropertyGroup):
+    model_id: StringProperty(); model_name: StringProperty(); provider: StringProperty()
+
+class ModelsData(PropertyGroup):
+    items: CollectionProperty(type=ModelItem); count: IntProperty(default=0)
+    def add(self, mid, name, prov):
+        m = self.items.add(); m.model_id = mid; m.model_name = name; m.provider = prov; self.count = len(self.items)
 
 def register_properties():
     """Register all shared properties onto bpy.types.Scene."""
