@@ -15,12 +15,15 @@ logger = logging.getLogger("blender-mcp-auto")
 
 _processed_ids = set()
 _message_start = {}
+_timer_registered = False
 
 
 def start():
-    if bpy.app.timers.get(_tick):
+    global _timer_registered
+    if _timer_registered:
         return
     bpy.app.timers.register(_tick, first_interval=0.5)
+    _timer_registered = True
 
 
 def _tick():
