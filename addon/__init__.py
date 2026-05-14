@@ -1,9 +1,9 @@
-# blender-mcp v0.8.13 — Embedded-first Blender MCP
+# blender-mcp v0.8.14 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 13),
+    "version": (0, 8, 14),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -252,6 +252,13 @@ def register():
     except Exception as e:
         print(f"[blender-mcp] auto_start: {e}")
 
+    # ⚡ Socket server (temprano, antes de registros que puedan fallar)
+    try:
+        bsock.start_socket_server()
+        print("[blender-mcp] ✅ Socket server on :9876")
+    except Exception as e:
+        print(f"[blender-mcp] ⚠️  Socket server: {e}")
+
     # 1. Module-level registrations
     _props.register_properties()
     _prefs.register_preferences()
@@ -265,13 +272,22 @@ def register():
 
     # Register modular panels
     for panel_cls in [_chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config]:
-        bpy.utils.register_class(panel_cls)
+        try:
+            bpy.utils.register_class(panel_cls)
+        except:
+            pass
     for panel_cls in _integrations.PANELS:
-        bpy.utils.register_class(panel_cls)
+        try:
+            bpy.utils.register_class(panel_cls)
+        except:
+            pass
 
     # 2. Core classes
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except:
+            pass
 
     Scene = bpy.types.Scene
     Scene.aimcp_chat = PointerProperty(type=ChatData)
@@ -417,10 +433,6 @@ def _auto_verify_model(model_id, scene_name):
     except:
         pass
 
-    try:
-        bsock.start_socket_server()
-    except:
-        print("[blender-mcp] Socket server failed")
 
 def unregister():
     try:
