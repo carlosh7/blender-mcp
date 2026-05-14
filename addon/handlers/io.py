@@ -54,7 +54,12 @@ class IOHandler(BaseHandler):
         kwargs = {"filepath": filepath, "check_existing": False}
         if fmt in ("glb", "gltf"):
             kwargs["export_format"] = "GLB" if fmt == "glb" else "GLTF_SEPARATE"
-        getattr(bpy.ops, op)(**kwargs)
+        # Handle nested operators like export_scene.gltf
+        parts = op.split(".")
+        if len(parts) == 2:
+            getattr(getattr(bpy.ops, parts[0]), parts[1])(**kwargs)
+        else:
+            getattr(bpy.ops, op)(**kwargs)
         size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
         return {"filepath": filepath, "format": fmt, "size_bytes": size}
 

@@ -112,11 +112,16 @@ class PrintingHandler(BaseHandler):
     @staticmethod
     def cmd_add_wall_thickness(object_name="", thickness_mm=2.0):
         """Add a Solidify modifier for wall thickness (3D printing prep)."""
-        obj = bpy.data.objects.get(object_name) or bpy.context.active_object
+        obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {"error": "No object"}
+            return {"error": f"Object not found: {object_name}"}
         mod = obj.modifiers.new(name="WallThickness", type='SOLIDIFY')
-        mod.thickness = thickness_mm / 1000.0
-        mod.offset = -1.0  # Inward
-        mod.use_even_offset = True
+        if not mod:
+            return {"error": "Failed to create Solidify modifier"}
+        try:
+            mod.thickness = thickness_mm / 1000.0
+            mod.offset = -1.0
+            mod.use_even_offset = True
+        except AttributeError as e:
+            return {"error": f"Modifier property error: {e}"}
         return {"object": obj.name, "thickness_mm": thickness_mm}
