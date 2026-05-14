@@ -20,3 +20,8 @@ models/*.glb
 # OS
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+*.zip
+*.log
+.pytest_cache/

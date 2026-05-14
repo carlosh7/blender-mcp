@@ -23,30 +23,38 @@
 
 ---
 
-## Quick Install
+## Quick Install — Cero Configuración
 
-### Prerequisites
-- Blender 4.2+ (4.0+ con features limitadas)
-- Python 3.10+
-- uv (recomendado) o pip
+> **Arrastra el ZIP a Blender y escribe.** No necesitas terminal, ni Python, ni API keys.
 
-### Via uv (recomendado)
+### Opción 1: Arrastrar ZIP a Blender (recomendado)
+
+1. Descarga [`axiom_engine_v0.8.0.zip`](axiom_engine_v0.8.0.zip)
+2. Arrástralo a la ventana de Blender
+3. Actívalo en `Edit → Preferences → Add-ons` (busca "AXIOM")
+4. En el viewport 3D, presiona `N` → pestaña **Axiom**
+5. Escribe "crea un cubo rojo" y presiona **Send**
+
+✅ El addon auto-instala sus dependencias.
+✅ No necesitas Python externo, ni `uv`, ni terminal.
+
+### Opción 2: Extension Manager (Blender 4.2+)
+
+1. Descarga [`axiom_engine_v0.8.0.zip`](axiom_engine_v0.8.0.zip)
+2. Blender → `Edit → Preferences → Extensions`
+3. Click dropdown → **Install from Disk...**
+4. Selecciona el ZIP
+5. Actívalo
+
+### Opción 3: Terminal (usuarios avanzados)
+
 ```bash
+# Con uv (auto-instala Python si no lo tienes)
 uvx blender-mcp
-```
 
-### Via pip
-```bash
+# Con pip
 pip install blender-mcp
 blender-mcp
-```
-
-### Manual (desde repo)
-```bash
-git clone https://github.com/carlosh7/blender-mcp.git
-cd blender-mcp
-uv sync  # o: pip install -r requirements.txt
-blender-mcp  # o: python src/blender_mcp/cli.py
 ```
 
 ---
