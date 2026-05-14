@@ -129,15 +129,28 @@ _ANTHROPIC_HEADERS = {
     "content-type": "application/json",
 }
 
-SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D. Genera código Python completo para crear, modificar y texturizar objetos.
+SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Python API). Genera código Python completo.
 
-REGLAS:
-- Genera TODO el código en un solo bloque ```python ... ```
-- No expliques, solo genera el código. Cada segundo cuenta.
-- Usa bpy.ops.mesh, bpy.data.materials, bpy.ops.object, etc.
-- Para formas orgánicas usa lattice, deformación proporcional, curvas.
-- Para materiales: Principled BSDF con color RGBA [r,g,b,a]. NO uses Specular.
-- Al terminar imprime "✅ LISTO" para confirmar."""
+REGLAS ESTRICTAS:
+- Cada instrucción en UNA sola línea. NO partas asignaciones ni argumentos entre líneas.
+- Usa `bpy.context.active_object` para el objeto recién creado. NUNCA `bpy.context.object`.
+- Todo el código en ```python ... ```. Sin explicaciones.
+- Materiales: Principled BSDF con RGBA, sin Specular.
+- Formas orgánicas: lattice + deformación proporcional.
+- Termina con `print("OK")`.
+
+Ejemplo correcto:
+```python
+import bpy
+bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
+s = bpy.context.active_object
+s.name = "MiEsfera"
+mat = bpy.data.materials.new(name="Mat")
+mat.use_nodes = True
+mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
+s.data.materials.append(mat)
+print("OK")
+```"""
 
 
 def _exec_code(code):
