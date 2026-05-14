@@ -425,6 +425,16 @@ def _strip_bad_code(code):
     code = re.sub(r'(\.scale\s*=\s*\([^)]*?)\s*/\s*2\s*,', r'\1,', code)
     return code
 
+def _validate_code(code):
+    try:
+        from ..src.blender_mcp.utils.validator import validate
+    except ImportError:
+        try:
+            from blender_mcp.utils.validator import validate
+        except ImportError:
+            return []
+    return validate(code)
+
 def _exec_code_main(code_blocks):
     results = []
     done = threading.Event()
@@ -433,10 +443,17 @@ def _exec_code_main(code_blocks):
         from .weak_sandbox import WeakSandboxForLLM
         for code in code_blocks:
             code = _strip_bad_code(code)
+            errors = _validate_code(code)
+            if errors:
+                for e in errors:
+                    results.append(str(e))
+                continue
             try:
+                bpy.ops.ed.undo_push(message="AI ACTION")
                 compiled = compile(code, "<blender_code>", "exec")
                 with WeakSandboxForLLM():
                     exec(compiled, _HELPER_NAMESPACE)
+                bpy.context.view_layer.update()
                 print("[AUTO] Código ejecutado correctamente")
             except Exception as e:
                 err = f"Error: {e}"
