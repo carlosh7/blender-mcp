@@ -198,8 +198,11 @@ def _execute_tool(name, args):
         return json.dumps({"error": f"Unknown tool: {name}"})
     cmd_type, cmd_params = cmd
     try:
-        result = bsock.send_command(cmd_type, cmd_params)
-        return json.dumps(result)
+        result = bsock._socket_server._execute({"command": cmd_type, "args": cmd_params})
+        if result.get("status") == "success":
+            return json.dumps(result.get("result", {}))
+        else:
+            return json.dumps({"error": result.get("message", "Unknown error")})
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -278,14 +281,26 @@ def _process_with_client(mid, text):
 
             if content:
                 print(f"[AUTO] Respuesta: {content[:80]}...")
-                if turn == 0:
-                    _respond(mid, content)
-                else:
-                    _respond(mid, content)
+                _respond(mid, content)
 
             if not tool_calls:
                 print(f"[AUTO] Sin tool_calls, fin del loop")
                 break
+
+            # Añadir mensaje assistant con tool_calls (requerido por la API)
+            assistant_msg = {"role": "assistant", "content": content or ""}
+            assistant_tool_calls = []
+            for tc in tool_calls:
+                assistant_tool_calls.append({
+                    "id": tc.get("id", f"call_{turn}_{len(assistant_tool_calls)}"),
+                    "type": "function",
+                    "function": {
+                        "name": tc["function"]["name"],
+                        "arguments": tc["function"]["arguments"],
+                    },
+                })
+            assistant_msg["tool_calls"] = assistant_tool_calls
+            messages.append(assistant_msg)
 
             for tc in tool_calls:
                 func_name = tc["function"]["name"]
@@ -293,12 +308,13 @@ def _process_with_client(mid, text):
                     func_args = json.loads(tc["function"]["arguments"])
                 except:
                     func_args = {}
+                tc_id = tc.get("id", f"call_{turn}")
                 print(f"[AUTO] Ejecutando tool: {func_name}")
                 result = _execute_tool(func_name, func_args)
                 print(f"[AUTO] Resultado: {result[:100]}...")
                 messages.append({
                     "role": "tool",
-                    "tool_call_id": tc.get("id", f"call_{turn}"),
+                    "tool_call_id": tc_id,
                     "name": func_name,
                     "content": result,
                 })
