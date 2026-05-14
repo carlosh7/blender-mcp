@@ -1,9 +1,9 @@
-# blender-mcp v0.8.33 — Embedded-first Blender MCP
+# blender-mcp v0.8.51 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 33),
+    "version": (0, 8, 51),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
