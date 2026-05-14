@@ -122,19 +122,17 @@ _CHAT_URLS = {
     "google": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
 }
 
-SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D. Puedes crear y modificar objetos 3D reales.
+SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D.
+Tienes herramientas para crear, modificar y eliminar objetos 3D en tiempo real.
 
 REGLAS:
-1. Cuando te pidan crear un objeto 3D, genera código Python que se ejecutará en Blender.
-2. Usa bpy.ops.mesh para crear primitivas (cube, sphere, cylinder, cone, torus).
-3. Usa bpy.ops.transform para mover/rotar/escalar.
-4. Usa bpy.data.materials para crear y asignar materiales.
-5. Envuelve el código en un bloque ```python ... ```.
-6. Si la solicitud es simple, responde normal. Si implica crear 3D, usa código.
-
-Ejemplos:
-- "crea un cubo rojo" → codigo python con primitive_cube_add y material rojo
-- "crea una esfera" → codigo python con primitive_uv_sphere_add"""
+- USA LAS HERRAMIENTAS. No digas "puedo hacerlo", hazlo directamente.
+- Cuando te pidan crear algo: usa create_object para la forma base, create_material para colores, assign_material para aplicarlos.
+- Para iluminación: usa create_light o setup_three_point_lighting.
+- Para cámara: usa create_camera + set_camera_target.
+- Siempre verifica la escena con get_scene_info antes de empezar.
+- Si algo sale mal, intenta execute_blender_code como fallback.
+- No inventes nombres de herramientas que no están en la lista."""
 
 
 def _exec_code(code):
@@ -157,6 +155,9 @@ def _append_to_log(text, tag="AI"):
         pass
 
 
+TOOLS_DEF = [{"type": "function", "function": {"name": "execute_blender_code", "description": "Execute ANY Python code in Blender. Use for complex operations.", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code"}}, "required": ["code"]}}}, {"type": "function", "function": {"name": "get_scene_info", "description": "Get list of all objects in the scene.", "parameters": {"type": "object", "properties": {}}}}, {"type": "function", "function": {"name": "create_object", "description": "Create mesh: CUBE, SPHERE, CYLINDER, CONE, TORUS, PLANE, MONKEY.", "parameters": {"type": "object", "properties": {"type": {"type": "string", "enum": ["CUBE", "SPHERE", "CYLINDER", "CONE", "TORUS", "PLANE", "MONKEY"]}, "name": {"type": "string"}, "location": {"type": "array", "items": {"type": "number"}}}, "required": ["type"]}}}, {"type": "function", "function": {"name": "delete_object", "description": "Delete an object by name.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}}}, {"type": "function", "function": {"name": "transform_object", "description": "Move/rotate/scale an object.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "location": {"type": "array", "items": {"type": "number"}}, "rotation": {"type": "array", "items": {"type": "number"}}, "scale": {"type": "array", "items": {"type": "number"}}}, "required": ["name"]}}}, {"type": "function", "function": {"name": "duplicate_object", "description": "Duplicate an object.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "new_name": {"type": "string"}}, "required": ["name"]}}}, {"type": "function", "function": {"name": "create_material", "description": "Create PBR material with color, roughness, metallic.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "color": {"type": "array", "items": {"type": "number"}}, "roughness": {"type": "number"}, "metallic": {"type": "number"}}, "required": ["name"]}}}, {"type": "function", "function": {"name": "assign_material", "description": "Assign material to object.", "parameters": {"type": "object", "properties": {"object_name": {"type": "string"}, "material_name": {"type": "string"}}, "required": ["object_name", "material_name"]}}}, {"type": "function", "function": {"name": "add_modifier", "description": "Add modifier: subsurf, bevel, boolean, array, mirror, solidify, screw, decimate.", "parameters": {"type": "object", "properties": {"object_name": {"type": "string"}, "modifier_type": {"type": "string", "enum": ["subsurf", "bevel", "boolean", "array", "mirror", "solidify", "screw", "decimate"]}}, "required": ["object_name", "modifier_type"]}}}, {"type": "function", "function": {"name": "create_light", "description": "Create light: point, sun, spot, area.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "light_type": {"type": "string", "enum": ["point", "sun", "spot", "area"]}, "energy": {"type": "number"}, "location": {"type": "array", "items": {"type": "number"}}}}}}, {"type": "function", "function": {"name": "setup_three_point_lighting", "description": "Auto 3-point lighting for target.", "parameters": {"type": "object", "properties": {"target_name": {"type": "string"}}}}}, {"type": "function", "function": {"name": "create_camera", "description": "Create and set active camera.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}, "location": {"type": "array", "items": {"type": "number"}}, "lens": {"type": "number", "description": "Focal length mm"}}}}}, {"type": "function", "function": {"name": "set_camera_target", "description": "Point camera at target.", "parameters": {"type": "object", "properties": {"camera_name": {"type": "string"}, "target_name": {"type": "string"}}, "required": ["camera_name", "target_name"]}}}, {"type": "function", "function": {"name": "insert_keyframe", "description": "Insert animation keyframe.", "parameters": {"type": "object", "properties": {"object_name": {"type": "string"}, "frame": {"type": "number"}, "property": {"type": "string", "enum": ["location", "rotation_euler", "scale"]}}, "required": ["object_name", "frame"]}}}, {"type": "function", "function": {"name": "set_render_engine", "description": "Set render engine: CYCLES, EEVEE, WORKBENCH.", "parameters": {"type": "object", "properties": {"engine": {"type": "string", "enum": ["CYCLES", "EEVEE", "WORKBENCH"]}}, "required": ["engine"]}}}, {"type": "function", "function": {"name": "render_frame", "description": "Render current frame to image.", "parameters": {"type": "object", "properties": {"filepath": {"type": "string"}}}}}, {"type": "function", "function": {"name": "export_scene", "description": "Export scene: glb, gltf, fbx, obj, stl, ply, usd, dae.", "parameters": {"type": "object", "properties": {"filepath": {"type": "string"}, "format": {"type": "string", "enum": ["glb", "gltf", "fbx", "obj", "stl", "ply", "usd", "dae"]}}, "required": ["filepath", "format"]}}}, {"type": "function", "function": {"name": "get_viewport_screenshot", "description": "Capture 3D viewport.", "parameters": {"type": "object", "properties": {}}}}, {"type": "function", "function": {"name": "unwrap_object", "description": "UV unwrap mesh: smart, unwrap, cube, cylinder, sphere.", "parameters": {"type": "object", "properties": {"object_name": {"type": "string"}, "method": {"type": "string", "enum": ["smart", "unwrap", "cube", "cylinder", "sphere"]}}}}}, {"type": "function", "function": {"name": "join_objects", "description": "Join multiple objects into one mesh.", "parameters": {"type": "object", "properties": {"target_name": {"type": "string"}, "source_names": {"type": "array", "items": {"type": "string"}}}, "required": ["target_name"]}}}, {"type": "function", "function": {"name": "purge_orphans", "description": "Remove unused data blocks.", "parameters": {"type": "object", "properties": {}}}}, {"type": "function", "function": {"name": "scene_summary", "description": "Full scene summary.", "parameters": {"type": "object", "properties": {}}}}, {"type": "function", "function": {"name": "mesh_analysis", "description": "Analyze mesh topology.", "parameters": {"type": "object", "properties": {"object_name": {"type": "string"}}}}}, {"type": "function", "function": {"name": "search_polyhaven", "description": "Search Poly Haven for free HDRI/textures.", "parameters": {"type": "object", "properties": {"asset_type": {"type": "string", "enum": ["hdris", "textures", "models", "all"]}, "query": {"type": "string"}}}}}, {"type": "function", "function": {"name": "download_polyhaven_hdri", "description": "Download free HDRI for lighting.", "parameters": {"type": "object", "properties": {"asset_id": {"type": "string"}}, "required": ["asset_id"]}}}, {"type": "function", "function": {"name": "download_polyhaven_texture", "description": "Download free PBR texture and create material.", "parameters": {"type": "object", "properties": {"asset_id": {"type": "string"}}, "required": ["asset_id"]}}}]
+
+
 def _process_with_client(mid, text):
     scene = bpy.context.scene
     model = getattr(scene, "aimcp_model", "")
@@ -170,80 +171,72 @@ def _process_with_client(mid, text):
         _cleanup(mid)
         return
 
+    url = _CHAT_URLS.get(provider)
+    if not url:
+        _respond(mid, f"❌ Provider {provider} no soportado")
+        _cleanup(mid)
+        return
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": "blender-mcp/0.8",
+    }
+
     _respond(mid, "⏳ Pensando...", is_status=True)
 
     def process():
         print(f"[AUTO] Llamando a {provider} con modelo {model}")
-        try:
-            # Intentar con embedded client si está disponible
-            from .operators.embedded import _embedded_client
-            if _embedded_client is not None:
-                result = _embedded_client.send_message(
-                    model, api_key, [{"role": "user", "content": text}]
-                )
-                content = result.get("content", "")
-                print(f"[AUTO] embedded response: {'✅' if content else '❌'}")
-                if content:
-                    _respond(mid, content)
-                elif result.get("error"):
-                    _respond(mid, "❌ " + result["error"][:100])
-                else:
-                    _respond(mid, "⚠️ Sin respuesta")
-                _cleanup(mid)
-                return
-        except:
-            pass
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        objs = [o.name for o in bpy.data.objects if hasattr(o, 'name')]
+        if objs:
+            messages.append({"role": "system", "content": f"Escena actual: {', '.join(objs[:10])}"})
+        messages.append({"role": "user", "content": text})
 
-        # Fallback: llamada REST directa (OpenAI-compatible)
-        url = _CHAT_URLS.get(provider)
-        if not url:
-            _respond(mid, f"❌ Provider {provider} no soportado")
-            _cleanup(mid)
-            return
+        for turn in range(6):
+            print(f"[AUTO] Turno {turn+1}/6")
+            try:
+                response = _call_llm_with_tools(url, headers, model, messages)
+            except urllib.error.HTTPError as e:
+                err = e.read().decode()[:200]
+                print(f"[AUTO] HTTP Error {e.code}: {err}")
+                _respond(mid, f"❌ HTTP {e.code}")
+                break
+            except Exception as e:
+                print(f"[AUTO] Error: {traceback.format_exc()}")
+                _respond(mid, f"❌ Error: {str(e)[:60]}")
+                break
 
-        try:
-            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-            scene = bpy.context.scene
-            objs = [o.name for o in bpy.data.objects if hasattr(o, 'name')]
-            if objs:
-                messages.append({"role": "system", "content": f"Escena actual: {', '.join(objs[:10])}"})
-            messages.append({"role": "user", "content": text})
+            content = response.get("content", "")
+            tool_calls = response.get("tool_calls")
 
-            body = json.dumps({
-                "model": model,
-                "messages": messages,
-                "max_tokens": 8192,
-                "temperature": 0.4,
-            }).encode()
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
-                "User-Agent": "blender-mcp/0.8",
-            }
-            req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-            print(f"[AUTO] REST call to {url}")
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                result = json.loads(resp.read())
-            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-            print(f"[AUTO] REST response: {'✅' if content else '❌'}")
             if content:
-                # Ejecutar bloques de código Python encontrados en la respuesta
-                code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
-                if code_blocks:
-                    for code in code_blocks:
-                        print(f"[AUTO] Executing code block from LLM...")
-                        bpy.app.timers.register(lambda c=code: _exec_code(c), first_interval=0.0)
-                _respond(mid, content)
-            else:
-                _respond(mid, "⚠️ El modelo no generó respuesta")
-        except urllib.error.HTTPError as e:
-            err = e.read().decode()[:200]
-            print(f"[AUTO] HTTP Error {e.code}: {err}")
-            _respond(mid, f"❌ HTTP {e.code}")
-        except Exception as e:
-            print(f"[AUTO] Error: {traceback.format_exc()}")
-            _respond(mid, f"❌ Error: {str(e)[:60]}")
-        _cleanup(mid)
+                print(f"[AUTO] Respuesta: {content[:80]}...")
+                if turn == 0:
+                    _respond(mid, content)
+                else:
+                    _respond(mid, content)
+
+            if not tool_calls:
+                print(f"[AUTO] Sin tool_calls, fin del loop")
+                break
+
+            for tc in tool_calls:
+                func_name = tc["function"]["name"]
+                try:
+                    func_args = json.loads(tc["function"]["arguments"])
+                except:
+                    func_args = {}
+                print(f"[AUTO] Ejecutando tool: {func_name}")
+                result = _execute_tool(func_name, func_args)
+                print(f"[AUTO] Resultado: {result[:100]}...")
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.get("id", f"call_{turn}"),
+                    "name": func_name,
+                    "content": result,
+                })
+
         _cleanup(mid)
 
     threading.Thread(target=process, daemon=True).start()
