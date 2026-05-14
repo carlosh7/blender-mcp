@@ -1,166 +1,165 @@
-# blender-mcp v0.7.0
+# blender-mcp v0.8.0
 
-**AI-powered 3D model generation via Blender + MCP protocol.**
+**The most complete, flexible Blender MCP server** — Control Blender from **any** MCP client (Claude Desktop, Cursor, opencode, VS Code, Windsurf, Antigravity, LM Studio, Ollama...).
 
-Crea y edita modelos 3D desde lenguaje natural usando Blender, controlado por IA vía MCP (Model Context Protocol).
+> Compatible con cualquier agente MCP. Dos modos de operación: **proxy** (rápido con Claude/Cursor externo) y **autónomo** (embebido, multi-provider, sin dependencias externas).
 
 ---
 
-## ✨ Capacidades
+## Features
 
 | Capacidad | Descripción |
 |-----------|-------------|
-| **Generar modelos** | Describe lo que quieres y el modelo aparece |
-| **Editar escenas existentes** | Abre tu proyecto en Blender y pide cambios |
-| **Ver en vivo** | Blender con GUI para ver los cambios instantáneamente |
-| **Exportar GLTF/GLB** | Modelos listos para web, Three.js, Unity, etc. |
-| **Integración check-3d-planner** | Los modelos se copian directamente al editor de planos |
-| **Multi-plataforma** | Windows y Linux |
+| **Multi-cliente** | Claude Desktop, Cursor, VS Code, opencode, Antigravity, LM Studio, Ollama, Continue |
+| **Dual-mode agent** | Proxy mode (rápido) + Autonomous mode (sin Claude Desktop) |
+| **120+ tools** | Objects, materials, shader nodes, lights, modifiers, animation, geometry nodes, camera, render, import/export, UV/texture, rigging, 3D printing |
+| **Assets integration** | Poly Haven, Sketchfab, Hyper3D Rodin, Hunyuan3D, AmbientCG |
+| **Spatial reasoning** | ASCII visualization, anchor snapping, geometry validation |
+| **Chat + Model selector** | Multi-provider LLM selector desde el panel de Blender |
+| **Export GLTF/GLB** | Modelos listos para web, Three.js, Unity |
+| **Memory persistence** | Chat history entre sesiones |
+| **HTTP Bridge** | REST API para Antigravity y clientes HTTP |
+| **Axiom Precision Engine** | Assembly, symmetry, normals, collision detection, blueprint extraction |
 
 ---
 
-## 🚀 Instalación rápida
+## Quick Install
 
-### Requisitos
+### Prerequisites
+- Blender 4.2+ (4.0+ con features limitadas)
+- Python 3.10+
+- uv (recomendado) o pip
 
-- **Blender 4.0+** ([Descargar](https://www.blender.org/download/))
-- **Python 3.10+** ([Descargar](https://python.org))
-- **Git** ([Descargar](https://git-scm.com/)) *— recomendado para clonar el repo, o descarga el ZIP desde GitHub*
-
-### Linux
-
+### Via uv (recomendado)
 ```bash
-# 1. Clonar
+uvx blender-mcp
+```
+
+### Via pip
+```bash
+pip install blender-mcp
+blender-mcp
+```
+
+### Manual (desde repo)
+```bash
 git clone https://github.com/carlosh7/blender-mcp.git
 cd blender-mcp
-
-# 2. Verificar requisitos
-python3 check.py
-
-# 3. Instalar dependencias
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# 4. Iniciar servidor
-python server.py --mode standalone
-```
-
-### Windows
-
-```powershell
-# 1. Clonar
-git clone https://github.com/carlosh7/blender-mcp.git
-cd blender-mcp
-
-# 2. Verificar requisitos
-python check.py
-# O: .\check.ps1
-
-# 3. Instalar dependencias
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-
-# 4. Iniciar servidor
-python server.py --mode standalone
+uv sync  # o: pip install -r requirements.txt
+blender-mcp  # o: python src/blender_mcp/cli.py
 ```
 
 ---
 
-## 🎮 Modos de uso
+## Clientes Soportados
 
-### 📦 Modo standalone (generación rápida)
-
-```bash
-python server.py --mode standalone
-```
-
-El servidor escucha comandos vía MCP. La IA puede generar modelos bajo demanda.
-
-### 🔗 Modo check (integración con check-3d-planner)
-
-```bash
-python server.py --mode check --check-path ../check-3d-planner/public/models
-```
-
-Los modelos generados se copian automáticamente al directorio del editor 3D.
-
-### 👁️ Modo GUI (ver en vivo)
-
-```bash
-python server.py --mode gui
-```
-
-Blender se abre con interfaz gráfica para que veas los modelos en tiempo real.
+| Cliente | Transporte | Config |
+|---------|-----------|--------|
+| **Claude Desktop** | STDIO | `uvx blender-mcp` |
+| **Claude Code** | STDIO | `claude mcp add blender uvx blender-mcp` |
+| **Cursor** | STDIO | `uvx blender-mcp` en MCP settings |
+| **VS Code** | STDIO | Via MCP extension |
+| **opencode** | STDIO/SSE | Config automática |
+| **Antigravity** | HTTP REST | `http://localhost:9877/api/` |
+| **LM Studio** | STDIO | Native MCP support v0.3.0+ |
+| **Ollama** | STDIO | Via Continue / Open WebUI |
+| **Continue** | STDIO | `uvx blender-mcp` |
 
 ---
 
-## 🧩 Addon de Blender
-
-Para interactuar con la IA sin salir de Blender:
-
-1. Copia la carpeta `addon/` a los addons de Blender:
-   - **Linux:** `~/.config/blender/4.0/scripts/addons/ai_assistant/`
-   - **Windows:** `%APPDATA%\Blender Foundation\Blender\4.0\scripts\addons\ai_assistant\`
-2. En Blender: `Edit → Preferences → Add-ons → buscar "AI Assistant"`
-3. Actívalo
-4. Panel en el sidebar de Blender → pestaña `🤖 AI` (abre el sidebar con `N`) 
-
----
-
-## 💬 Ejemplos de uso con IA
+## Architecture
 
 ```
-Tú: "crea una mesa redonda de 150cm con color roble oscuro"
-Tú: "agrega 6 sillas alrededor de la mesa"
-Tú: "el pie de la mesa es muy grueso, redúcelo a la mitad"
-Tú: "exporta como .glb a la carpeta del proyecto"
-```
-
----
-
-## 🔧 Comandos del servidor
-
-| Comando | Descripción |
-|---------|-------------|
-| `generate-model` | Genera un modelo 3D (tipo, nombre, color, material, escala) |
-| `list-models` | Lista todos los tipos de modelos disponibles |
-| `system-info` | Muestra información del sistema (SO, versiones, disco) |
-
----
-
-## 📁 Estructura del proyecto
-
-```
-blender-mcp/
-├── server.py              ← MCP Server principal
-├── config.py              ← Detección automática Win/Linux
-├── check.py               ← Validador de requisitos
-├── check.ps1              ← Validador Windows PowerShell
-├── check.sh               ← Validador Linux Bash
-├── requirements.txt       ← Dependencias Python
-├── opencode_example.json  ← Config para opencode
-├── generators/            ← Scripts de generación por categoría
-├── addon/                 ← Addon para Blender
-│   └── __init__.py        ← Panel de chat + conexión MCP
-├── models/                ← Modelos generados (.glb)
-├── examples/              ← Ejemplos de uso
-├── docs/                  ← Documentación
-└── LICENSE                ← MIT
+Cualquier Cliente MCP
+    │ STDIO / SSE / HTTP
+    ▼
+┌─────────────────────────────────┐
+│  src/blender_mcp/server.py      │
+│  (FastMCP — 120+ tools)         │
+│  ├─ tools/scene.py              │
+│  ├─ tools/objects.py            │
+│  ├─ tools/materials.py          │
+│  ├─ tools/modifiers.py          │
+│  ├─ tools/lights.py             │
+│  ├─ tools/camera.py             │
+│  ├─ tools/animation.py          │
+│  ├─ tools/geometry_nodes.py     │
+│  ├─ tools/shader_nodes.py       │
+│  ├─ tools/render.py             │
+│  ├─ tools/io.py                 │
+│  ├─ tools/uv_texture.py         │
+│  ├─ tools/rigging.py            │
+│  ├─ tools/printing.py           │
+│  ├─ tools/polyhaven.py          │
+│  ├─ tools/sketchfab.py          │
+│  ├─ tools/hyper3d.py            │
+│  └─ tools/hunyuan.py            │
+│  agent/host.py (modo autónomo)  │
+│  proxy.py (modo proxy rápido)   │
+└──────────┬──────────────────────┘
+           │ TCP Socket :9876
+           ▼
+┌─────────────────────────────────┐
+│  Blender Addon (addon/)         │
+│  handlers/ (modular)            │
+│  ├─ scene.py, objects.py        │
+│  ├─ materials, modifiers        │
+│  ├─ lights, camera, render      │
+│  ├─ polyhaven, sketchfab        │
+│  ├─ hyper3d, hunyuan            │
+│  └─ printing, ambientcg         │
+│  panels/ (UI en Blender)        │
+│  blender_socket.py              │
+└─────────────────────────────────┘
 ```
 
 ---
 
-## 🤝 Integración con opencode
+## Roadmap
 
-Para usar con [opencode](https://opencode.ai):
+Ver [ROADMAP.md](ROADMAP.md) para el plan completo de 9 fases.
 
-1. Copia `opencode_example.json` a `~/.config/opencode/mcp.json`
-2. Ajusta la ruta de `args` a tu instalación de blender-mcp
-3. En el chat de opencode, pide modelos directamente
+| Fase | Estado | Descripción |
+|------|--------|-------------|
+| 0: Fundación | 🔄 En progreso | pyproject.toml, CLI, doctor, modular handlers |
+| 1: Panel Híbrido | 📅 Planeado | Toggles Poly Haven, Sketchfab, Hyper3D, Hunyuan3D |
+| 2: Integraciones Reales | 📅 Planeado | Implementar Poly Haven, Sketchfab, Hyper3D reales |
+| 3: 120+ Tools | 📅 Planeado | 17 categorías de herramientas MCP |
+| 4: Velocidad Agente | 📅 Planeado | Modo proxy + streaming + optimización |
+| 5: Recursos MCP | 📅 Planeado | Resources + Prompts + Images |
+| 6: Multi-Cliente | 📅 Planeado | Docs para todos los clientes |
+| 7: Calidad | 📅 Planeado | Tests, telemetría, CI/CD |
+| 8: Skills | 📅 Planeado | Skills markdown para Claude Code |
+| 9: Self-Contained | 📅 Planeado | MCP client dentro de Blender |
 
 ---
 
-## 📄 Licencia
+## Comparativa con otras alternativas
+
+| Proyecto | Tools | Assets | Multi-LLM | Modo Autónomo | HTTP Bridge | Spatial | Precio |
+|----------|-------|--------|-----------|---------------|-------------|---------|--------|
+| **Este proyecto** | 120+ | ✅ Todos | ✅ 5+ proveedores | ✅ Sí | ✅ Sí | ✅ Sí | Gratis |
+| ahujasid/blender-mcp | ~30 | ✅ PH+SK+HR+HY | ❌ Solo Claude | ❌ No | ❌ No | ❌ No | Gratis |
+| youichi-uda/mcp-pro | 120+ | ✅ PH+SK | ❌ Solo Claude | ❌ No | ❌ No | ❌ No | $15/$5mo |
+| Blender.org oficial | ~10 | ❌ No | ❌ Solo Claude | ❌ No | ❌ No | ❌ No | Gratis |
+| AIGODLIKE/GenesisCore | ~20 | ✅ PH | ✅ 7 proveedores | ⚠️ Parcial | ❌ No | ❌ No | Gratis |
+
+---
+
+## Documentación
+
+- [Roadmap completo](ROADMAP.md)
+- [Arquitectura](ARCHITECTURE.md)
+- [Instalación](docs/INSTALL.md)
+- [Claude Desktop](docs/claude-desktop.md)
+- [Cursor](docs/cursor.md)
+- [VS Code](docs/vscode.md)
+- [Windsurf](docs/windsurf.md)
+- [Local LLMs (LM Studio / Ollama / Continue)](docs/local-llm.md)
+- [opencode](docs/opencode.md)
+- [Antigravity (HTTP Bridge)](docs/antigravity.md)
+- [Remote / Docker](docs/remote.md)
+
+## Licencia
 
 MIT — Ver [LICENSE](LICENSE)

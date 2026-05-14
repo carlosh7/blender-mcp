@@ -1,0 +1,83 @@
+[project]
+name = "blender-mcp"
+version = "0.8.0"
+description = "AI-powered Blender MCP Server — Control Blender from any MCP client (Claude, Cursor, opencode, etc.)"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "CarlosH & Antigravity", email = "carlos@antigravity.dev" }
+]
+license = { text = "MIT" }
+keywords = ["mcp", "blender", "3d", "ai", "llm", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "mcp[cli]>=1.3.0",
+    "requests>=2.25.0",
+]
+
+[project.optional-dependencies]
+gui = [
+    "PySide6>=6.6.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+dev = [
+    "blender-mcp[gui,test]",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+blender-mcp = "blender_mcp.cli:main"
+blender-mcp-server = "blender_mcp.server:main"
+blender-mcp-start = "blender_mcp.cli:_cmd_start"
+blender-mcp-stop = "blender_mcp.cli:_cmd_stop"
+
+[project.urls]
+Homepage = "https://github.com/carlosh7/blender-mcp"
+Repository = "https://github.com/carlosh7/blender-mcp"
+Issues = "https://github.com/carlosh7/blender-mcp/issues"
+Documentation = "https://github.com/carlosh7/blender-mcp#readme"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/blender_mcp", "addon"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "src"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers --tb=short"
+markers = [
+    "e2e: end-to-end tests that use real external processes (e.g., Blender)",
+    "slow: tests that take more than 10 seconds",
+]
+
+[tool.coverage.run]
+source = ["src/blender_mcp", "addon"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501", "N999"]

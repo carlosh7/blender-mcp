@@ -6,17 +6,18 @@ import subprocess
 import json
 from pathlib import Path
 
-SYSTEM = platform.system()  # 'Windows' or 'Linux'
+SYSTEM = platform.system()
 
-# ─── opencode config paths ───
-OPENCODE_CONFIG_PATHS = [
-    Path.home() / ".config" / "opencode" / "opencode.json",
-    Path.home() / ".config" / "opencode" / "opencode.jsonc",
-    Path.cwd() / "opencode.json",
-    Path.cwd() / "opencode.jsonc",
-    Path.home() / "Check" / "opencode.json",
-    Path.home() / "check-3d-planner" / "opencode.json",
-]
+# ─── Paths ───
+PLANNER_MODELS_DIR = Path.home() / "check-3d-planner" / "public" / "models"
+MODELS_DIR = Path(__file__).parent.resolve() / "models"
+
+# ─── Cross-platform opencode config paths ───
+def _get_opencode_paths() -> list[Path]:
+    from src.blender_mcp.platform import get_opencode_config_paths
+    return get_opencode_config_paths()
+
+OPENCODE_CONFIG_PATHS = _get_opencode_paths()
 
 # API config per provider for fetching live model lists
 PROVIDER_API_CONFIG = {
@@ -68,7 +69,8 @@ def read_opencode_config() -> dict:
     detected_providers = {}
 
     # 1. Read auth.json (where /connect stores keys)
-    auth_path = Path.home() / ".local/share/opencode/auth.json"
+    from src.blender_mcp.platform import get_opencode_auth_path
+    auth_path = get_opencode_auth_path()
     if auth_path.exists():
         try:
             auth_data = json.loads(auth_path.read_text())
@@ -161,8 +163,9 @@ def get_api_key(provider_id: str) -> str | None:
         if key:
             return key
 
-    # Check auth.json
-    auth_path = Path.home() / ".local/share/opencode/auth.json"
+    # Check auth.json (cross-platform)
+    from src.blender_mcp.platform import get_opencode_auth_path
+    auth_path = get_opencode_auth_path()
     if auth_path.exists():
         try:
             auth_data = json.loads(auth_path.read_text())
@@ -186,43 +189,8 @@ def get_api_key(provider_id: str) -> str | None:
 
 def find_blender() -> str | None:
     """Find Blender executable path across platforms."""
-    if SYSTEM == "Windows":
-        # 1. PATH
-        blender = shutil.which("blender.exe") or shutil.which("blender")
-        if blender:
-            return blender
-
-        # 2. Program Files
-        common = [
-            os.environ.get("PROGRAMFILES", "C:\\Program Files"),
-            os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
-        ]
-        for base in common:
-            path = os.path.join(base, "Blender Foundation")
-            if os.isdir(path):
-                for entry in os.listdir(path):
-                    if entry.startswith("Blender"):
-                        exe = os.path.join(path, entry, "blender.exe")
-                        if os.path.isfile(exe):
-                            return exe
-
-        # 3. Microsoft Store
-        store = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WindowsApps")
-        store_exe = os.path.join(store, "blender.exe")
-        if os.path.isfile(store_exe):
-            return store_exe
-
-        return None
-
-    else:  # Linux
-        blender = shutil.which("blender")
-        if blender:
-            return blender
-        # Common paths
-        for path in ["/usr/bin/blender", "/snap/bin/blender"]:
-            if os.path.isfile(path):
-                return path
-        return None
+    from src.blender_mcp.platform import find_blender as _find
+    return _find()
 
 
 def find_python() -> str | None:
