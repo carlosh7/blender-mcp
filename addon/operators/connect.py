@@ -8,7 +8,7 @@ import threading
 import urllib.request
 from bpy.types import Operator
 from bpy.props import StringProperty
-from .. import blender_socket as bsock
+from .. import _axsock as bsock
 
 
 class OP_Check(Operator):

@@ -1,7 +1,7 @@
 """
 blender-mcp — Handler Base Class
 All socket command handlers inherit from this.
-Each handler module implements cmd_* methods dynamically registered by blender_socket.py.
+Each handler module implements cmd_* methods dynamically registered by _axsock.py.
 """
 
 from typing import Any

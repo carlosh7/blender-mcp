@@ -10,7 +10,7 @@ import webbrowser
 from bpy.props import StringProperty, CollectionProperty, BoolProperty, IntProperty, PointerProperty
 from bpy.types import Panel, UIList, PropertyGroup, Operator
 
-from .. import blender_socket as bsock
+from .. import _axsock as bsock
 from ..handlers import scene as scene_handler
 
 

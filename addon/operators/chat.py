@@ -6,7 +6,7 @@ import time
 import threading
 import os
 from bpy.types import Operator
-from .. import blender_socket as bsock
+from .. import _axsock as bsock
 
 
 class OP_Send(Operator):

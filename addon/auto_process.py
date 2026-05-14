@@ -9,7 +9,7 @@ import os
 import time
 import threading
 import logging
-from . import blender_socket as bsock
+from . import _axsock as bsock
 
 logger = logging.getLogger("blender-mcp-auto")
 

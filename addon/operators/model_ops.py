@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 from bpy.types import Operator
 from bpy.props import StringProperty
-from .. import blender_socket as bsock
+from .. import _axsock as bsock
 
 from ..platform_utils import get_opencode_auth_path, get_opencode_config_paths
 

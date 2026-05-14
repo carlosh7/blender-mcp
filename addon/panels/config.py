@@ -20,7 +20,7 @@ class PN_PT_Config(Panel):
         c = ctx.scene
 
         # ── Status ──
-        bsock = importlib.import_module("blender_socket")
+        bsock = importlib.import_module("_axsock")
         box = L.box()
         box.label(text="Status", icon='LINKED')
         row = box.row(align=True)
