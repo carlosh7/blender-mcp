@@ -177,10 +177,13 @@ ESTÁNDAR DE DETALLE MÍNIMO:
 - Personaje: cabeza + torso + brazos + piernas, proporciones básicas.
 - SIEMPRE usa materiales con color en cada parte. NO dejes nada sin material.
 
-OBJETOS COMPLEJOS (curvas, orgánicos):
-- Para formas curvas usa: lattice + proportional editing + Simple Deform modifier.
-- NO uses curvas Bezier a menos que seas experto.
-- Si necesitas curvas, usa la función helper `make_curve()` disponible en el namespace.
+HELPERS DISPONIBLES (usa estos en vez de primitivas para objetos curvos):
+- `make_lathe(profile, name, location)` — revolución. profile = [(x,y), (x,y)...] perfil 2D. Sirve para: tazas, botellas, floreros, peones, copas, cuencos.
+  Ejemplo taza: make_lathe([(0,0),(0.8,0),(0.8,0.3),(0.75,0.35),(0.75,1.2),(0.7,1.3),(0,1.5)], "Taza")
+- `make_curve(points, bevel_radius)` — curva Bezier con grosor. Sirve para: bananas, mangos, asas, tubos curvos.
+- `make_collection(name)` — crea colección y la linkea.
+
+NOTA: NO uses primitive_cube_add ni primitive_cylinder_add para objetos que DEBERÍAN ser curvos. Usa los helpers.
 
 PREFERENCIAS DEL USUARIO (se te dan como contexto, úsalas por defecto):
 - Si el usuario dice "me gusta el rojo" o similar, lo recordaré para próximas veces.
@@ -231,6 +234,37 @@ def _make_collection(name):
     return col
 
 
+def _make_lathe(profile, name="LatheObj", location=(0, 0, 0), axis="Y", steps=64):
+    if axis == "Y":
+        pts = [(x, y, 0) for x, y in profile]
+    else:
+        pts = [(0, x, y) for x, y in profile]
+    curve_data = bpy.data.curves.new(name=name + "Curve", type='CURVE')
+    curve_data.dimensions = '2D'
+    curve_data.resolution_u = steps
+    spline = curve_data.splines.new('POLY')
+    spline.points.add(len(pts) - 1)
+    for i, p in enumerate(pts):
+        spline.points[i].co = (p[0], p[1], p[2], 1)
+    obj = bpy.data.objects.new(name, curve_data)
+    obj.location = location
+    bpy.context.collection.objects.link(obj)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.ops.object.modifier_add(type='SCREW')
+    mod = obj.modifiers[-1]
+    if axis == "Y":
+        mod.axis = 'Y'
+    else:
+        mod.axis = 'X'
+    mod.steps = steps // 2
+    mod.render_steps = steps // 2
+    mod.use_merge_vertices = True
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    return obj
+
+
 def _ensure_unique_name(base):
     if base not in bpy.data.objects:
         return base
@@ -251,6 +285,7 @@ _HELPER_NAMESPACE = {
     "bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops,
     "make_curve": _make_bezier_curve,
     "make_collection": _make_collection,
+    "make_lathe": _make_lathe,
     "unique_name": _ensure_unique_name,
     "next_pos": _get_next_position,
 }

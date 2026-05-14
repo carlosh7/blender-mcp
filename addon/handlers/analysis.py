@@ -6,6 +6,7 @@ import bpy
 import base64
 import tempfile
 import os
+import time
 from . import BaseHandler
 
 
