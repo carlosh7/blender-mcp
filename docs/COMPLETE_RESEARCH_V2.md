@@ -1,7 +1,7 @@
 # blender-mcp — Documentación Completa de Investigación y Desarrollo
 
 > **Fecha:** 2026-05-14
-> **Versión actual:** v0.8.51
+> **Versión actual:** v0.8.53
 > **Objetivo:** Documentar todas las decisiones de arquitectura, investigación de proyectos similares, lecciones aprendidas y plan futuro.
 
 ---
@@ -177,7 +177,7 @@ TOOLS_DEF = [
 | v0.8.26 | Eliminar SSE server (uvicorn freeze) |
 | v0.8.42 | 64/64 tools validadas |
 | v0.8.48 | Eliminar tool calling → texto directo |
-| v0.8.51 | Blender 4.2 LTS target |
+| v0.8.53 | Blender 4.2 LTS target |
 
 ---
 
@@ -251,5 +251,5 @@ TOOLS_DEF = [
 | Blender.org MCP | https://www.blender.org/lab/mcp-server/ |
 | Claude Blender Tutorial | https://claude.com/resources/tutorials/using-the-blender-connector-in-claude |
 | Nuestro repo | https://github.com/carlosh7/blender-mcp |
-| Nuestro ZIP | https://github.com/carlosh7/blender-mcp/blob/main/dist/axiom_engine_v0.8.51.zip |
+| Nuestro ZIP | https://github.com/carlosh7/blender-mcp/blob/main/dist/axiom_engine_v0.8.53.zip |
 | Discord comunidad | https://discord.gg/z5apgR8TFU |
