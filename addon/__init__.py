@@ -1,9 +1,9 @@
-# blender-mcp v0.8.21 — Embedded-first Blender MCP
+# blender-mcp v0.8.22 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 21),
+    "version": (0, 8, 22),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -11,7 +11,7 @@ bl_info = {
     "category": "3D View",
 }
 
-import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib
+import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, PointerProperty
 from bpy.types import Panel, Operator, PropertyGroup, UIList
@@ -316,6 +316,13 @@ def register():
         except:
             pass
 
+    # ─── Status ticker (temprano: antes de cualquier timer que pueda fallar) ───
+    try:
+        from .operators.model_ops import _status_ticker
+        bpy.app.timers.register(_status_ticker, first_interval=0.2)
+    except:
+        pass
+
     # ─── Timers (CRITICAL: must always register) ───
     _delayed_step = 0
 
@@ -367,25 +374,33 @@ def _auto_verify_model(model_id, scene_name):
             _queue_status,
         )
         provider = _detect_provider(model_id)
+        print(f"[VERIFY] Modelo={model_id}, Provider={provider}")
         key = _get_api_key(provider)
         if not key:
+            print(f"[VERIFY] No API key for {provider}")
             _queue_status(scene_name, "🔴 Sin API key para " + provider)
             return
         cfg = _PROVIDER_API.get(provider)
         if not cfg:
+            print(f"[VERIFY] No config for {provider}")
             _queue_status(scene_name, "⚠️ Modelo sin verificar")
             return
         import urllib.request
         headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
         req = urllib.request.Request(cfg["url"], headers=headers)
+        print(f"[VERIFY] Llamando a {cfg['url']}...")
         urllib.request.urlopen(req, timeout=5)
+        print(f"[VERIFY] Conectado a {provider}")
         _queue_status(scene_name, "✅ Conectado: " + provider)
     except urllib.error.HTTPError as e:
+        print(f"[VERIFY] HTTP Error {e.code}")
         _queue_status(scene_name, f"🔴 Key inválida ({e.code})")
     except urllib.error.URLError:
+        print(f"[VERIFY] URL Error - no se pudo contactar servidor")
         _queue_status(scene_name, "🔴 No se pudo contactar servidor")
     except Exception as e:
-        _queue_status(scene_name, f"🔴 Error: {str(e)[:40]}")
+        print(f"[VERIFY] Error: {traceback.format_exc()}")
+        _queue_status(scene_name, f"🔴 Error: {str(e)[:60]}")
 
     bpy.app.timers.register(delayed_load, first_interval=0.5)
 
@@ -431,15 +446,6 @@ def _auto_verify_model(model_id, scene_name):
         return 1.0
     bpy.app.timers.register(health_check, first_interval=0.1)
 
-    # Status ticker for thread-safe model verification updates
-    try:
-        from .operators.model_ops import _status_ticker
-        bpy.app.timers.register(_status_ticker, first_interval=0.2)
-    except:
-        pass
-
-
-def unregister():
     try:
         from .operators.embedded import auto_stop
         auto_stop()

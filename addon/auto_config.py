@@ -61,25 +61,24 @@ def _stdio_config():
 
 
 def _config_opencode():
-    """Escribe configuración STDIO en opencode.json y mcp.json."""
+    """Escribe configuración STDIO solo en mcp.json (no toca opencode.json)."""
     d = _opencode_dir()
     d.mkdir(parents=True, exist_ok=True)
     cfg = _stdio_config()
 
-    # Abrir ambos: opencode.json + mcp.json
-    for fname in ["opencode.json", "mcp.json"]:
-        path = d / fname
+    # Solo mcp.json — no tocar opencode.json (tiene modelo/proveedores)
+    path = d / "mcp.json"
+    data = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except:
+            pass
+    if not isinstance(data, dict):
         data = {}
-        if path.exists():
-            try:
-                data = json.loads(path.read_text())
-            except:
-                pass
-        if not isinstance(data, dict):
-            data = {}
-        data.setdefault("mcp", {})
-        data["mcp"]["blender"] = cfg
-        path.write_text(json.dumps(data, indent=2))
+    data.setdefault("mcp", {})
+    data["mcp"]["blender"] = cfg
+    path.write_text(json.dumps(data, indent=2))
 
     return True
 
