@@ -77,6 +77,32 @@ class RenderHandler(BaseHandler):
         return {"device": device}
 
     @staticmethod
+    def cmd_render_thumbnail_to_path(output_path=""):
+        if not output_path:
+            return {"error": "Provide output_path"}
+        scene = bpy.context.scene
+        rd = scene.render
+        res_x, res_y = rd.resolution_x, rd.resolution_y
+        max_dim = 320
+        if res_x >= res_y:
+            tx, ty = max_dim, max(int(res_y * max_dim / res_x), 1)
+        else:
+            tx, ty = max(int(res_x * max_dim / res_y), 1), max_dim
+        orig_fp = rd.filepath
+        rd.filepath = output_path
+        orig_x, orig_y = rd.resolution_x, rd.resolution_y
+        rd.resolution_x, rd.resolution_y = tx, ty
+        rd.resolution_percentage = 100
+        try:
+            bpy.ops.render.render(write_still=True)
+            return {"rendered": output_path, "exists": os.path.exists(output_path)}
+        except RuntimeError as e:
+            return {"error": str(e)}
+        finally:
+            rd.filepath = orig_fp
+            rd.resolution_x, rd.resolution_y = orig_x, orig_y
+
+    @staticmethod
     def cmd_set_color_management(view_transform="Standard", look="None"):
         scene = bpy.context.scene
         scene.view_settings.view_transform = view_transform

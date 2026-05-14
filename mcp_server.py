@@ -29,7 +29,15 @@ from blender_connection import get_blender, BlenderConnection
 
 # ─── FastMCP Server ───
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 mcp = FastMCP("blender-mcp", log_level="INFO")
+
+def RO(doc=""):
+    return dict(annotations=ToolAnnotations(readOnlyHint=True), description=doc)
+def RW(doc=""):
+    return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), description=doc)
+def ADD(doc=""):
+    return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False), description=doc)
 
 _proxy_active = False  # Track if external MCP client handles chat (starts as False)
 
@@ -46,31 +54,26 @@ for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
              analysis, docs, viewport]:
     mod.register_tools(mcp)
 
-@mcp.tool()
+@mcp.tool(**RO("Get information about the current Blender scene (objects, counts, names)."))
 def get_scene_info() -> str:
-    """Get information about the current Blender scene (objects, counts, names)."""
     b = get_blender()
     return json.dumps(b.send_command("get_scene_info"), indent=2)
 
-@mcp.tool()
+@mcp.tool(**RW("Ejecuta código Python arbitrario en Blender. Usa bpy, C (bpy.context), D (bpy.data), ops (bpy.ops)."))
 def execute_blender_code(code: str) -> str:
-    """Ejecuta código Python arbitrario en Blender. Usa bpy, C (bpy.context), D (bpy.data), ops (bpy.ops).
-    Crea objetos paso a paso en fragmentos pequeños. Siempre verifica el resultado antes de continuar."""
     b = get_blender()
     result = b.send_command("execute_code", {"code": code})
     return f"Salida:\n{result.get('output', '')}"
 
-@mcp.tool()
+@mcp.tool(**RO("Captura una imagen del viewport 3D de Blender. Retorna la ruta del archivo."))
 def get_viewport_screenshot() -> str:
-    """Captura una imagen del viewport 3D de Blender para validación visual Axiom.
-    Retorna la ruta local del archivo generado."""
     b = get_blender()
     result = b.send_command("get_viewport_screenshot")
     if "error" in result:
         return f"Error al capturar: {result['error']}"
     return f"Captura Axiom guardada en: {result['filepath']} ({result['width']}x{result['height']})"
 
-@mcp.tool()
+@mcp.tool(**RO())
 def search_assets(provider: str = "polyhaven", query: str = "", asset_type: str = "textures") -> str:
     """Busca assets externos (Polyhaven o Sketchfab). 
     Tipos para Polyhaven: textures, hdris, models."""
@@ -78,14 +81,14 @@ def search_assets(provider: str = "polyhaven", query: str = "", asset_type: str 
     result = b.send_command("search_assets", {"provider": provider, "query": query, "asset_type": asset_type})
     return json.dumps(result, indent=2)
 
-@mcp.tool()
+@mcp.tool(**RW())
 def generate_3d_model(prompt: str) -> str:
     """Inicia la generación de un modelo 3D por IA usando Rodin/Hyper3D a partir de un texto."""
     b = get_blender()
     result = b.send_command("generate_3d", {"prompt": prompt})
     return json.dumps(result, indent=2)
 
-@mcp.tool()
+@mcp.tool(**RO())
 def get_scene_visual() -> str:
     """Get a top-down ASCII visualization of the scene for spatial reasoning."""
     from blender_mcp.spatial import get_spatial_summary
@@ -93,7 +96,7 @@ def get_scene_visual() -> str:
     scene_info = b.send_command("get_scene_info")
     return get_spatial_summary(scene_info)
 
-@mcp.tool()
+@mcp.tool(**ADD())
 def chat_send(message: str) -> str:
     """Send a message to the Blender chat (from external tools). User messages go here."""
     global _proxy_active
@@ -102,7 +105,7 @@ def chat_send(message: str) -> str:
     result = b.send_command("chat_send", {"message": message})
     return json.dumps(result)
 
-@mcp.tool()
+@mcp.tool(**RW())
 def export_to_planner(name: str) -> str:
     """Export the current Blender scene as a .glb model to the 3D Planner directory."""
     from config import PLANNER_MODELS_DIR
@@ -112,14 +115,14 @@ def export_to_planner(name: str) -> str:
     result = b.send_command("export_glb", {"filepath": path})
     return json.dumps(result, indent=2)
 
-@mcp.tool()
+@mcp.tool(**RO())
 def read_chat() -> str:
     """Read pending chat messages from the Blender user. Returns messages waiting for AI response."""
     b = get_blender()
     result = b.send_command("read_chat")
     return json.dumps(result, indent=2)
 
-@mcp.tool()
+@mcp.tool(**RW())
 def respond_chat(message_id: str, response: str) -> str:
     """Respond to a pending chat message from Blender. The user will see this in the chat panel."""
     global _proxy_active
@@ -128,7 +131,7 @@ def respond_chat(message_id: str, response: str) -> str:
     result = b.send_command("respond_chat", {"message_id": message_id, "response": response})
     return json.dumps(result)
 
-@mcp.tool()
+@mcp.tool(**RW())
 def clear_history() -> str:
     """Clear the AI agent's conversation history/memory."""
     global _chat_history
@@ -137,7 +140,7 @@ def clear_history() -> str:
     b.send_command("clear_chat")
     return "History cleared."
 
-@mcp.tool()
+@mcp.tool(**RO())
 def poll_response(message_id: str) -> str:
     """Check if a response is ready for a chat message. Returns {status: 'done'/'pending', response: '...'}"""
     b = get_blender()
@@ -254,7 +257,7 @@ Keep documentation in simple English so a beginner can understand the flow."""
 # ─── Image Response MCP (Fase 5) ───
 from mcp.server.fastmcp import Image as MCPImage
 
-@mcp.tool()
+@mcp.tool(**RO())
 def get_viewport_screenshot_image() -> object:
     """Capture a screenshot of the Blender 3D viewport and return as an image.
     Use this for visual validation directly visible to the LLM (not just a file path)."""
@@ -495,7 +498,7 @@ h1{{font-size:1.5em}} .v{{color:#888;font-size:.9em;margin:.3em 0 1.5em}}
 a{{color:#64b5f6;text-decoration:none}} .f{{margin-top:1.5em;padding-top:1em;border-top:1px solid #2a2a4a;font-size:.8em;color:#666}}
 </style></head>
 <body><div class="card">
-<h1>blender-mcp ●</h1><div class="v">v0.8.63</div>
+<h1>blender-mcp ●</h1><div class="v">v0.8.64</div>
 <div class="s"><span class="g"></span> {tools_count} tools</div>
 <div class="s"><span class="g"></span> Socket: {SOCKET_HOST}:{SOCKET_PORT}</div>
 <div class="s"><span class="g"></span> <a href="/sse">SSE endpoint</a></div>

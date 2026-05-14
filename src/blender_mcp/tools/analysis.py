@@ -3,6 +3,11 @@ blender-mcp — Analysis MCP tools
 """
 import json
 from blender_connection import get_blender
+from mcp.types import ToolAnnotations
+
+def RO(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=True), **kw)
+def RW(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), **kw)
+def ADD(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False), **kw)
 
 
 def register_tools(mcp):
@@ -27,9 +32,37 @@ def register_tools(mcp):
         r = b.send_command("get_object_detail_summary", {"name": name})
         return json.dumps(r, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(**RO())
     def get_blendfile_summary_datablocks() -> str:
         """Get a count summary of ALL data-block types in the blend file (meshes, materials, scenes, etc.)."""
         b = get_blender()
         r = b.send_command("get_blendfile_summary_datablocks")
+        return json.dumps(r, indent=2)
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_missing_files() -> str:
+        """Report all missing external file references (textures, images, sounds, etc.) in the blend file."""
+        b = get_blender()
+        r = b.send_command("get_blendfile_summary_missing_files")
+        return json.dumps(r, indent=2)
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_of_linked_libraries() -> str:
+        """Get the tree of direct and indirect linked libraries in the blend file."""
+        b = get_blender()
+        r = b.send_command("get_blendfile_summary_of_linked_libraries")
+        return json.dumps(r, indent=2)
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_path_info() -> str:
+        """Get blend file path, save status, age, file size, and backup versions."""
+        b = get_blender()
+        r = b.send_command("get_blendfile_summary_path_info")
+        return json.dumps(r, indent=2)
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_usage_guess() -> str:
+        """Score likelihood (0-100) of each use-case for the current blend file (Animation, Modeling, Rendering, etc.)."""
+        b = get_blender()
+        r = b.send_command("get_blendfile_summary_usage_guess")
         return json.dumps(r, indent=2)

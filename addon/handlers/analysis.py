@@ -107,6 +107,92 @@ class AnalysisHandler(BaseHandler):
         return {"data_blocks": summary}
 
     @staticmethod
+    def cmd_get_blendfile_summary_missing_files():
+        import os
+        import bpy
+        missing = []
+        checked = 0
+        def _visit(id_data, path, _placeholder):
+            nonlocal checked
+            checked += 1
+            fp = bpy.path.abspath(path)
+            if not os.path.exists(fp):
+                missing.append({"id_type": type(id_data).__name__, "id_name": getattr(id_data, "name", ""), "path": fp})
+        bpy.data.file_path_foreach(_visit, flags={"SKIP_PACKED", "SKIP_WEAK_REFERENCES", "RESOLVE_TOKEN"})
+        return {"status": "ok", "missing_files": missing, "total_checked": checked}
+
+    @staticmethod
+    def cmd_get_blendfile_summary_of_linked_libraries():
+        import bpy
+        direct, indirect = [], []
+        for lib in bpy.data.libraries:
+            info = {"filepath": lib.filepath, "name": lib.name}
+            count = 0
+            for attr in dir(bpy.data):
+                coll = getattr(bpy.data, attr, None)
+                if not hasattr(coll, "__iter__"):
+                    continue
+                try:
+                    for item in coll:
+                        if hasattr(item, "library") and item.library == lib:
+                            count += 1
+                except:
+                    pass
+            info["linked_datablocks_count"] = count
+            if lib.parent is None:
+                direct.append(info)
+            else:
+                info["parent_library"] = lib.parent.name
+                indirect.append(info)
+        return {"status": "ok", "direct_libraries": direct, "indirect_libraries": indirect, "total_library_count": len(bpy.data.libraries)}
+
+    @staticmethod
+    def cmd_get_blendfile_summary_path_info():
+        import os, time, bpy
+        fp = bpy.data.filepath
+        age = size = None
+        backups = []
+        if fp and os.path.exists(fp):
+            stat = os.stat(fp)
+            age = round(time.time() - stat.st_mtime, 1)
+            size = stat.st_size
+            for i in range(1, 32):
+                bp = fp + str(i)
+                if not os.path.exists(bp):
+                    break
+                bs = os.stat(bp)
+                backups.append({"path": bp, "age_seconds": round(time.time() - bs.st_mtime, 1), "size_bytes": bs.st_size})
+        return {"status": "ok", "filepath": fp or "", "is_saved": bool(fp), "is_dirty": bpy.data.is_dirty, "age_seconds": age, "file_size_bytes": size, "backups": backups}
+
+    @staticmethod
+    def cmd_get_blendfile_summary_usage_guess():
+        import bpy
+        DEFAULT_CUBE_VERTS = 8
+        signals = {}
+
+        def _summarize(sigs):
+            if not sigs:
+                return (0, 0)
+            n = len(sigs)
+            return (round(100 * sum(c for c, _ in sigs) / n), round(100 * sum(k for _, k in sigs) / n))
+
+        data = bpy.data
+        scene = bpy.context.scene
+        non_default = [m for m in data.meshes if m.name != "Cube" or len(m.vertices) != DEFAULT_CUBE_VERTS]
+
+        usages = {
+            "Animation": _summarize([(float(bool(data.actions)), 1.0), (float(bool(data.armatures)), 1.0)]),
+            "Modeling": _summarize([(float(bool(non_default)), 0.8), (float(bool(data.curves) or bool(data.metaballs)), 0.7), (float(any(bool(o.modifiers) for o in data.objects)), 0.5)]),
+            "Rendering": _summarize([(float(scene.render.engine not in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE")), 0.5), (float(bool(scene.render.filepath not in ("/tmp/", "/tmp\\", ""))), 0.8)]),
+            "Scripting": _summarize([(float(bool(data.texts)), 1.0)]),
+            "Geometry Nodes": _summarize([(float(any(any(m.type == "NODES" and m.node_group for m in o.modifiers) for o in data.objects)), 1.0)]),
+            "Grease Pencil": _summarize([(float(bool(data.grease_pencils)), 1.0)]),
+            "UV Unwrapping": _summarize([(float(any(len(m.uv_layers) > 1 for m in data.meshes)), 1.0)]),
+        }
+        result = {k: {"score": s, "certainty": c} for k, (s, c) in usages.items()}
+        return {"status": "ok", "usage_guesses": result}
+
+    @staticmethod
     def cmd_get_screenshot_as_base64(max_size=800):
         filepath = os.path.join(tempfile.gettempdir(), f"blender_mcp_shot_{int(time.time())}.png")
         try:

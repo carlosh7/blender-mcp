@@ -3,6 +3,11 @@ blender-mcp — Hyper3D Rodin MCP tools
 """
 import json
 from blender_connection import get_blender
+from mcp.types import ToolAnnotations
+
+def RO(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=True), **kw)
+def RW(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), **kw)
+def ADD(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False), **kw)
 
 
 def _process_bbox(bbox):
