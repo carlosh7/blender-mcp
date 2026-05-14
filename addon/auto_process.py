@@ -122,17 +122,15 @@ _CHAT_URLS = {
     "google": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
 }
 
-SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D. Tienes acceso completo a la API de Blender.
+SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D. Genera código Python completo para crear, modificar y texturizar objetos.
 
 REGLAS:
-- Genera código Python COMPLETO usando bpy para crear cualquier objeto 3D.
-- Modela formas orgánicas con deformación proporcional, lattice, curvas.
-- Para materiales: usa Principled BSDF con colores RGBA.
-- Para iluminación: crea luces vía código bpy.
-- Siempre verifica con get_scene_info antes de empezar.
-- Cuando termines, usa get_viewport_screenshot para mostrar.
-- Puedes crear código complejo en un solo bloque. No te limites.
-- Usa bpy.ops, bpy.data, bpy.context para todo lo que necesites."""
+- Genera TODO el código en un solo bloque ```python ... ```
+- No expliques, solo genera el código. Cada segundo cuenta.
+- Usa bpy.ops.mesh, bpy.data.materials, bpy.ops.object, etc.
+- Para formas orgánicas usa lattice, deformación proporcional, curvas.
+- Para materiales: Principled BSDF con color RGBA [r,g,b,a].
+- Al terminar imprime "✅ LISTO" para confirmar."""
 
 
 def _exec_code(code):
@@ -155,77 +153,17 @@ def _append_to_log(text, tag="AI"):
         pass
 
 
-TOOLS_DEF = [{"type": "function", "function": {"name": "execute_blender_code", "description": "Execute ANY Python code in Blender. Full access to bpy API. Use for creating, modeling, texturing, lighting, everything.", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "Python code using bpy, C (bpy.context), D (bpy.data), ops (bpy.ops)"}}, "required": ["code"]}}}, {"type": "function", "function": {"name": "get_scene_info", "description": "Get list of all objects in the scene with names, types and locations.", "parameters": {"type": "object", "properties": {}}}}, {"type": "function", "function": {"name": "get_viewport_screenshot", "description": "Capture 3D viewport to validate visual result.", "parameters": {"type": "object", "properties": {}}}}, {"type": "function", "function": {"name": "scene_summary", "description": "Full scene summary: objects by type, materials, collections.", "parameters": {"type": "object", "properties": {}}}}]
-
-
-def _tool_to_command(name, args):
-    """Mapea nombre de tool a comando socket + parámetros."""
-    mapping = {
-        "execute_blender_code": ("execute_code", {"code": args.get("code", "")}),
-        "get_scene_info": ("get_scene_info", {}),
-        "create_object": ("create_object", args),
-        "delete_object": ("delete_object", args),
-        "transform_object": ("transform_object", args),
-        "duplicate_object": ("duplicate_object", args),
-        "create_material": ("create_material", args),
-        "assign_material": ("assign_material", args),
-        "add_modifier": ("add_modifier", args),
-        "create_light": ("create_light", args),
-        "setup_three_point_lighting": ("setup_three_point_lighting", args),
-        "create_camera": ("create_camera", args),
-        "set_camera_target": ("set_camera_target", args),
-        "insert_keyframe": ("insert_keyframe", args),
-        "set_render_engine": ("set_render_engine", args),
-        "render_frame": ("render_frame", args),
-        "export_scene": ("export_scene", args),
-        "get_viewport_screenshot": ("get_viewport_screenshot", {}),
-        "unwrap_object": ("unwrap_object", args),
-        "join_objects": ("join_objects", args),
-        "purge_orphans": ("purge_orphans", {}),
-        "scene_summary": ("scene_summary", {}),
-        "mesh_analysis": ("mesh_analysis", args),
-        "search_polyhaven": ("search_polyhaven", args),
-        "download_polyhaven_hdri": ("download_polyhaven_hdri", args),
-        "download_polyhaven_texture": ("download_polyhaven_texture", args),
-    }
-    return mapping.get(name)
-
-
-def _execute_tool(name, args):
-    """Ejecuta una tool en Blender vía socket y devuelve resultado JSON."""
-    cmd = _tool_to_command(name, args)
-    if not cmd:
-        return json.dumps({"error": f"Unknown tool: {name}"})
-    cmd_type, cmd_params = cmd
-    try:
-        result = bsock._socket_server._execute({"command": cmd_type, "args": cmd_params})
-        if result.get("status") == "success":
-            return json.dumps(result.get("result", {}))
-        else:
-            return json.dumps({"error": result.get("message", "Unknown error")})
-    except Exception as e:
-        return json.dumps({"error": str(e)})
-
-
-def _call_llm_with_tools(url, headers, model, messages):
-    """LLamada a la API REST con tool_choice='auto'. Devuelve {content, tool_calls}."""
+def _call_llm(url, headers, model, messages):
+    """LLamada directa a la API REST sin tools. El LLM genera código Python en texto plano."""
     body = json.dumps({
         "model": model,
         "messages": messages,
-        "tools": TOOLS_DEF,
-        "tool_choice": "auto",
         "max_tokens": 8192,
         "temperature": 0.4,
     }).encode()
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=120) as resp:
-        result = json.loads(resp.read())
-    choice = result["choices"][0]["message"]
-    return {
-        "content": choice.get("content", ""),
-        "tool_calls": choice.get("tool_calls"),
-        "raw_message": choice,
-    }
+        return json.loads(resp.read())
 
 
 def _process_with_client(mid, text):
@@ -263,51 +201,36 @@ def _process_with_client(mid, text):
             messages.append({"role": "system", "content": f"Escena actual: {', '.join(objs[:10])}"})
         messages.append({"role": "user", "content": text})
 
-        for turn in range(6):
-            print(f"[AUTO] Turno {turn+1}/6")
-            try:
-                response = _call_llm_with_tools(url, headers, model, messages)
-            except urllib.error.HTTPError as e:
-                err = e.read().decode()[:200]
-                print(f"[AUTO] HTTP Error {e.code}: {err}")
-                _respond(mid, f"❌ HTTP {e.code}")
-                break
-            except Exception as e:
-                print(f"[AUTO] Error: {traceback.format_exc()}")
-                _respond(mid, f"❌ Error: {str(e)[:60]}")
-                break
+        try:
+            result = _call_llm(url, headers, model, messages)
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+        except urllib.error.HTTPError as e:
+            err = e.read().decode()[:200]
+            print(f"[AUTO] HTTP Error {e.code}: {err}")
+            _respond(mid, f"❌ HTTP {e.code}")
+            _cleanup(mid)
+            return
+        except Exception as e:
+            print(f"[AUTO] Error: {traceback.format_exc()}")
+            _respond(mid, f"❌ Error: {str(e)[:60]}")
+            _cleanup(mid)
+            return
 
-            content = response.get("content", "")
-            tool_calls = response.get("tool_calls")
+        if not content:
+            _respond(mid, "⚠️ El modelo no generó respuesta")
+            _cleanup(mid)
+            return
 
-            if content:
-                print(f"[AUTO] Respuesta: {content[:80]}...")
-                _respond(mid, content)
+        print(f"[AUTO] Respuesta recibida ({len(content)} chars)")
 
-            if not tool_calls:
-                print(f"[AUTO] Sin tool_calls, fin del loop")
-                break
+        # Extraer y ejecutar bloques de código Python
+        code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
+        if code_blocks:
+            for i, code in enumerate(code_blocks):
+                print(f"[AUTO] Ejecutando código ({i+1}/{len(code_blocks)})...")
+                _exec_code(code)
 
-            # Usar el mensaje RAW que devolvió la API (incluye reasoning_content si existe)
-            messages.append(response.get("raw_message", {"role": "assistant", "content": content or ""}))
-
-            for tc in tool_calls:
-                func_name = tc["function"]["name"]
-                try:
-                    func_args = json.loads(tc["function"]["arguments"])
-                except:
-                    func_args = {}
-                tc_id = tc.get("id", f"call_{turn}")
-                print(f"[AUTO] Ejecutando tool: {func_name}")
-                result = _execute_tool(func_name, func_args)
-                print(f"[AUTO] Resultado: {result[:100]}...")
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc_id,
-                    "name": func_name,
-                    "content": result,
-                })
-
+        _respond(mid, content)
         _cleanup(mid)
 
     threading.Thread(target=process, daemon=True).start()
