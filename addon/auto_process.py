@@ -21,6 +21,8 @@ _processed_ids = set()
 _in_flight = {}
 _message_start = {}
 _timer_registered = False
+_session_prefs = {}
+_RETRY_LIMIT = 1
 
 
 def start():
@@ -82,7 +84,6 @@ def _check_in_flight():
 
 
 def _detect_provider(model_id):
-    """Detect provider from model ID string."""
     PROVIDER_ORDER = ["google", "anthropic", "deepseek", "opencode-go", "openrouter"]
     _PROVIDER_API = {
         "deepseek": {"url": "https://api.deepseek.com/v1/models", "auth": True},
@@ -101,7 +102,6 @@ def _detect_provider(model_id):
 
 
 def _get_api_key(provider):
-    """Busca API key en: env vars → opencode auth.json → config cache."""
     env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
                "openrouter": "OPENROUTER_API_KEY", "anthropic": "ANTHROPIC_API_KEY",
                "google": "GOOGLE_API_KEY"}
@@ -143,28 +143,42 @@ _ANTHROPIC_HEADERS = {
 
 SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Python API). Genera código Python completo.
 
-REGLAS ESTRICTAS:
+INTERACCIÓN:
+- Responde NATURALMENTE en el mismo idioma del usuario. Saluda, pregunta, sugiere.
+- Si el usuario pide algo vago (ej: "una fruta"), PREGUNTA antes: ¿qué tipo? ¿color?
+- Después de crear algo nuevo, sugiere 1 mejora breve: "¿Quieres un material? ¿Cambiar tamaño?"
+- Si preguntan "mejora esto", refiérete al último objeto creado o al activo (bpy.context.active_object).
+
+REGLAS ESTRICTAS DE CÓDIGO:
 - Cada instrucción en UNA sola línea. NO partas asignaciones ni argumentos entre líneas.
 - Usa `bpy.context.active_object` para objeto recién creado. NUNCA `bpy.context.object`.
 - Para añadir un modifier usa: `obj.modifiers.new(name="...", type='...')`. NO uses `bpy.ops.object.modifier_add`.
-- Todo el código en ```python ... ```. Sin explicaciones. Sin texto fuera del bloque.
 - Materiales: Principled BSDF con RGBA, sin Specular.
 - Termina con `print("OK")`.
+- El código en ```python ... ```. Si no hay código, responde solo texto.
 
 ORGANIZACIÓN DE ESCENA:
-- ANTES de crear, REVISA la escena actual (se te dará como contexto).
-- Si el usuario pide lo mismo que ya existe (ej: "otra dona" teniendo ya una "Dona"),
-  usa `bpy.data.objects.remove(bpy.data.objects["Dona"], do_unlink=True)` primero.
-- NUNCA apiles objetos en (0,0,0). Separa cada nuevo objeto en el eje X:
-  primer objeto en (0,0,0), segundo en (3,0,0), tercero en (6,0,0), etc.
-- "hola" → bpy.ops.object.text_add(location=(0, 2, 0)). Pon el texto en body.
-- Para objetos con múltiples partes (batería, mesa, banana, etc.):
-  1. Crea colección: col = bpy.data.collections.new("Nombre")
-  2. Linkéala: bpy.context.collection.children.link(col)
-  3. Linkea cada parte a la colección: col.objects.link(parte)
-  4. Deslinkea del collection raíz: bpy.context.collection.objects.unlink(parte)
+- REVISA la escena actual (se te da como contexto) para saber qué nombres y posiciones existen.
+- NUNCA borres objetos existentes. Solo crea nuevos.
+- NUNCA apiles objetos en (0,0,0). Usa la posición sugerida en el contexto.
+- Nombres ÚNICOS: si "Dona" ya existe, usa "Dona_001", "Dona_002", etc.
+- "hola" → bpy.ops.object.text_add(location=(0, 2, 0)). body = "Hola".
+- Para objetos con múltiples partes (batería, mesa, etc.):
+  1. Crea colección: col = bpy.data.collections.new("NombreColeccion")
+  2. bpy.context.collection.children.link(col)
+  3. Linkea cada parte: col.objects.link(parte)
+  4. Deslinkea del raíz: bpy.context.collection.objects.unlink(parte)
+- "50 manzanas" → Manzana_001 a Manzana_050, todas distribuidas como pida.
 
-Ejemplo correcto:
+OBJETOS COMPLEJOS (curvas, orgánicos):
+- Para formas curvas usa: lattice + proportional editing + Simple Deform modifier.
+- NO uses curvas Bezier a menos que seas experto.
+- Si necesitas curvas, usa la función helper `make_curve()` disponible en el namespace.
+
+PREFERENCIAS DEL USUARIO (se te dan como contexto, úsalas por defecto):
+- Si el usuario dice "me gusta el rojo" o similar, lo recordaré para próximas veces.
+
+Ejemplo:
 ```python
 import bpy
 bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
@@ -180,17 +194,101 @@ print("OK")
 ```"""
 
 
+# ─── Helpers para código generado ───
+
+def _make_bezier_curve(name, points, bevel_depth=0.05, location=(0, 0, 0)):
+    curve_data = bpy.data.curves.new(name=name + "Data", type='CURVE')
+    curve_data.dimensions = '2D'
+    curve_data.resolution_u = 12
+    curve_data.bevel_depth = bevel_depth
+    spline = curve_data.splines.new('BEZIER')
+    spline.bezier_points.add(len(points) - 1)
+    for i, co in enumerate(points):
+        spline.bezier_points[i].co = co
+    obj = bpy.data.objects.new(name, curve_data)
+    obj.location = location
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+
+def _make_collection(name):
+    col = bpy.data.collections.new(name)
+    bpy.context.collection.children.link(col)
+    return col
+
+
+def _ensure_unique_name(base):
+    if base not in bpy.data.objects:
+        return base
+    i = 1
+    while f"{base}_{i:03d}" in bpy.data.objects:
+        i += 1
+    return f"{base}_{i:03d}"
+
+
+def _get_next_position():
+    occupied = [obj.location.x for obj in bpy.context.scene.objects]
+    if not occupied:
+        return 0.0
+    return max(occupied) + 3.0
+
+
+_HELPER_NAMESPACE = {
+    "bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops,
+    "make_curve": _make_bezier_curve,
+    "make_collection": _make_collection,
+    "unique_name": _ensure_unique_name,
+    "next_pos": _get_next_position,
+}
+
+
+# ─── Sesión: preferencias del usuario ───
+
+def _parse_preferences(text, content):
+    global _session_prefs
+    text_lower = (text + " " + content).lower()
+    color_keywords = {
+        "rojo": (1, 0, 0, 1), "red": (1, 0, 0, 1),
+        "azul": (0, 0, 1, 1), "blue": (0, 0, 1, 1),
+        "verde": (0, 1, 0, 1), "green": (0, 1, 0, 1),
+        "negro": (0, 0, 0, 1), "black": (0, 0, 0, 1),
+        "blanco": (1, 1, 1, 1), "white": (1, 1, 1, 1),
+        "amarillo": (1, 1, 0, 1), "yellow": (1, 1, 0, 1),
+        "naranja": (1, 0.6, 0, 1), "orange": (1, 0.6, 0, 1),
+        "morado": (0.5, 0, 1, 1), "purple": (0.5, 0, 1, 1),
+        "rosa": (1, 0.4, 0.7, 1), "pink": (1, 0.4, 0.7, 1),
+        "marrón": (0.5, 0.25, 0.1, 1), "brown": (0.5, 0.25, 0.1, 1),
+        "gris": (0.5, 0.5, 0.5, 1), "gray": (0.5, 0.5, 0.5, 1),
+    }
+    for word, rgba in color_keywords.items():
+        if word in text_lower and ("me gusta" in text_lower or "prefiero" in text_lower or "color" in text_lower):
+            _session_prefs["color"] = rgba
+            _session_prefs["color_name"] = word
+            break
+
+
+def _get_prefs_context():
+    if not _session_prefs:
+        return ""
+    parts = []
+    if "color_name" in _session_prefs:
+        parts.append(f"color favorito: {_session_prefs['color_name']}")
+    if "estilo" in _session_prefs:
+        parts.append(f"estilo: {_session_prefs['estilo']}")
+    return "Preferencias del usuario: " + ", ".join(parts) + "."
+
+
+# ─── Ejecución de código en main thread ───
+
 def _exec_code_main(code_blocks):
-    """Ejecuta código en el hilo principal de Blender vía timer. Retorna lista de errores."""
     results = []
     done = threading.Event()
 
     def execute():
         for code in code_blocks:
-            ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
             try:
                 compiled = compile(code, "<blender_code>", "exec")
-                exec(compiled, ns)
+                exec(compiled, _HELPER_NAMESPACE)
                 print("[AUTO] Código ejecutado correctamente")
             except Exception as e:
                 err = f"Error: {e}"
@@ -216,11 +314,17 @@ def _append_to_log(text, tag="AI"):
 
 def _get_scene_context():
     lines = []
+    names = []
     for obj in bpy.context.scene.objects:
         loc = obj.location
         dims = obj.dimensions
         lines.append(f"- {obj.name} | {obj.type} | ({loc.x:.2f}, {loc.y:.2f}, {loc.z:.2f}) | ({dims.x:.2f}, {dims.y:.2f}, {dims.z:.2f})")
-    return "Estado actual de la escena:\n" + "\n".join(lines) if lines else "Escena vacía."
+        names.append(obj.name)
+    ctx = "Estado actual de la escena:\n" + "\n".join(lines) if lines else "Escena vacía."
+    ctx += f"\nNombres ocupados: {', '.join(names) if names else '(ninguno)'}"
+    ctx += f"\nSiguiente posición X libre: {_get_next_position():.1f}"
+    return ctx
+
 
 def _call_llm(url, headers, model, messages):
     body = json.dumps({
@@ -268,6 +372,7 @@ def _capture_screenshot_b64():
     except:
         return None
 
+
 def _process_with_client(mid, text):
     scene = bpy.context.scene
     model = getattr(scene, "aimcp_model", "")
@@ -296,58 +401,77 @@ def _process_with_client(mid, text):
     _respond(mid, "⏳ Pensando...", is_status=True)
 
     def process():
-        print(f"[AUTO] Llamando a {provider} con modelo {model}")
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        ctx = _get_scene_context()
-        messages.append({"role": "system", "content": ctx})
+        nonlocal text
 
-        user_msg = text
+        for retry in range(_RETRY_LIMIT + 1):
+            if retry > 0:
+                print(f"[AUTO] Reintento {retry}/{_RETRY_LIMIT} con feedback de error...")
+                text = f"El código anterior falló con este error:\n{errors[0]}\n\nCorrige el código y genera la versión corregida. {text_original}"
 
-        if provider in _VISION_PROVIDERS:
-            shot = _capture_screenshot_b64()
-            if shot and "base64" in shot:
-                user_msg = [
-                    {"type": "text", "text": text},
-                    {"type": "image_url", "image_url": {"url": f"data:{shot['mime']};base64,{shot['base64']}"}},
-                ]
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-        messages.append({"role": "user", "content": user_msg})
+            ctx = _get_scene_context()
+            messages.append({"role": "system", "content": ctx})
 
-        is_anthropic = provider == "anthropic"
-        try:
-            if is_anthropic:
-                result = _call_anthropic(url, headers, api_key, model, messages)
-                content = ""
-                for block in result.get("content", []):
-                    if block.get("type") == "text":
-                        content += block.get("text", "")
-            else:
-                result = _call_llm(url, headers, model, messages)
-                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
-        except urllib.error.HTTPError as e:
-            err = e.read().decode()[:200]
-            print(f"[AUTO] HTTP Error {e.code}: {err}")
-            _respond(mid, f"❌ HTTP {e.code}")
-            _cleanup(mid)
-            return
-        except Exception as e:
-            print(f"[AUTO] Error: {traceback.format_exc()}")
-            _respond(mid, f"❌ Error: {str(e)[:60]}")
-            _cleanup(mid)
-            return
+            prefs = _get_prefs_context()
+            if prefs:
+                messages.append({"role": "system", "content": prefs})
 
-        if not content:
-            _respond(mid, "⚠️ El modelo no generó respuesta")
-            _cleanup(mid)
-            return
+            user_msg = text
 
-        print(f"[AUTO] Respuesta recibida ({len(content)} chars)")
+            if provider in _VISION_PROVIDERS:
+                shot = _capture_screenshot_b64()
+                if shot and "base64" in shot:
+                    user_msg = [
+                        {"type": "text", "text": text},
+                        {"type": "image_url", "image_url": {"url": f"data:{shot['mime']};base64,{shot['base64']}"}},
+                    ]
 
-        code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
-        errors = []
-        if code_blocks:
-            print(f"[AUTO] Ejecutando {len(code_blocks)} bloque(s) de código en main thread...")
-            errors = _exec_code_main(code_blocks)
+            messages.append({"role": "user", "content": user_msg})
+
+            is_anthropic = provider == "anthropic"
+            try:
+                if is_anthropic:
+                    result = _call_anthropic(url, headers, api_key, model, messages)
+                    content = ""
+                    for block in result.get("content", []):
+                        if block.get("type") == "text":
+                            content += block.get("text", "")
+                else:
+                    result = _call_llm(url, headers, model, messages)
+                    content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            except urllib.error.HTTPError as e:
+                err = e.read().decode()[:200]
+                print(f"[AUTO] HTTP Error {e.code}: {err}")
+                _respond(mid, f"❌ HTTP {e.code}")
+                _cleanup(mid)
+                return
+            except Exception as e:
+                print(f"[AUTO] Error: {traceback.format_exc()}")
+                _respond(mid, f"❌ Error: {str(e)[:60]}")
+                _cleanup(mid)
+                return
+
+            if not content:
+                _respond(mid, "⚠️ El modelo no generó respuesta")
+                _cleanup(mid)
+                return
+
+            print(f"[AUTO] Respuesta recibida ({len(content)} chars)")
+
+            _parse_preferences(text, content)
+
+            code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
+            errors = []
+            if code_blocks:
+                print(f"[AUTO] Ejecutando {len(code_blocks)} bloque(s) de código en main thread...")
+                errors = _exec_code_main(code_blocks)
+
+            if not errors:
+                break
+
+            if retry == 0:
+                text_original = text
 
         if errors:
             content += "\n\n---\n⚠️ Error al ejecutar:\n" + "\n".join(errors)
