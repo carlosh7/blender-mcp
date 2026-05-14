@@ -4,6 +4,7 @@ Timer que cada 0.5s revisa mensajes y los envía al LLM configurado.
 Sin procesos externos. Sin mcp_server.py. Sin agent_host.py.
 """
 import bpy
+import json
 import os
 import time
 import threading
@@ -68,21 +69,41 @@ def _tick():
         return 0.5
 
 
+def _get_api_key(provider):
+    """Busca API key en: env vars → opencode auth.json → config cache."""
+    env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
+               "openrouter": "OPENROUTER_API_KEY", "anthropic": "ANTHROPIC_API_KEY",
+               "google": "GOOGLE_API_KEY"}
+    key = os.environ.get(env_map.get(provider, ""), "")
+    if key:
+        return key
+    # opencode auth.json
+    try:
+        from .platform_utils import get_opencode_auth_path
+        p = get_opencode_auth_path()
+        if p.exists():
+            auth = json.loads(p.read_text())
+            entry = auth.get(provider, {})
+            if isinstance(entry, dict) and entry.get("key"):
+                return entry["key"]
+    except:
+        pass
+    # config cache
+    try:
+        from .config_cache import get_provider_config
+        return get_provider_config(provider).get("api_key", "")
+    except:
+        pass
+    return ""
+
+
 def _process_with_client(mid, text):
     from .operators.embedded import _embedded_client
-    from .config_cache import get_provider_config
 
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
     model = getattr(scene, "aimcp_model", getattr(_embedded_client, 'default_model', ''))
-
-    env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
-               "openrouter": "OPENROUTER_API_KEY", "anthropic": "ANTHROPIC_API_KEY",
-               "google": "GOOGLE_API_KEY"}
-    api_key = os.environ.get(env_map.get(provider, ""), "")
-    if not api_key:
-        cfg = get_provider_config(provider)
-        api_key = cfg.get("api_key", "")
+    api_key = _get_api_key(provider)
 
     if not api_key:
         _respond(mid, "❌ No hay API key para " + provider)
@@ -116,8 +137,7 @@ def _try_auto_start_client():
         return True
     scene = bpy.context.scene
     provider = getattr(scene, "aimcp_provider", "opencode-go")
-    env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY"}
-    api_key = os.environ.get(env_map.get(provider, ""), "")
+    api_key = _get_api_key(provider)
     if api_key:
         _auto_start_client(provider, api_key)
         return _embedded_client is not None
@@ -150,12 +170,7 @@ def _diagnose():
     # 1. Check API key
     provider = getattr(scene, "aimcp_provider", "?")
     model = getattr(scene, "aimcp_model", "?")
-    env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
-               "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_API_KEY"}
-    api_key = os.environ.get(env_map.get(provider, ""), "")
-    from .config_cache import get_provider_config
-    if not api_key:
-        api_key = get_provider_config(provider).get("api_key", "")
+    api_key = _get_api_key(provider)
 
     if model and model != "?":
         lines.append(f"📌 Modelo: {model}")

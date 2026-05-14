@@ -1,7 +1,14 @@
 """
-auto_config.py — Auto-configura clientes MCP externos (opencode, Claude Desktop, Cursor)
-Al activar el addon, escribe archivos de config apuntando al servidor MCP embebido :45677.
-Solo escribe si el cliente está instalado y el archivo no existe (no sobreescribe).
+auto_config.py — Auto-configura clientes MCP externos.
+Crea/configura los archivos necesarios para que cada cliente
+encuentre el servidor MCP embebido de blender-mCP.
+
+Clientes soportados:
+  - opencode  → ~/.config/opencode/mcp.json  (formato opencode)
+  - Claude Desktop → ~/.config/Claude/claude_desktop_config.json
+  - Cursor    → ~/.cursor/mcp.json
+
+NO toca opencode.json principal (para no romper proveedores/modelos).
 """
 import bpy
 import os
@@ -14,7 +21,7 @@ from .platform_utils import _is_windows, _is_mac
 
 def start():
     creados = []
-    if _config_opencode():
+    if _config_opencode_mcp():
         creados.append("opencode")
     if _config_claude():
         creados.append("Claude Desktop")
@@ -22,91 +29,92 @@ def start():
         creados.append("Cursor")
     if creados:
         print(f"[blender-mcp] ✅ Auto-config: {', '.join(creados)}")
-    else:
-        print("[blender-mcp] Auto-config: ningún cliente externo detectado")
-    print("[blender-mcp] 📡 Antigravity: HTTP API en http://localhost:9877/api/")
+    print("[blender-mcp] 📡 HTTP REST API en http://localhost:9877/")
 
 
 def _server_url():
     return "http://localhost:45677/sse"
 
 
-def _get_opencode_paths():
-    """Devuelve rutas de config de opencode según SO."""
-    paths = []
+# ─── opencode ───
+def _opencode_mcp_path():
+    """Ruta del archivo MCP de opencode (separado del principal)."""
     if _is_windows():
-        appdata = Path(os.environ.get("APPDATA", ""))
-        if appdata:
-            paths.append(appdata / "opencode" / "opencode.json")
+        base = Path(os.environ.get("APPDATA", ""))
     elif _is_mac():
-        paths.append(Path.home() / "Library" / "Application Support" / "opencode" / "opencode.json")
+        base = Path.home() / "Library" / "Application Support"
     else:
-        paths.append(Path.home() / ".config" / "opencode" / "opencode.json")
-    return paths
+        base = Path.home() / ".config"
+    return base / "opencode" / "mcp.json"
 
 
-def _config_opencode():
-    """Escribe config para opencode (actualiza existente o crea nueva)."""
-    for config_path in _get_opencode_paths():
-        config_dir = config_path.parent
-        if not config_dir.exists():
-            continue
-        config_dir.mkdir(parents=True, exist_ok=True)
-        data = {}
-        if config_path.exists():
-            try:
-                data = json.loads(config_path.read_text())
-            except:
-                pass
-        data.setdefault("mcpServers", {})
-        data["mcpServers"]["blender"] = {
-            "type": "sse",
-            "url": _server_url(),
-        }
-        config_path.write_text(json.dumps(data, indent=2))
-        return True
-    return False
-
-
-def _config_claude():
-    """Escribe config para Claude Desktop (solo si instalado y no existe)."""
-    if _is_windows():
-        config_dir = Path(os.environ.get("APPDATA", "")) / "Claude"
-    elif _is_mac():
-        config_dir = Path.home() / "Library" / "Application Support" / "Claude"
-    else:
-        config_dir = Path.home() / ".config" / "Claude"
-
-    if not config_dir.exists():
-        return False
-    config_path = config_dir / "claude_desktop_config.json"
-    if config_path.exists():
-        return False
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(json.dumps({
-        "mcpServers": {
-            "blender": {
-                "command": sys.executable,
-                "args": ["-c", "import addon.server; addon.server.start_embedded_server()"],
-                "url": _server_url(),
-            }
-        }
-    }, indent=2))
+def _config_opencode_mcp():
+    """Crea/actualiza ~/.config/opencode/mcp.json (formato opencode)."""
+    path = _opencode_mcp_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {"mcp": {}}
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text())
+            data = existing if isinstance(existing, dict) else data
+        except:
+            pass
+    data.setdefault("mcp", {})
+    data["mcp"]["blender"] = {
+        "type": "sse",
+        "url": _server_url(),
+        "enabled": True,
+    }
+    path.write_text(json.dumps(data, indent=2))
     return True
 
 
-def _config_cursor():
-    """Escribe .cursor/mcp.json global (solo si no existe)."""
-    config_path = Path.home() / ".cursor" / "mcp.json"
-    if config_path.exists():
+# ─── Claude Desktop ───
+def _claude_config_dir():
+    if _is_windows():
+        return Path(os.environ.get("APPDATA", "")) / "Claude"
+    elif _is_mac():
+        return Path.home() / "Library" / "Application Support" / "Claude"
+    else:
+        return Path.home() / ".config" / "Claude"
+
+
+def _config_claude():
+    """Crea/actualiza claude_desktop_config.json."""
+    config_dir = _claude_config_dir()
+    if not config_dir.exists():
         return False
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(json.dumps({
-        "mcpServers": {
-            "blender": {
-                "type": "sse",
-                "url": _server_url(),
-            }
-        }
-    }, indent=2))
+    path = config_dir / "claude_desktop_config.json"
+    data = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except:
+            pass
+    data.setdefault("mcpServers", {})
+    data["mcpServers"]["blender"] = {
+        "type": "sse",
+        "url": _server_url(),
+    }
+    path.write_text(json.dumps(data, indent=2))
+    return True
+
+
+# ─── Cursor ───
+def _config_cursor():
+    """Crea/actualiza .cursor/mcp.json."""
+    path = Path.home() / ".cursor" / "mcp.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except:
+            pass
+    data.setdefault("mcpServers", {})
+    data["mcpServers"]["blender"] = {
+        "type": "sse",
+        "url": _server_url(),
+    }
+    path.write_text(json.dumps(data, indent=2))
     return True
