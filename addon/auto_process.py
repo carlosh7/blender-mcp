@@ -151,6 +151,19 @@ REGLAS ESTRICTAS:
 - Materiales: Principled BSDF con RGBA, sin Specular.
 - Termina con `print("OK")`.
 
+ORGANIZACIÓN DE ESCENA:
+- ANTES de crear, REVISA la escena actual (se te dará como contexto).
+- Si el usuario pide lo mismo que ya existe (ej: "otra dona" teniendo ya una "Dona"),
+  usa `bpy.data.objects.remove(bpy.data.objects["Dona"], do_unlink=True)` primero.
+- NUNCA apiles objetos en (0,0,0). Separa cada nuevo objeto en el eje X:
+  primer objeto en (0,0,0), segundo en (3,0,0), tercero en (6,0,0), etc.
+- "hola" → bpy.ops.object.text_add(location=(0, 2, 0)). Pon el texto en body.
+- Para objetos con múltiples partes (batería, mesa, banana, etc.):
+  1. Crea colección: col = bpy.data.collections.new("Nombre")
+  2. Linkéala: bpy.context.collection.children.link(col)
+  3. Linkea cada parte a la colección: col.objects.link(parte)
+  4. Deslinkea del collection raíz: bpy.context.collection.objects.unlink(parte)
+
 Ejemplo correcto:
 ```python
 import bpy
@@ -201,6 +214,14 @@ def _append_to_log(text, tag="AI"):
         pass
 
 
+def _get_scene_context():
+    lines = []
+    for obj in bpy.context.scene.objects:
+        loc = obj.location
+        dims = obj.dimensions
+        lines.append(f"- {obj.name} | {obj.type} | ({loc.x:.2f}, {loc.y:.2f}, {loc.z:.2f}) | ({dims.x:.2f}, {dims.y:.2f}, {dims.z:.2f})")
+    return "Estado actual de la escena:\n" + "\n".join(lines) if lines else "Escena vacía."
+
 def _call_llm(url, headers, model, messages):
     body = json.dumps({
         "model": model,
@@ -209,7 +230,7 @@ def _call_llm(url, headers, model, messages):
         "temperature": 0.4,
     }).encode()
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=45) as resp:
         return json.loads(resp.read())
 
 
@@ -234,7 +255,7 @@ def _call_anthropic(url, headers, api_key, model, messages):
         "content-type": "application/json",
     }
     req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=45) as resp:
         return json.loads(resp.read())
 
 
@@ -277,9 +298,8 @@ def _process_with_client(mid, text):
     def process():
         print(f"[AUTO] Llamando a {provider} con modelo {model}")
         messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-        objs = [o.name for o in bpy.data.objects if hasattr(o, 'name')]
-        if objs:
-            messages.append({"role": "system", "content": f"Escena actual: {', '.join(objs[:10])}"})
+        ctx = _get_scene_context()
+        messages.append({"role": "system", "content": ctx})
 
         user_msg = text
 

@@ -1,4 +1,4 @@
-# blender-mcp v0.8.54 — Extension for Blender 4.2+
+# blender-mcp v0.8.55 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -227,8 +227,10 @@ def register():
     _ensure_deps()
     _start_embedded()
     try:
-        from . import auto_process
-        auto_process.start()
+        import importlib
+        from . import auto_process as _ap
+        importlib.reload(_ap)
+        _ap.start()
     except Exception as e:
         print(f"[blender-mcp] auto_process: {e}")
     try:
