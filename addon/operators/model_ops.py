@@ -6,6 +6,7 @@ import json
 import sys
 import os
 import threading
+import traceback
 import urllib.request
 from pathlib import Path
 from bpy.types import Operator
@@ -183,24 +184,31 @@ class OP_SelectModel(Operator):
     def _verify(self, ctx):
         provider = _detect_provider(self.model_id)
         key = _get_api_key(provider)
+        print(f"[VERIFY] Modelo={self.model_id}, Provider={provider}, Key={'✅' if key else '❌'}")
         if not key:
             _queue_status(ctx.scene.name, "🔴 Sin API key para " + provider)
             return
         cfg = _PROVIDER_API.get(provider)
         if not cfg:
-            _queue_status(ctx.scene.name, "⚠️ Modelo seleccionado (sin verificación)")
+            _queue_status(ctx.scene.name, "⚠️ Modelo sin verificar")
+            print(f"[VERIFY] No config for {provider}")
             return
         try:
             headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
             req = urllib.request.Request(cfg["url"], headers=headers)
+            print(f"[VERIFY] URL={cfg['url']}")
             urllib.request.urlopen(req, timeout=5)
+            print(f"[VERIFY] ✅ Conectado a {provider}")
             _queue_status(ctx.scene.name, "✅ Conectado: " + provider)
         except urllib.error.HTTPError as e:
+            print(f"[VERIFY] HTTP Error {e.code}")
             _queue_status(ctx.scene.name, f"🔴 Key inválida ({e.code})")
         except urllib.error.URLError:
-            _queue_status(ctx.scene.name, "🔴 No se pudo contactar el servidor")
+            print(f"[VERIFY] URL Error - no se pudo contactar")
+            _queue_status(ctx.scene.name, "🔴 No se pudo contactar servidor")
         except Exception as e:
-            _queue_status(ctx.scene.name, f"🔴 Error: {str(e)[:40]}")
+            print(f"[VERIFY] Error: {traceback.format_exc()}")
+            _queue_status(ctx.scene.name, f"🔴 Error: {str(e)[:60]}")
 
     def _queue_status(self, ctx, msg):
         """Thread-safe: queue status update for main thread timer."""

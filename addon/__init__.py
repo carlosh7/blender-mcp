@@ -1,9 +1,9 @@
-# blender-mcp v0.8.22 — Embedded-first Blender MCP
+# blender-mcp v0.8.24 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 22),
+    "version": (0, 8, 24),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -446,6 +446,8 @@ def _auto_verify_model(model_id, scene_name):
         return 1.0
     bpy.app.timers.register(health_check, first_interval=0.1)
 
+
+def unregister():
     try:
         from .operators.embedded import auto_stop
         auto_stop()

@@ -1,4 +1,4 @@
-# blender-mcp v0.8.22
+# blender-mcp v0.8.24
 
 > **El sistema MCP para Blender más completo.** Arrastra el ZIP a Blender y escribe "crea un cubo rojo". Funciona con **cualquier cliente**: opencode, Claude Desktop, Cursor, Antigravity, VS Code, Windsurf, LM Studio, Ollama...
 
@@ -37,7 +37,7 @@
 **Solo necesitas Blender.** Sin terminal, sin Python, sin uv, sin nada más.
 
 ### 1. Descargar
-[axiom_engine_v0.8.22.zip](dist/axiom_engine_v0.8.22.zip) — 75KB
+[axiom_engine_v0.8.24.zip](dist/axiom_engine_v0.8.24.zip) — 75KB
 
 ### 2. Arrastrar a Blender
 Suelta el ZIP en la ventana de Blender → `Edit → Preferences → Add-ons` → busca **"AXIOM"** → activa.
