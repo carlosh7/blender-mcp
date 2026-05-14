@@ -89,7 +89,7 @@ class BLENDERMCP_OT_OpenWeb(Operator):
     bl_description = "Open blender-mcp web status page in browser"
 
     def execute(self, context):
-        webbrowser.open("http://127.0.0.1:9879/")
+        webbrowser.open("http://127.0.0.1:9877/")
         return {'FINISHED'}
 
 

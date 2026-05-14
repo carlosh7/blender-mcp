@@ -46,22 +46,24 @@ def _get_opencode_paths():
 
 
 def _config_opencode():
-    """Escribe config para opencode (solo si no existe)."""
+    """Escribe config para opencode (actualiza existente o crea nueva)."""
     for config_path in _get_opencode_paths():
-        if config_path.exists():
-            return False  # Ya existe, no sobreescribir
         config_dir = config_path.parent
         if not config_dir.exists():
-            continue  # opencode no instalado
+            continue
         config_dir.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(json.dumps({
-            "mcpServers": {
-                "blender": {
-                    "type": "sse",
-                    "url": _server_url(),
-                }
-            }
-        }, indent=2))
+        data = {}
+        if config_path.exists():
+            try:
+                data = json.loads(config_path.read_text())
+            except:
+                pass
+        data.setdefault("mcpServers", {})
+        data["mcpServers"]["blender"] = {
+            "type": "sse",
+            "url": _server_url(),
+        }
+        config_path.write_text(json.dumps(data, indent=2))
         return True
     return False
 

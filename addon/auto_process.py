@@ -55,15 +55,10 @@ def _tick():
                 _process_with_client(mid, text)
                 continue
 
-            # 3. After 30s, show help
+            # 3. After 30s, show specific diagnostic
             if elapsed > 30:
-                _respond(mid, (
-                    "❌ No hay agente disponible.\n"
-                    "Opciones:\n"
-                    "1. Ve a Integrations y activa Local AI\n"
-                    "2. Pon OPENAI_API_KEY en variables de entorno\n"
-                    "3. Conecta Claude Desktop o Cursor"
-                ))
+                msg = _diagnose()
+                _respond(mid, msg)
                 _cleanup(mid)
 
         return 0.5
@@ -145,6 +140,56 @@ def _respond(mid, text, is_status=False):
             s.aimcp_waiting = False
         return None
     bpy.app.timers.register(update, first_interval=0.0)
+
+
+def _diagnose():
+    """Diagnóstico: por qué no hay respuesta del LLM."""
+    lines = ["❌ No hay respuesta del agente. Diagnóstico:"]
+    scene = bpy.context.scene
+
+    # 1. Check API key
+    provider = getattr(scene, "aimcp_provider", "?")
+    model = getattr(scene, "aimcp_model", "?")
+    env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
+               "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_API_KEY"}
+    api_key = os.environ.get(env_map.get(provider, ""), "")
+    from .config_cache import get_provider_config
+    if not api_key:
+        api_key = get_provider_config(provider).get("api_key", "")
+
+    if model and model != "?":
+        lines.append(f"📌 Modelo: {model}")
+    else:
+        lines.append("📌 Ningún modelo seleccionado → Config → Refresh → selecciona uno")
+
+    if api_key:
+        lines.append(f"✅ API key presente para {provider}")
+    else:
+        lines.append(f"🔴 Falta API key para {provider}")
+        lines.append("   • Ponla en variables de entorno")
+        lines.append("   • O usa Local AI en Integrations (Ollama)")
+        lines.append("   • O conecta Claude Desktop/Cursor como proxy")
+
+    # 2. Check embedded client
+    try:
+        from .operators.embedded import _embedded_client
+        if _embedded_client:
+            lines.append("✅ Local AI activo")
+        else:
+            lines.append("ℹ️  Local AI no iniciado → click botón SYSTEM en el panel")
+    except:
+        pass
+
+    # 3. Check Ollama
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://localhost:11434/api/version")
+        with urllib.request.urlopen(req, timeout=2):
+            lines.append("✅ Ollama detectado (pero no activo) → Integrations → Local AI")
+    except:
+        pass
+
+    return "\n".join(lines)
 
 
 def _cleanup(mid):

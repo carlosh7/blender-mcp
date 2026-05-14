@@ -46,10 +46,12 @@ class MiniAPIHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == "/api/health":
+        if parsed.path == "/":
+            self._web_status()
+        elif parsed.path == "/api/health":
             self._send({
                 "status": "ok",
-                "version": "0.8.7",
+                "version": "0.8.8",
                 "blender": bpy.app.version_string,
                 "scene": bpy.context.scene.name,
                 "objects": len(bpy.data.objects),
@@ -64,6 +66,35 @@ class MiniAPIHandler(BaseHTTPRequestHandler):
             self._send({"tools": handlers, "count": len(handlers)})
         else:
             self._send({"error": "Not found"}, 404)
+
+    def _web_status(self):
+        html = f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><title>blender-mcp</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1a1a2e;color:#e0e0e0;
+     display:flex;align-items:center;justify-content:center;min-height:100vh}}
+.card{{background:#16213e;border-radius:16px;padding:2.5em;max-width:500px;width:90%;box-shadow:0 8px 32px #0006}}
+h1{{font-size:1.5em}} .v{{color:#888;font-size:.9em;margin:.3em 0 1.5em}}
+.s{{display:flex;align-items:center;gap:.6em;padding:.5em 0;border-bottom:1px solid #2a2a4a}}
+.s:last-child{{border:0}} .g{{width:10px;height:10px;border-radius:50%;background:#4CAF50;display:inline-block}}
+.r{{width:10px;height:10px;border-radius:50%;background:#f44336;display:inline-block}}
+a{{color:#64b5f6;text-decoration:none}} .f{{margin-top:1.5em;padding-top:1em;border-top:1px solid #2a2a4a;font-size:.8em;color:#666}}
+</style></head>
+<body><div class="card">
+<h1>blender-mcp ●</h1><div class="v">v0.8.8</div>
+<div class="s"><span class="g"></span> Blender {bpy.app.version_string}</div>
+<div class="s"><span class="g"></span> Escena: {bpy.context.scene.name}</div>
+<div class="s"><span class="g"></span> <a href="/api/health">/api/health</a></div>
+<div class="s"><span class="g"></span> <a href="/api/tools">/api/tools</a></div>
+<div class="f">Clientes: opencode · Claude · Cursor · Antigravity</div>
+</div></body></html>"""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(html.encode())
 
     def do_POST(self):
         parsed = urlparse(self.path)
