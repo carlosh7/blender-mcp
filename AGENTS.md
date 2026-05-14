@@ -1,32 +1,26 @@
-# blender-mcp — Agent Knowledge
+# blender-mcp — Agent Knowledge (Axiom v2.0 Edition)
 
-## Project structure
-```
-src/blender_mcp/     → Paquete Python instalable (server, tools, agent, cli)
-addon/               → Addon de Blender (handlers, panels, operators, socket)
-  handlers/          → Handlers modulares de comandos socket (scene, objects, materials, etc.)
-  panels/            → Paneles UI (chat, integrations, config)
-  operators/         → Operadores Blender (connect, send, capture, export, setup)
-http_bridge.py       → REST API para Antigravity (puerto 9877)
-```
+Este archivo define las leyes globales para cualquier agente IA operando el Axiom Precision Engine.
 
-## Conventions
-- Handler modules in `addon/handlers/` expose `cmd_*()` static methods
-- Tool modules in `src/blender_mcp/tools/` register `@mcp.tool()` with FastMCP
-- Socket protocol: JSON via TCP port 9876, format `{"type": "...", "params": {...}}`
-- Use `bpy.app.timers` for Blender main-thread operations
-- Blender addon properties use prefix `blendermcp_` or `aimcp_`
+## ⚖️ Reglas de Oro (Inquebrantables)
+1.  **Cero Coordenadas Manuales**: Queda terminantemente prohibido mover objetos usando `obj.location = (x, y, z)`. Se debe usar siempre el sistema de anclas `snap_and_parent` o `snap_to_anchor`.
+2.  **Protocolo de Reflexión**: Tras cada acción de ensamblaje, el agente DEBE ejecutar `validate_geometry` y `get_model_blueprint` para confirmar el resultado.
+3.  **Seguridad AST**: El código generado será auditado. No intentes importar módulos de sistema (`os`, `sys`). Usa únicamente `bpy`.
+4.  **Estándar de Nomenclatura de Anclas**: 
+    *   Formato: `A_X_Y_Z` donde X,Y,Z pueden ser `MIN`, `CENTER` o `MAX`.
+    *   Punto Pivote por defecto: `A_CENTER_CENTER_CENTER`.
 
-## Key files
-| File | Purpose |
-|------|---------|
-| `src/blender_mcp/server.py` | MCP Server principal (FastMCP) |
-| `addon/blender_socket.py` | Socket server dentro de Blender |
-| `addon/handlers/base.py` | Base class for handlers |
-| `src/blender_mcp/cli.py` | Entry point CLI |
-| `src/blender_mcp/agent/host.py` | Agente autónomo multi-provider |
+## 🏗️ Workflow de Ingeniería
+1.  **Scan**: Analizar el entorno usando `get_objects_summary`.
+2.  **Blueprint**: Obtener las anclas del objeto objetivo con `get_model_blueprint`.
+3.  **Assembly**: Ejecutar el snap usando la herramienta `snap_and_parent`.
+4.  **Oracle**: Validar colisiones con `validate_geometry`.
+5.  **Reflect**: Si el Oráculo reporta `❌ COLISIÓN`, retroceder y ajustar anclas.
 
-## Targets
-- Blender 4.2+ (target), 4.0+ (compat)
-- Python 3.10+
-- Cualquier cliente MCP (Claude, Cursor, opencode, etc.)
+## 🎨 Estética y Materiales
+*   Usa siempre dimensiones reales en metros.
+*   Aplica materiales basados en IOR real cuando sea posible (especialmente para equipos AV).
+*   Mantén la jerarquía (parenting) limpia para facilitar ajustes posteriores del usuario.
+
+---
+*Este manual es la autoridad máxima sobre el comportamiento del agente.*

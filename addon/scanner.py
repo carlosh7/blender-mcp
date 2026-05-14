@@ -7,55 +7,78 @@ class GeometryScanner:
     
     @staticmethod
     def get_blueprint(obj):
-        """Devuelve un resumen técnico de las dimensiones y puntos críticos del objeto."""
+        """Genera una especificación técnica total (v0.4.0) del objeto."""
         if obj.type != 'MESH':
             return {"error": "El objeto no es una malla (Mesh)"}
             
-        # Forzar actualización de la base de datos de Blender
+        # Forzar actualización de Blender
         dg = bpy.context.evaluated_depsgraph_get()
         obj_eval = obj.evaluated_get(dg)
         mesh = obj_eval.to_mesh()
         
-        # Dimensiones de la caja lógica (Bounding Box) en espacio global
-        bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+        # 1. Dimensiones y Transformación
+        mw = obj.matrix_world
+        local_coords = [Vector(v) for v in obj.bound_box]
+        global_coords = [mw @ v for v in local_coords]
         
-        # Puntos extremos
-        min_x = min(v.x for v in bbox)
-        max_x = max(v.x for v in bbox)
-        min_y = min(v.y for v in bbox)
-        max_y = max(v.y for v in bbox)
-        min_z = min(v.z for v in bbox)
-        max_z = max(v.z for v in bbox)
+        l_min = Vector((min(v.x for v in local_coords), min(v.y for v in local_coords), min(v.z for v in local_coords)))
+        l_max = Vector((max(v.x for v in local_coords), max(v.y for v in local_coords), max(v.z for v in local_coords)))
+        l_center = (l_min + l_max) / 2
         
-        dimensions = {
-            "width_x": max_x - min_x,
-            "depth_y": max_y - min_y,
-            "height_z": max_z - min_z,
-            "center_global": list((obj.matrix_world @ Vector((0,0,0))))
-        }
+        # 2. Motor de 27 Anclas (Determinista)
+        steps_x = [l_min.x, l_center.x, l_max.x]
+        steps_y = [l_min.y, l_center.y, l_max.y]
+        steps_z = [l_min.z, l_center.z, l_max.z]
         
-        # Análisis de caras para encontrar planos de apoyo (suelos)
-        up_faces = []
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
-        bm.transform(obj.matrix_world)
+        anchors = {}
+        idx = 0
+        names = ["MIN", "CENTER", "MAX"]
+        for zi, zv in enumerate(steps_z):
+            for yi, yv in enumerate(steps_y):
+                for xi, xv in enumerate(steps_x):
+                    anchor_name = f"A_{names[xi]}_{names[yi]}_{names[zi]}"
+                    anchors[anchor_name] = list(mw @ Vector((xv, yv, zv)))
+                    idx += 1
         
-        for face in bm.faces:
-            if face.normal.dot(Vector((0, 0, 1))) > 0.9: # Cara que apunta hacia arriba
-                up_faces.append({
-                    "center": list(face.calc_center_median()),
-                    "area": face.calc_area()
-                })
+        # 3. Propiedades Físicas y Ópticas
+        # Intentar obtener IOR del material Principled BSDF
+        ior = 1.45
+        if obj.active_material and obj.active_material.use_nodes:
+            node = obj.active_material.node_tree.nodes.get("Principled BSDF")
+            if node:
+                ior = node.inputs["IOR"].default_value
         
-        bm.free()
-        obj_eval.to_mesh_clear()
+        # Estimar masa basada en volumen (promedio 500kg/m3 para equipos AV)
+        volume = obj.dimensions.x * obj.dimensions.y * obj.dimensions.z
+        mass = obj.get("axiom_mass", volume * 500.0)
         
-        return {
+        # 4. Topología y Hash
+        topo_hash = hash(f"{len(mesh.vertices)}_{len(mesh.polygons)}")
+        
+        blueprint = {
             "object_name": obj.name,
-            "dimensions": dimensions,
-            "top_surface_count": len(up_faces),
-            "blueprint_status": "VALIDATED"
+            "version": "0.4.0",
+            "status": "HIGH_FIDELITY",
+            "topology": {
+                "vertices": len(mesh.vertices),
+                "faces": len(mesh.polygons),
+                "hash": str(topo_hash)
+            },
+            "physics": {
+                "mass_kg": round(float(mass), 2),
+                "ior": round(float(ior), 3)
+            },
+            "dimensions": {
+                "width_x": round(obj.dimensions.x, 4),
+                "depth_y": round(obj.dimensions.y, 4),
+                "height_z": round(obj.dimensions.z, 4),
+                "center_global": list(mw.translation)
+            },
+            "anchors_27pt": anchors
         }
+        
+        obj_eval.to_mesh_clear()
+        return blueprint
 
     @staticmethod
     def detect_holes(obj):

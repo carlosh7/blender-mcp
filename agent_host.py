@@ -28,11 +28,11 @@ TOOLS_DEF = [
         "type": "function",
         "function": {
             "name": "execute_blender_code",
-            "description": "Execute Python code in Blender. Uses bpy, C (bpy.context), D (bpy.data), ops (bpy.ops). Create objects step by step.",
+            "description": "Ejecuta código Python en Blender. Usa bpy, C, D, ops. Úsalo para crear geometría paso a paso.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "code": {"type": "string", "description": "Python code to execute in Blender"}
+                    "code": {"type": "string", "description": "Código Python"}
                 },
                 "required": ["code"]
             }
@@ -41,34 +41,12 @@ TOOLS_DEF = [
     {
         "type": "function",
         "function": {
-            "name": "get_scene_visual",
-            "description": "Get a top-down ASCII visualization of the scene to understand where objects are and avoid collisions.",
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "export_to_planner",
-            "description": "Export the created model to the 3D Planner. Use this when the model is finished.",
+            "name": "get_model_blueprint",
+            "description": "Ficha técnica v0.4.0: topología, masa, IOR y 27 anclas de un objeto.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Filename for the model (e.g. 'office_chair')"}
-                },
-                "required": ["name"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_object_anchors",
-            "description": "Get extreme vertices (anchors) of an object in world space (e.g., corners of a bounding box) to align with other parts.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "obj_name": {"type": "string", "description": "Name of the object to inspect."}
+                    "obj_name": {"type": "string", "description": "Nombre del objeto."}
                 },
                 "required": ["obj_name"]
             }
@@ -77,8 +55,33 @@ TOOLS_DEF = [
     {
         "type": "function",
         "function": {
+            "name": "snap_and_parent",
+            "description": "Snap determinista y vinculación jerárquica. Une objetos por sus anclas de 27 puntos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "obj_move": {"type": "string", "description": "Objeto que se mueve."},
+                    "obj_target": {"type": "string", "description": "Objeto destino."},
+                    "anchor_move": {"type": "string", "description": "Ancla (ej: A_MAX_CENTER_MIN)."},
+                    "anchor_target": {"type": "string", "description": "Ancla (ej: A_MIN_CENTER_MIN)."}
+                },
+                "required": ["obj_move", "obj_target", "anchor_move", "anchor_target"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_scene_visual",
+            "description": "Visualización ASCII top-down de la escena para razonamiento espacial.",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "validate_geometry",
-            "description": "Ejecuta un reporte técnico de ingeniería para detectar colisiones y huecos entre objetos. Úsalo para asegurar precisión 10/10.",
+            "description": "Reporte técnico de colisiones y huecos. Precisión 10/10.",
             "parameters": {"type": "object", "properties": {}}
         }
     },
@@ -86,27 +89,40 @@ TOOLS_DEF = [
         "type": "function",
         "function": {
             "name": "get_viewport_screenshot",
-            "description": "Captura una imagen del viewport 3D de Blender. Úsala para VALIDAR visualmente tu trabajo después de ensamblar piezas.",
+            "description": "Captura PNG del viewport 3D para validación visual.",
             "parameters": {"type": "object", "properties": {}}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "export_to_planner",
+            "description": "Exporta a .glb para el 3D Planner cuando el modelo esté terminado.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Nombre del archivo."}
+                },
+                "required": ["name"]
+            }
         }
     },
 ]
 
-SYSTEM_PROMPT = """Eres el Axiom Precision Engine, un asistente de ingeniería avanzada para Blender. 
+SYSTEM_PROMPT = """Eres el Axiom Precision Engine (v2.0), un asistente de ingeniería avanzada para Blender. 
 
-### PROTOCOLO DE CONTROL AXIOM:
-1. **SOPORTE INTELECTUAL**: Sé proactivo, ofrece planes detallados y sugiere mejoras técnicas.
-2. **BLOQUEO DE EJECUCIÓN**: Nunca ejecutes una herramienta (`tool_call`) sin haber presentado el plan y recibido un "adelante", "ejecuta" o similar.
-3. **PRIORIDAD 'agents.md'**: Sigue siempre el manual de usuario.
+### PROTOCOLO DE REFLEXIÓN TRINITY:
+1. **PLAN**: Describe el ensamble de ingeniería detalladamente antes de actuar.
+2. **ACT**: Ejecuta el código o usa herramientas de snap de 27 puntos.
+3. **SCAN**: Usa `get_model_blueprint` tras cada ejecución para obtener la posición real.
+4. **VALIDATE**: Compara la posición real con la deseada. Si hay errores o colisiones, corrige.
+5. **VISION**: Usa capturas de pantalla para validación estética.
 
 ### REGLAS DE EJECUCIÓN:
-- Está PROHIBIDO mover objetos usando coordenadas manuales si puedes usar un ancla.
-- Tras cada fase de construcción, autoevalúate usando una captura de pantalla.
-- Si detectas un error visual o técnico, corrígelo inmediatamente antes de seguir con el siguiente paso.
-
-### MATERIALES Y ASSETS:
-- Usa dimensiones reales en metros (ej: mesa de 1.5m).
-- Los objetos deben estar físicamente conectados, sin huecos (salvo que el diseño lo requiera).
+- Prohibido mover objetos usando coordenadas manuales si puedes usar `snap_and_parent`.
+- Es OBLIGATORIO usar `validate_geometry` tras cada fase de construcción.
+- Si detectas un error visual o técnico, corrígelo inmediatamente.
+- Usa dimensiones reales en metros y materiales físicos (IOR).
 - Siempre confirma lo creado con un mensaje breve en español."""
 
 
@@ -179,12 +195,64 @@ def _call_llm(model: str, messages: list, provider: str, api_key: str) -> tuple[
     return content or "", tool_calls
 
 
+import ast
+
+class AxiomValidator(ast.NodeVisitor):
+    """Analizador sintáctico para garantizar la seguridad del código generado por IA."""
+    FORBIDDEN_MODULES = {'os', 'sys', 'subprocess', 'requests', 'socket', 'urllib', 'shutil', 'platform'}
+    FORBIDDEN_FUNCS = {'eval', 'exec', '__import__', 'open', 'getattr', 'setattr'}
+
+    def __init__(self):
+        self.errors = []
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            if alias.name.split('.')[0] in self.FORBIDDEN_MODULES:
+                self.errors.append(f"Importación prohibida: {alias.name}")
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node):
+        if node.module and node.module.split('.')[0] in self.FORBIDDEN_MODULES:
+            self.errors.append(f"Importación prohibida: {node.module}")
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name):
+            if node.func.id in self.FORBIDDEN_FUNCS:
+                self.errors.append(f"Llamada a función prohibida: {node.func.id}")
+        elif isinstance(node.func, ast.Attribute):
+            # Bloquear cosas como os.system o sys.exit
+            if isinstance(node.func.value, ast.Name) and node.func.value.id in self.FORBIDDEN_MODULES:
+                self.errors.append(f"Acceso a módulo prohibido: {node.func.value.id}")
+        self.generic_visit(node)
+
+def validate_python_code(code: str) -> list[str]:
+    """Valida el código y retorna una lista de errores. Lista vacía significa 'Seguro'."""
+    try:
+        tree = ast.parse(code)
+        validator = AxiomValidator()
+        validator.visit(tree)
+        return validator.errors
+    except SyntaxError as e:
+        return [f"Error de sintaxis: {str(e)}"]
+    except Exception as e:
+        return [f"Error de validación: {str(e)}"]
+
+
 def _execute_tool(name: str, args: dict, blender_send) -> tuple[str, str]:
     """Execute a tool in Blender and return (result_text, error_or_None)."""
     if name == "execute_blender_code":
         code = args.get("code", "")
         if not code:
             return "Error: code is required", "error"
+            
+        # VALIDACIÓN AST AXIOM v2.0
+        errors = validate_python_code(code)
+        if errors:
+            err_msg = "BLOQUEO DE SEGURIDAD AXIOM: " + "; ".join(errors)
+            logger.warning(err_msg)
+            return err_msg, "error"
+
         try:
             result = blender_send("execute_code", {"code": code})
             output = result.get("output", "")

@@ -246,6 +246,15 @@ class BlenderSocketServer:
         except Exception as e:
             return {"error": str(e)}
 
+    def cmd_snap_and_parent(self, obj_move="", obj_target="", anchor_move="", anchor_target=""):
+        try:
+            from . import assembly
+            o_move = bpy.data.objects.get(obj_move)
+            o_target = bpy.data.objects.get(obj_target)
+            return assembly.AssemblyEngine.snap_and_parent(o_move, o_target, anchor_move, anchor_target)
+        except Exception as e:
+            return {"error": str(e)}
+
     def cmd_apply_symmetry(self, obj_name="", axes=["X", "Y"]):
         try:
             from . import assembly
@@ -293,15 +302,35 @@ class BlenderSocketServer:
             "window": win,
             "screen": win.screen if win else None,
         }
+        
+        import signal
+        def handler(signum, frame):
+            raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 2.0 segundos de límite.")
+
+        # AXIOM v2.0 Atomic Transaction Start
+        bpy.ops.ed.undo_push(message="Axiom Precision Task")
+        
         buf = io.StringIO()
         with redirect_stdout(buf):
+            # Configurar alarma de 2 segundos
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(2)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, ns)
+            except TimeoutError as e:
+                bpy.ops.ed.undo()
+                return {"output": f"❌ {e} (Escena revertida)"}
             except SyntaxError as e:
-                return {"output": f"❌ SyntaxError: {e}"}
+                bpy.ops.ed.undo()
+                return {"output": f"❌ Axiom SyntaxError: {e} (Escena revertida)"}
             except Exception as e:
-                return {"output": f"❌ Error: {str(e)[:200]}"}
+                bpy.ops.ed.undo()
+                return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
+            finally:
+                # Desactivar alarma
+                signal.alarm(0)
+        
         return {"output": buf.getvalue()}
 
     def cmd_chat_send(self, message="", model=""):

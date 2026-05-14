@@ -7,26 +7,25 @@ class AssemblyEngine:
     
     @staticmethod
     def get_bbox_anchors(obj):
-        """Calcula los 27 puntos de ancla de un objeto en espacio global."""
+        """Calcula los 27 puntos de ancla de un objeto en espacio global (v2.0)."""
         mw = obj.matrix_world
-        bbox = [Vector(corner) for corner in obj.bound_box]
+        local_coords = [Vector(v) for v in obj.bound_box]
         
-        # Encontrar min/max locales
-        min_v = Vector((min(v.x for v in bbox), min(v.y for v in bbox), min(v.z for v in bbox)))
-        max_v = Vector((max(v.x for v in bbox), max(v.y for v in bbox), max(v.z for v in bbox)))
-        mid_v = (min_v + max_v) / 2
+        l_min = Vector((min(v.x for v in local_coords), min(v.y for v in local_coords), min(v.z for v in local_coords)))
+        l_max = Vector((max(v.x for v in local_coords), max(v.y for v in local_coords), max(v.z for v in local_coords)))
+        l_center = (l_min + l_max) / 2
+        
+        steps_x = [l_min.x, l_center.x, l_max.x]
+        steps_y = [l_min.y, l_center.y, l_max.y]
+        steps_z = [l_min.z, l_center.z, l_max.z]
         
         anchors = {}
-        # Mapeo de anclas (X: L/M/R, Y: B/M/F, Z: B/M/T)
-        # L=Left, R=Right, M=Middle, B=Bottom/Back, F=Front, T=Top
-        x_vals = {'L': min_v.x, 'M': mid_v.x, 'R': max_v.x}
-        y_vals = {'B': min_v.y, 'M': mid_v.y, 'F': max_v.y}
-        z_vals = {'B': min_v.z, 'M': mid_v.z, 'T': max_v.z}
-        
-        for x_key, x_val in x_vals.items():
-            for y_key, y_val in y_vals.items():
-                for z_key, z_val in z_vals.items():
-                    anchors[f"{x_key}{y_key}{z_key}"] = mw @ Vector((x_val, y_val, z_val))
+        names = ["MIN", "CENTER", "MAX"]
+        for zi, zv in enumerate(steps_z):
+            for yi, yv in enumerate(steps_y):
+                for xi, xv in enumerate(steps_x):
+                    anchor_name = f"A_{names[xi]}_{names[yi]}_{names[zi]}"
+                    anchors[anchor_name] = mw @ Vector((xv, yv, zv))
                     
         return anchors
 
@@ -48,17 +47,27 @@ class AssemblyEngine:
         return {"status": "SUCCESS", "translation": list(translation)}
 
     @staticmethod
+    def snap_and_parent(obj_move, obj_target, anchor_move_key, anchor_target_key):
+        """Snap determinista y vinculación jerárquica automática."""
+        result = AssemblyEngine.snap_to_anchor(obj_move, obj_target, anchor_move_key, anchor_target_key)
+        if "error" in result:
+            return result
+            
+        # Vincular manteniendo transformación global
+        mw_orig = obj_move.matrix_world.copy()
+        obj_move.parent = obj_target
+        obj_move.matrix_world = mw_orig
+        
+        return {"status": "SUCCESS_PARENTED", "parent": obj_target.name}
+
+    @staticmethod
     def apply_symmetry(obj, axes=('X', 'Y')):
         """Aplica un modificador Mirror para asegurar simetría industrial."""
-        mod_name = "CNC_Mirror"
+        mod_name = "AXIOM_Mirror"
         mod = obj.modifiers.get(mod_name) or obj.modifiers.new(mod_name, 'MIRROR')
-        
         mod.use_axis[0] = 'X' in axes
         mod.use_axis[1] = 'Y' in axes
         mod.use_axis[2] = 'Z' in axes
-        
-        # Asegurar que el origen esté en el centro de la escena para el mirror
-        # O usar un objeto 'Empty' como espejo si es necesario
         return {"status": "MIRROR_APPLIED", "axes": axes}
 
     @staticmethod

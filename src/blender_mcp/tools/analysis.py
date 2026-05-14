@@ -11,6 +11,13 @@ def ADD(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destr
 
 
 def register_tools(mcp):
+    @mcp.tool(**RO())
+    def get_model_blueprint(obj_name: str = "") -> str:
+        """Genera una ficha técnica total (Blueprint v0.4.0) de un objeto: topología, masa, IOR y 27 puntos de anclaje."""
+        b = get_blender()
+        r = b.send_command("get_model_blueprint", {"obj_name": obj_name})
+        return json.dumps(r, indent=2)
+
     @mcp.tool()
     def get_screenshot_as_base64(max_size: int = 800) -> str:
         """Capture a screenshot of the 3D viewport and return as base64 PNG. Use this for visual validation."""
