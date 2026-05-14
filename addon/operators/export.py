@@ -27,7 +27,8 @@ EXPORT_OPERATORS = [OP_Export]
 def register_export_operators():
     from bpy.utils import register_class
     for cls in EXPORT_OPERATORS:
-        register_class(cls)
+        try: register_class(cls)
+        except: pass
 
 
 def unregister_export_operators():

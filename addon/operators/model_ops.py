@@ -283,7 +283,8 @@ MODEL_OPERATORS = [OP_Refresh, OP_SelectModel, OP_ApplyModel, OP_ClearSearch]
 def register_model_operators():
     from bpy.utils import register_class
     for cls in MODEL_OPERATORS:
-        register_class(cls)
+        try: register_class(cls)
+        except: pass
 
 
 def unregister_model_operators():

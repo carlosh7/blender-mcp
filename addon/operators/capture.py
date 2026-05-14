@@ -24,7 +24,8 @@ CAPTURE_OPERATORS = [OP_Capture]
 def register_capture_operators():
     from bpy.utils import register_class
     for cls in CAPTURE_OPERATORS:
-        register_class(cls)
+        try: register_class(cls)
+        except: pass
 
 
 def unregister_capture_operators():

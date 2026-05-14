@@ -46,7 +46,8 @@ CONNECT_OPERATORS = [OP_Check, OP_Disconnect]
 def register_connect_operators():
     from bpy.utils import register_class
     for cls in CONNECT_OPERATORS:
-        register_class(cls)
+        try: register_class(cls)
+        except: pass
 
 
 def unregister_connect_operators():

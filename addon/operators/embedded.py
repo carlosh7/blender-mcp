@@ -149,7 +149,8 @@ EMBEDDED_OPERATORS = [
 def register_embedded_operators():
     from bpy.utils import register_class
     for cls in EMBEDDED_OPERATORS:
-        register_class(cls)
+        try: register_class(cls)
+        except: pass
 
 
 def unregister_embedded_operators():

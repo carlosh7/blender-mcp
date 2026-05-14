@@ -213,7 +213,8 @@ CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat, OP_CopyChat, OP_ExportLog
 def register_chat_operators():
     from bpy.utils import register_class
     for cls in CHAT_OPERATORS:
-        register_class(cls)
+        try: register_class(cls)
+        except: pass
 
 
 def unregister_chat_operators():
