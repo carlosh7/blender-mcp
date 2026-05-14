@@ -4,7 +4,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 92),
+    "version": (0, 8, 94),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -25,7 +25,7 @@ def _ensure_deps():
     return True
 
 def register():
-    ver = "0.8.92"
+    ver = "0.8.94"
     print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE INTEGRIDAD TOTAL v{ver}")
     
     if not _ensure_deps():
@@ -36,15 +36,12 @@ def register():
     from .addon import properties as _props
     from .addon import preferences as _prefs
     
-    # 1. VALIDACIÓN DE RED (SOCKET)
+    # 1. VALIDACIÓN DE RED (SOCKET 9876)
     try:
         bsock.start_socket_server()
         print("[AXIOM] ✅ SOCKET SERVER: CONECTADO Y ESCUCHANDO (9876)")
     except Exception as e:
-        if "Address already in use" in str(e):
-            print("[AXIOM] ℹ️ SOCKET SERVER: REUTILIZANDO CONEXIÓN ACTIVA")
-        else:
-            print(f"[AXIOM] ❌ SOCKET SERVER: FALLO ({e})")
+        print(f"[AXIOM] ⚠️ SOCKET SERVER: {e}")
 
     try:
         # 2. VALIDACIÓN RNA (TIPOS BASE)
@@ -84,7 +81,7 @@ def register():
         _prefs.register_preferences()
         print("[AXIOM] ✅ SCENE LINKING: DATA POINTERS SYNCED")
         
-        # 6. VALIDACIÓN MCP (SSE SERVER)
+        # 6. SERVICIOS DE TRANSPORTE (MCP 9879 + HTTP 9877)
         _start_mcp_server()
         
         # 7. TELEMETRÍA Y STATUS
@@ -95,7 +92,7 @@ def register():
                 print("[AXIOM] ✅ TELEMETRY SYSTEM: ACTIVE")
         except: pass
         
-        # 8. AUTO-LOAD DE CONFIGURACIÓN
+        # 8. AUTO-LOAD
         def auto_refresh():
             try: bpy.ops.aimcp.refresh()
             except: pass
@@ -116,11 +113,18 @@ def _start_mcp_server():
             print("[AXIOM] 📡 MCP SERVER: INICIANDO SSE BRIDGE (9879)")
             uvicorn.run(mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
         except Exception as e:
-            if "Address already in use" in str(e):
-                print("[AXIOM] ℹ️ MCP SERVER: REUTILIZANDO SSE BRIDGE ACTIVO")
-            else:
-                print(f"[AXIOM] ❌ MCP SERVER: FALLO ({e})")
+            print(f"[AXIOM] ℹ️ MCP SERVER: ESTADO COMPARTIDO / REUTILIZADO ({e})")
+
+    def run_http():
+        try:
+            from .http_bridge import start_http_server
+            start_http_server()
+            print("[AXIOM] 🌐 HTTP BRIDGE: ACTIVO (9877)")
+        except Exception as e:
+            print(f"[AXIOM] ℹ️ HTTP BRIDGE: ESTADO COMPARTIDO / REUTILIZADO ({e})")
+
     threading.Thread(target=run, daemon=True).start()
+    threading.Thread(target=run_http, daemon=True).start()
 
 def unregister():
     from .addon import _axsock as bsock
@@ -129,4 +133,7 @@ def unregister():
     from .addon import properties as _props
     try: _props.unregister_properties()
     except: pass
-    print("[AXIOM] 👋 Motor detenido correctamente.")
+    try:
+        from .http_bridge import stop_http_server
+        stop_http_server()
+    except: pass

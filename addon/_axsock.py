@@ -28,10 +28,20 @@ class BlenderSocketServer:
             return
         self.running = True
         try:
+            # Intentar cerrar cualquier socket previo si existe
+            if self.sock:
+                try: self.sock.close()
+                except: pass
+            
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # SO_REUSEADDR + SO_REUSEPORT (si está disponible) para liberar el puerto rápido
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+            except: pass
+            
             self.sock.bind((self.host, self.port))
-            self.sock.listen(1)
+            self.sock.listen(5) # Aumentar backlog
             self.sock.settimeout(1.0)
             self.thread = threading.Thread(target=self._loop, daemon=True)
             self.thread.start()
