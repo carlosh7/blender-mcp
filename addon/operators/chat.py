@@ -145,6 +145,22 @@ class OP_ClearChat(Operator):
         return {'FINISHED'}
 
 
+class OP_CopyChat(Operator):
+    bl_idname = "blendermcp.copy_chat"
+    bl_label = "Copy Chat"
+    bl_description = "Copy entire chat to clipboard"
+
+    def execute(self, context):
+        lines = []
+        for msg in context.scene.aimcp_chat.msgs:
+            tag = "User" if msg.role == "user" else "AI" if msg.role == "assistant" else "Sys"
+            lines.append(f"[{tag}] {msg.text}")
+        text = "\n".join(lines)
+        context.window_manager.clipboard = text
+        self.report({'INFO'}, f"Chat copied ({len(lines)} messages)")
+        return {'FINISHED'}
+
+
 class OP_ExportLog(Operator):
     bl_idname = "blendermcp.export_log"
     bl_label = "Export Chat Log"
@@ -182,7 +198,7 @@ class OP_ExportLog(Operator):
         return {'FINISHED'}
 
 
-CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat, OP_ExportLog]
+CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat, OP_CopyChat, OP_ExportLog]
 
 
 def register_chat_operators():

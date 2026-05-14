@@ -6,11 +6,13 @@ Sin procesos externos. Sin mcp_server.py. Sin agent_host.py.
 import bpy
 import json
 import os
+import re
 import time
 import threading
 import traceback
 import urllib.request
 import logging
+from datetime import datetime
 from . import _axsock as bsock
 
 logger = logging.getLogger("blender-mcp-auto")
@@ -120,6 +122,40 @@ _CHAT_URLS = {
     "google": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
 }
 
+SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D. Puedes crear y modificar objetos 3D reales.
+
+REGLAS:
+1. Cuando te pidan crear un objeto 3D, genera código Python que se ejecutará en Blender.
+2. Usa bpy.ops.mesh para crear primitivas (cube, sphere, cylinder, cone, torus).
+3. Usa bpy.ops.transform para mover/rotar/escalar.
+4. Usa bpy.data.materials para crear y asignar materiales.
+5. Envuelve el código en un bloque ```python ... ```.
+6. Si la solicitud es simple, responde normal. Si implica crear 3D, usa código.
+
+Ejemplos:
+- "crea un cubo rojo" → codigo python con primitive_cube_add y material rojo
+- "crea una esfera" → codigo python con primitive_uv_sphere_add"""
+
+
+def _exec_code(code):
+    """Ejecuta código Python en Blender desde el hilo principal."""
+    try:
+        ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
+        exec(code, ns)
+    except Exception as e:
+        print(f"[AUTO] exec error: {e}")
+
+
+def _append_to_log(text, tag="AI"):
+    """Guarda mensaje en el chat log automático."""
+    try:
+        log_path = os.path.expanduser("~/.config/blender-mcp/chat_log.txt")
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, "a") as f:
+            f.write(f"[{datetime.now().strftime('%H:%M')}] {tag}: {text}\n\n")
+    except:
+        pass
+
 
 def _process_with_client(mid, text):
     scene = bpy.context.scene
@@ -166,10 +202,17 @@ def _process_with_client(mid, text):
             return
 
         try:
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            scene = bpy.context.scene
+            objs = [o.name for o in bpy.data.objects if hasattr(o, 'name')]
+            if objs:
+                messages.append({"role": "system", "content": f"Escena actual: {', '.join(objs[:10])}"})
+            messages.append({"role": "user", "content": text})
+
             body = json.dumps({
                 "model": model,
-                "messages": [{"role": "user", "content": text}],
-                "max_tokens": 4096,
+                "messages": messages,
+                "max_tokens": 8192,
                 "temperature": 0.4,
             }).encode()
             headers = {
@@ -184,6 +227,12 @@ def _process_with_client(mid, text):
             content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
             print(f"[AUTO] REST response: {'✅' if content else '❌'}")
             if content:
+                # Ejecutar bloques de código Python encontrados en la respuesta
+                code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
+                if code_blocks:
+                    for code in code_blocks:
+                        print(f"[AUTO] Executing code block from LLM...")
+                        bpy.app.timers.register(lambda c=code: _exec_code(c), first_interval=0.0)
                 _respond(mid, content)
             else:
                 _respond(mid, "⚠️ El modelo no generó respuesta")
@@ -226,10 +275,14 @@ def _respond(mid, text, is_status=False):
                 with bsock._chat_lock:
                     bsock._chat_queue[:] = [m for m in bsock._chat_queue if m["id"] != mid]
             s.aimcp_waiting = False
+            s.aimcp_pending_msg_id = ""
             # Force redraw ALL areas (not just active one)
             for screen in bpy.data.screens:
                 for area in screen.areas:
                     area.tag_redraw()
+            # Auto-save to log
+            if not is_status:
+                _append_to_log(text)
         return None
     bpy.app.timers.register(update, first_interval=0.0)
 
