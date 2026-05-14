@@ -2,19 +2,11 @@ schema_version = "1.0.0"
 id = "axiom_engine"
 name = "AXIOM Precision Engine"
 version = "0.8.52"
-tagline = "AI-powered Blender control via MCP — 82 tools, 5 integrations"
-description = "Control Blender from any MCP client (Claude, Cursor, opencode) or use the built-in AI agent with zero configuration. Create objects, materials, lights, animations; search Poly Haven/Sketchfab assets; generate 3D models with AI; 3D printing tools and more."
-maintainer = "CarlosH"
-website = "https://github.com/carlosh7/blender-mcp"
-copyright = "MIT"
-license = "MIT"
+tagline = "AI-powered Blender control via MCP"
 type = "add-on"
-
-# Blender versions
+maintainer = "CarlosH"
+license = "MIT"
+website = "https://github.com/carlosh7/blender-mcp"
 blender_version_min = "4.0.0"
-
-# Tags (displayed in Extension marketplace)
-tags = ["ai", "mcp", "3d", "generative", "pipeline"]
-
-# Permissions
+tags = ["ai", "mcp", "3d"]
 permissions = ["network", "filesystem", "clipboard"]
