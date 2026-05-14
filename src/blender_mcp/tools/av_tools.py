@@ -1,6 +1,6 @@
 """
-blender-mcp — Audiovisual Event Tools
-High-level tools for building event structures (LED walls, Truss, Lighting).
+blender-mcp — Audiovisual Event Tools (High Fidelity)
+Advanced procedural generation for event engineering.
 """
 import json
 import math
@@ -10,132 +10,132 @@ from mcp.types import ToolAnnotations
 def RW(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), **kw)
 
 def register_tools(mcp):
-    @mcp.tool(**RW(doc="Builds a perfectly aligned LED wall using standard 500x500mm cabinets."))
-    def av_build_led_wall(width_m: float, height_m: float, name: str = "LED_Wall") -> str:
-        """
-        Calcula y construye una pantalla LED basada en el estándar industrial de 0.5m x 0.5m.
-        Alinea automáticamente los cabinets en una cuadrícula perfecta.
-        """
+    @mcp.tool(**RW(doc="Builds a high-fidelity LED wall with modular cabinets (front/back details)."))
+    def av_build_led_wall_hifi(width_m: float, height_m: float, name: str = "LED_Wall_HiFi") -> str:
+        """Genera una pantalla LED modular con cabinets realistas de 50x50cm."""
         cols = math.ceil(width_m / 0.5)
         rows = math.ceil(height_m / 0.5)
         
         code = f"""
 import bpy
-from mathutils import Vector
 
-def create_led_wall(cols, rows, base_name):
-    panel_size = 0.5
-    depth = 0.075
-    collection = bpy.data.collections.new(base_name)
-    bpy.context.scene.collection.children.link(collection)
+def create_hifi_panel(location, name, collection):
+    # Frontal (Píxeles)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=location)
+    p = bpy.context.active_object
+    p.name = name
+    p.scale = (0.5, 0.02, 0.5)
+    collection.objects.link(p)
+    bpy.context.scene.collection.objects.unlink(p)
     
-    panels = []
+    # Trasera (Estructura)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(location[0], location[1]+0.04, location[2]))
+    back = bpy.context.active_object
+    back.name = name + "_Back"
+    back.scale = (0.45, 0.05, 0.45)
+    back.parent = p
+    collection.objects.link(back)
+    bpy.context.scene.collection.objects.unlink(back)
+
+def build_wall(cols, rows, base_name):
+    col = bpy.data.collections.new(base_name)
+    bpy.context.scene.collection.children.link(col)
     for r in range(rows):
         for c in range(cols):
-            x = (c * panel_size) - ((cols * panel_size) / 2) + (panel_size / 2)
-            z = (r * panel_size) + (panel_size / 2)
-            
-            bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0, z))
-            p = bpy.context.active_object
-            p.name = f"{{base_name}}_P{{c}}_{{r}}"
-            p.scale = (panel_size, depth, panel_size)
-            
-            # Asignar a colección y limpiar escena
-            for col in p.users_collection:
-                col.objects.unlink(p)
-            collection.objects.link(p)
-            panels.append(p)
-            
-    return len(panels)
+            x = (c * 0.5) - ((cols * 0.5) / 2) + 0.25
+            z = (r * 0.5) + 0.25
+            create_hifi_panel((x, 0, z), f"{{base_name}}_P{{c}}_{{r}}", col)
+    return cols * rows
 
-result = {{"panels_created": create_led_wall({cols}, {rows}, "{name}")}}
+result = {{"total_panels": build_wall({cols}, {rows}, "{name}")}}
 """
         b = get_blender()
-        r = b.send_command("execute_code", {"code": code})
-        return json.dumps({
-            "status": "SUCCESS",
-            "message": f"LED Wall construida: {cols}x{rows} cabinets.",
-            "total_size": f"{cols*0.5}m x {rows*0.5}m",
-            "details": r
-        }, indent=2)
+        return json.dumps(b.send_command("execute_code", {"code": code}), indent=2)
 
-    @mcp.tool(**RW(doc="Deploys a standard F34 aluminum truss rig at a specific height."))
-    def av_setup_truss_rig(length_m: float, height_m: float = 6.0, name: str = "Main_Truss") -> str:
-        """
-        Crea una estructura de Truss F34 (29cm) de una longitud específica.
-        Calcula automáticamente el número de tramos necesarios.
-        """
-        # Usamos tramos de 2m como estándar
+    @mcp.tool(**RW(doc="Creates a high-fidelity F34 aluminum truss structure with chords and diagonal webbing."))
+    def av_setup_truss_rig_hifi(length_m: float, height_m: float = 6.0, name: str = "Truss_F34_HiFi") -> str:
+        """Genera una estructura de Truss F34 realista con tubos principales y diagonales."""
         num_sections = math.ceil(length_m / 2.0)
-        actual_length = num_sections * 2.0
         
         code = f"""
 import bpy
+import math
 
-def setup_truss(num_sections, height, base_name):
-    section_len = 2.0
-    section_width = 0.29
+def create_truss_section(length, start_x, height, name, collection):
+    sec = 0.29
+    tube_r = 0.025
+    diag_r = 0.01
     
-    collection = bpy.data.collections.new(base_name)
-    bpy.context.scene.collection.children.link(collection)
-    
-    for i in range(num_sections):
-        x = (i * section_len) - ((num_sections * section_len) / 2) + (section_len / 2)
-        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0, height))
+    # 4 Tubos principales
+    offsets = [(-sec/2, -sec/2), (sec/2, -sec/2), (sec/2, sec/2), (-sec/2, sec/2)]
+    for i, off in enumerate(offsets):
+        bpy.ops.mesh.primitive_cylinder_add(radius=tube_r, depth=length, location=(start_x + length/2, off[0], height + off[1]))
         t = bpy.context.active_object
-        t.name = f"{{base_name}}_S{{i}}"
-        t.scale = (section_len, section_width, section_width)
-        
-        for col in t.users_collection:
-            col.objects.unlink(t)
+        t.rotation_euler[1] = 1.5708
+        t.name = f"{{name}}_Chord_{{i}}"
         collection.objects.link(t)
-        
-    return num_sections
+        bpy.context.scene.collection.objects.unlink(t)
 
-result = {{"sections": setup_truss({num_sections}, {height_m}, "{name}")}}
+    # Diagonales (Ziz-zag simplificado)
+    diag_steps = int(length / 0.4)
+    for i in range(diag_steps):
+        x = start_x + (i * 0.4) + 0.2
+        bpy.ops.mesh.primitive_cylinder_add(radius=diag_r, depth=sec * 1.3, location=(x, 0, height))
+        d = bpy.context.active_object
+        d.rotation_euler[0] = 0.7854
+        collection.objects.link(d)
+        bpy.context.scene.collection.objects.unlink(d)
+
+def build_rig(sections, height, base_name):
+    col = bpy.data.collections.new(base_name)
+    bpy.context.scene.collection.children.link(col)
+    for i in range(sections):
+        create_truss_section(2.0, (i * 2.0) - ((sections * 2.0) / 2), height, f"{{base_name}}_S{{i}}", col)
+    return sections
+
+result = {{"sections": build_rig({num_sections}, {height_m}, "{name}")}}
 """
         b = get_blender()
-        r = b.send_command("execute_code", {"code": code})
-        return json.dumps({
-            "status": "SUCCESS",
-            "actual_length": actual_length,
-            "sections": num_sections,
-            "details": r
-        }, indent=2)
+        return json.dumps(b.send_command("execute_code", {"code": code}), indent=2)
 
-    @mcp.tool(**RW(doc="Distributes moving head lights along a truss structure."))
-    def av_add_moving_heads(truss_name: str, count: int = 4) -> str:
-        """
-        Distribuye cabezas móviles de forma equidistante a lo largo de un truss existente.
-        Las posiciona automáticamente debajo de la estructura.
-        """
+    @mcp.tool(**RW(doc="Deploys a high-fidelity moving head fixture (Base, Yoke, Head)."))
+    def av_add_moving_heads_hifi(truss_name: str, count: int = 4) -> str:
+        """Distribuye luminarias realistas compuestas por base, yugo y cabeza óptica."""
         code = f"""
 import bpy
-from mathutils import Vector
 
-def add_lights(target_truss, count):
-    # Encontrar objetos del truss para calcular extensión
-    truss_objs = [obj for obj in bpy.data.objects if target_truss in obj.name]
-    if not truss_objs: return 0
+def create_fixture(location, name):
+    # Base
+    bpy.ops.mesh.primitive_cube_add(size=1, location=location)
+    base = bpy.context.active_object
+    base.name = name + "_Base"
+    base.scale = (0.4, 0.4, 0.15)
     
-    # Calcular límites
-    min_x = min(o.location.x - (o.dimensions.x/2) for o in truss_objs)
-    max_x = max(o.location.x + (o.dimensions.x/2) for o in truss_objs)
-    z = truss_objs[0].location.z - 0.5 # Debajo del truss
+    # Yugo (U-Arm)
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.18, depth=0.4, location=(location[0], location[1], location[2]+0.25))
+    yoke = bpy.context.active_object
+    yoke.name = name + "_Yoke"
+    yoke.parent = base
     
-    created = 0
+    # Cabeza (Head)
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.15, depth=0.4, location=(location[0], location[1], location[2]+0.5))
+    head = bpy.context.active_object
+    head.name = name + "_Head"
+    head.parent = yoke
+    return base
+
+def distribute(truss_name, count):
+    objs = [o for o in bpy.data.objects if truss_name in o.name]
+    if not objs: return 0
+    min_x = min(o.location.x for o in objs) - 1.0
+    max_x = max(o.location.x for o in objs) + 1.0
+    z = objs[0].location.z - 0.6
     step = (max_x - min_x) / (count + 1)
-    
     for i in range(count):
-        x = min_x + (step * (i + 1))
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.2, depth=0.4, location=(x, 0, z))
-        light = bpy.context.active_object
-        light.name = f"MH_{{target_truss}}_{{i}}"
-        created += 1
-    return created
+        create_fixture((min_x + step*(i+1), 0, z), f"MH_HiFi_{{i}}")
+    return count
 
-result = {{"created": add_lights("{truss_name}", {count})}}
+result = {{"fixtures": distribute("{truss_name}", {count})}}
 """
         b = get_blender()
-        r = b.send_command("execute_code", {"code": code})
-        return json.dumps(r, indent=2)
+        return json.dumps(b.send_command("execute_code", {"code": code}), indent=2)

@@ -1,4 +1,4 @@
-# blender-mcp v0.8.73 — Extension for Blender 4.2+
+# blender-mcp v0.8.74 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
