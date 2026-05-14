@@ -250,15 +250,15 @@ def register():
         print(f"[blender-mcp] ⚠️  Socket server: {e}")
 
     # 1. Module-level registrations
-    _props.register_properties()
-    _prefs.register_preferences()
-    _conn_ops.register_connect_operators()
-    _chat_ops.register_chat_operators()
-    _capture_ops.register_capture_operators()
-    _export_ops.register_export_operators()
-    _setup_ops.register_setup_operators()
-    _embedded_ops.register_embedded_operators()
-    _model_ops.register_model_operators()
+    for fn in [_props.register_properties, _prefs.register_preferences,
+               _conn_ops.register_connect_operators, _chat_ops.register_chat_operators,
+               _capture_ops.register_capture_operators, _export_ops.register_export_operators,
+               _setup_ops.register_setup_operators, _embedded_ops.register_embedded_operators,
+               _model_ops.register_model_operators]:
+        try:
+            fn()
+        except:
+            pass
 
     # Register modular panels
     for panel_cls in [_chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config]:

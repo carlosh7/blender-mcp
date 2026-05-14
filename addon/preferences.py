@@ -34,8 +34,14 @@ class BLENDERMCP_AddonPreferences(AddonPreferences):
 
 
 def register_preferences():
-    register_class(BLENDERMCP_AddonPreferences)
+    try:
+        register_class(BLENDERMCP_AddonPreferences)
+    except:
+        pass
 
 
 def unregister_preferences():
-    unregister_class(BLENDERMCP_AddonPreferences)
+    try:
+        unregister_class(BLENDERMCP_AddonPreferences)
+    except:
+        pass
