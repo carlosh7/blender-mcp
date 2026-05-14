@@ -22,6 +22,7 @@ models/*.glb
 Thumbs.db
 
 # Build artifacts
-*.zip
 *.log
 .pytest_cache/
+*.zip
+!dist/*.zip

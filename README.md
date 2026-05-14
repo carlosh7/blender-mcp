@@ -29,7 +29,7 @@
 
 ### Opción 1: Arrastrar ZIP a Blender (recomendado)
 
-1. Descarga [`axiom_engine_v0.8.0.zip`](axiom_engine_v0.8.0.zip)
+1. Descarga [`axiom_engine_v0.8.0.zip`](dist/axiom_engine_v0.8.0.zip)
 2. Arrástralo a la ventana de Blender
 3. Actívalo en `Edit → Preferences → Add-ons` (busca "AXIOM")
 4. En el viewport 3D, presiona `N` → pestaña **Axiom**
@@ -40,7 +40,7 @@
 
 ### Opción 2: Extension Manager (Blender 4.2+)
 
-1. Descarga [`axiom_engine_v0.8.0.zip`](axiom_engine_v0.8.0.zip)
+1. Descarga [`axiom_engine_v0.8.0.zip`](dist/axiom_engine_v0.8.0.zip)
 2. Blender → `Edit → Preferences → Extensions`
 3. Click dropdown → **Install from Disk...**
 4. Selecciona el ZIP
