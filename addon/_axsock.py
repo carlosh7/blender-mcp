@@ -22,6 +22,8 @@ class BlenderSocketServer:
         self.running = False
         self.sock = None
         self.thread = None
+        self.listening = False
+        self.last_error = None
 
     def start(self):
         if self.running:
@@ -41,17 +43,23 @@ class BlenderSocketServer:
             except: pass
             
             self.sock.bind((self.host, self.port))
-            self.sock.listen(5) # Aumentar backlog
+            self.sock.listen(5)
+            self.listening = True
+            self.last_error = None
             self.sock.settimeout(1.0)
             self.thread = threading.Thread(target=self._loop, daemon=True)
             self.thread.start()
             print(f"[BLENDER SOCKET] Server on port {self.port}")
         except Exception as e:
+            self.running = False
+            self.listening = False
+            self.last_error = str(e)
             print(f"[BLENDER SOCKET] Failed: {e}")
             self.stop()
 
     def stop(self):
         self.running = False
+        self.listening = False
         if self.sock:
             try: self.sock.close()
             except: pass

@@ -1,10 +1,10 @@
-import bpy, os, sys, subprocess, importlib, threading, traceback
+import bpy, os, sys, subprocess, importlib, threading, traceback, time
 
 bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 94),
+    "version": (0, 8, 96),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -25,7 +25,7 @@ def _ensure_deps():
     return True
 
 def register():
-    ver = "0.8.94"
+    ver = "0.8.96"
     print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE INTEGRIDAD TOTAL v{ver}")
     
     if not _ensure_deps():
@@ -36,15 +36,23 @@ def register():
     from .addon import properties as _props
     from .addon import preferences as _prefs
     
-    # 1. VALIDACIÓN DE RED (SOCKET 9876)
-    try:
-        bsock.start_socket_server()
-        print("[AXIOM] ✅ SOCKET SERVER: CONECTADO Y ESCUCHANDO (9876)")
-    except Exception as e:
-        print(f"[AXIOM] ⚠️ SOCKET SERVER: {e}")
+    # 1. LANZAMIENTO DE SERVICIOS
+    bsock.start_socket_server()
+    _start_servers()
+
+    # Pequeña pausa técnica para binding real
+    time.sleep(0.5)
 
     try:
-        # 2. VALIDACIÓN RNA (TIPOS BASE)
+        # 2. REPORTE DE RED HONESTO
+        sock_ok = bsock._socket_server.listening if bsock._socket_server else False
+        if sock_ok:
+            print("[AXIOM] ✅ SOCKET SERVER: ACTIVO (9876)")
+        else:
+            err = bsock._socket_server.last_error if bsock._socket_server else "No init"
+            print(f"[AXIOM] ❌ SOCKET SERVER: FALLO ({err})")
+
+        # 3. VALIDACIÓN RNA (TIPOS BASE)
         from .addon.chat_types import ChatMsg, ModelItem
         for cls in [ChatMsg, ModelItem]:
             try: 
@@ -52,7 +60,7 @@ def register():
                 print(f"[AXIOM] ✅ RNA VALIDATION: {cls.__name__} (READY)")
             except: pass
             
-        # 3. VALIDACIÓN DE INTERFAZ Y DATOS
+        # 4. VALIDACIÓN DE INTERFAZ Y DATOS
         from .addon.properties import ChatData, ModelsData, MCP_UL_Chat
         from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
         from .addon.panels import chat, config, integrations
@@ -65,7 +73,7 @@ def register():
                 print(f"[AXIOM] ✅ COMPONENT VALIDATION: {cls.__name__} (REGISTERED)")
             except: pass
 
-        # 4. VALIDACIÓN DE OPERADORES
+        # 5. VALIDACIÓN DE OPERADORES
         from .addon.operators import connect, chat as chat_ops, capture, export, setup, embedded, model_ops
         connect.register_connect_operators()
         chat_ops.register_chat_operators()
@@ -76,13 +84,10 @@ def register():
         model_ops.register_model_operators()
         print("[AXIOM] ✅ OPERATORS VALIDATION: ALL PIPES ESTABLISHED")
         
-        # 5. VINCULACIÓN DE ESCENA
+        # 6. VINCULACIÓN DE ESCENA
         _props.register_properties()
         _prefs.register_preferences()
         print("[AXIOM] ✅ SCENE LINKING: DATA POINTERS SYNCED")
-        
-        # 6. SERVICIOS DE TRANSPORTE (MCP 9879 + HTTP 9877)
-        _start_mcp_server()
         
         # 7. TELEMETRÍA Y STATUS
         try:
@@ -92,38 +97,48 @@ def register():
                 print("[AXIOM] ✅ TELEMETRY SYSTEM: ACTIVE")
         except: pass
         
-        # 8. AUTO-LOAD
+        # 8. VEREDICTO FINAL
+        if sock_ok:
+            print(f"[AXIOM] ⭐ REPORTE DE INTEGRIDAD v{ver}: SISTEMA OPERATIVO AL 100%\n")
+        else:
+            print(f"[AXIOM] ⚠️ REPORTE DE INTEGRIDAD v{ver}: SISTEMA DEGRADADO (Revisa Sockets)\n")
+        
+        # AUTO-LOAD
         def auto_refresh():
             try: bpy.ops.aimcp.refresh()
             except: pass
             return None
         bpy.app.timers.register(auto_refresh, first_interval=1.0)
         
-        print(f"[AXIOM] ⭐ REPORTE DE INTEGRIDAD v{ver}: SISTEMA OPERATIVO AL 100%\n")
-        
     except Exception as e:
         print(f"[AXIOM] ❌ FALLO EN LA SECUENCIA DE INTEGRIDAD: {e}")
         traceback.print_exc()
 
-def _start_mcp_server():
-    def run():
+def _start_servers():
+    # IMPORTACIONES FUERA DEL HILO PARA EVITAR 'no known parent package'
+    try:
+        from .http_bridge import start_http_server
+        from .mcp_server import mcp
+    except Exception as e:
+        print(f"[AXIOM] ❌ ERROR DE IMPORTACIÓN EN SERVIDORES: {e}")
+        return
+
+    def run_mcp():
         try:
             import uvicorn
-            from .mcp_server import mcp
             print("[AXIOM] 📡 MCP SERVER: INICIANDO SSE BRIDGE (9879)")
             uvicorn.run(mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
         except Exception as e:
-            print(f"[AXIOM] ℹ️ MCP SERVER: ESTADO COMPARTIDO / REUTILIZADO ({e})")
+            print(f"[AXIOM] ℹ️ MCP SERVER STATUS: {e}")
 
     def run_http():
         try:
-            from .http_bridge import start_http_server
             start_http_server()
             print("[AXIOM] 🌐 HTTP BRIDGE: ACTIVO (9877)")
         except Exception as e:
-            print(f"[AXIOM] ℹ️ HTTP BRIDGE: ESTADO COMPARTIDO / REUTILIZADO ({e})")
+            print(f"[AXIOM] ℹ️ HTTP BRIDGE STATUS: {e}")
 
-    threading.Thread(target=run, daemon=True).start()
+    threading.Thread(target=run_mcp, daemon=True).start()
     threading.Thread(target=run_http, daemon=True).start()
 
 def unregister():
