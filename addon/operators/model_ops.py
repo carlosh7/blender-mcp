@@ -140,6 +140,27 @@ def _detect_provider(model_id):
 _pending_status = []
 _pending_lock = threading.Lock()
 
+def _save_selected_model(model_id):
+    """Save selected model to config_cache and opencode.json."""
+    try:
+        from ..config_cache import set_last_model
+        set_last_model(model_id)
+    except:
+        pass
+    # Also write to opencode.json if it exists
+    try:
+        from ..platform_utils import get_opencode_config_paths
+        import json
+        for p in get_opencode_config_paths():
+            if p.exists():
+                d = json.loads(p.read_text())
+                d["model"] = model_id
+                p.write_text(json.dumps(d, indent=2))
+                break
+    except:
+        pass
+
+
 def _queue_status(scene_name, msg):
     """Thread-safe: queue status update for main thread timer."""
     with _pending_lock:
@@ -178,6 +199,8 @@ class OP_SelectModel(Operator):
         ctx.scene.aimcp_status = "Verificando conexión..."
         if ctx.area:
             ctx.area.tag_redraw()
+        # Save selected model to persistent cache + opencode config
+        _save_selected_model(self.model_id)
         threading.Thread(target=self._verify, args=(ctx,), daemon=True).start()
         return {'FINISHED'}
 

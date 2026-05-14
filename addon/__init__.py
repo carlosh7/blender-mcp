@@ -355,9 +355,10 @@ def register():
         return None
 
 def _read_opencode_model():
-    """Read configured model from opencode config files."""
+    """Read configured model from opencode config or cached."""
     import json
     from .operators.model_ops import get_opencode_config_paths
+    # 1. Try opencode config files
     for p in get_opencode_config_paths():
         if os.path.exists(p):
             try:
@@ -366,6 +367,14 @@ def _read_opencode_model():
                     return d["model"]
             except:
                 pass
+    # 2. Try local cache
+    try:
+        from .config_cache import get_last_model
+        cached = get_last_model()
+        if cached:
+            return cached
+    except:
+        pass
     return ""
 
 def _auto_verify_model(model_id, scene_name):
