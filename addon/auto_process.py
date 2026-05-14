@@ -65,6 +65,25 @@ def _tick():
         return 0.5
 
 
+def _detect_provider(model_id):
+    """Detect provider from model ID string."""
+    PROVIDER_ORDER = ["google", "anthropic", "deepseek", "opencode-go", "openrouter"]
+    _PROVIDER_API = {
+        "deepseek": {"url": "https://api.deepseek.com/v1/models", "auth": True},
+        "opencode-go": {"url": "https://opencode.ai/zen/go/v1/models", "auth": True},
+        "openrouter": {"url": "https://openrouter.ai/api/v1/models", "auth": False},
+        "google": {"url": "https://generativelanguage.googleapis.com/v1beta/models", "auth": True},
+        "anthropic": {"url": "https://api.anthropic.com/v1/models", "auth": True},
+    }
+    for pid in PROVIDER_ORDER:
+        if model_id.startswith(pid):
+            return pid
+    for pid in _PROVIDER_API:
+        if pid in model_id:
+            return pid
+    return "opencode-go"
+
+
 def _get_api_key(provider):
     """Busca API key en: env vars → opencode auth.json → config cache."""
     env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
@@ -104,8 +123,8 @@ _CHAT_URLS = {
 
 def _process_with_client(mid, text):
     scene = bpy.context.scene
-    provider = getattr(scene, "aimcp_provider", "opencode-go")
     model = getattr(scene, "aimcp_model", "")
+    provider = _detect_provider(model) if model else "opencode-go"
     print(f"[AUTO] provider={provider} model={model}")
     api_key = _get_api_key(provider)
     print(f"[AUTO] api_key={'✅' if api_key else '❌'}")
