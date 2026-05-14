@@ -118,6 +118,7 @@ class PN_PT_Chat(Panel):
         row.operator("aimcp.capture", text="Vision", icon='CAMERA_DATA')
         row.operator("aimcp.export", text="Export", icon='EXPORT')
         row.operator("blendermcp.open_web", text="Web", icon='URL')
+        row.operator("blendermcp.export_log", text="Log", icon='TEXT')
         L.separator()
         col = L.column(align=True)
         num = len(c.aimcp_chat.msgs)

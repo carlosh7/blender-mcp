@@ -145,7 +145,44 @@ class OP_ClearChat(Operator):
         return {'FINISHED'}
 
 
-CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat]
+class OP_ExportLog(Operator):
+    bl_idname = "blendermcp.export_log"
+    bl_label = "Export Chat Log"
+    bl_description = "Save chat history to a text block in Blender"
+
+    def execute(self, context):
+        scene = context.scene
+        text_name = "axiom_chat_log"
+        txt = bpy.data.texts.get(text_name)
+        if txt:
+            bpy.data.texts.remove(txt)
+        txt = bpy.data.texts.new(text_name)
+        txt.write("=== AXIOM Chat Log ===\n\n")
+        for msg in scene.aimcp_chat.msgs:
+            tag = "User" if msg.role == "user" else "AI" if msg.role == "assistant" else "System"
+            txt.write(f"[{tag}] {msg.text}\n")
+        # Also write to fixed log file
+        import json, os
+        log_path = os.path.expanduser("~/.config/blender-mcp/chat_log_export.txt")
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with open(log_path, 'w') as f:
+            f.write("=== AXIOM Chat Log ===\n\n")
+            for msg in scene.aimcp_chat.msgs:
+                tag = "User" if msg.role == "user" else "AI" if msg.role == "assistant" else "System"
+                f.write(f"[{tag}] {msg.text}\n")
+        self.report({'INFO'}, f"Chat log saved to ~/.config/blender-mcp/chat_log_export.txt")
+        # Open in Text Editor
+        for screen in bpy.data.screens:
+            for area in screen.areas:
+                if area.type == 'TEXT_EDITOR':
+                    area.spaces[0].text = txt
+                    return {'FINISHED'}
+        # If no text editor open, show in info
+        self.report({'INFO'}, f"Log also available as text block '{text_name}'")
+        return {'FINISHED'}
+
+
+CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat, OP_ExportLog]
 
 
 def register_chat_operators():
