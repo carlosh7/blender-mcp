@@ -85,6 +85,50 @@ commands = [
     # IO
     ("list_export_formats", {{}}, "io"),
 
+    # Shader Nodes
+    ("add_shader_node", {{"material_name": "mat_rojo", "node_type": "bsdf_principled"}}, "shader"),
+    ("list_shader_nodes", {{"material_name": "mat_rojo"}}, "shader"),
+    ("set_node_value", {{"material_name": "mat_rojo", "node_name": "Principled BSDF", "input_name": "Roughness", "value": 0.5}}, "shader"),
+
+    # Geometry Nodes
+    ("add_geometry_nodes_modifier", {{"object_name": "test_cube"}}, "geometry"),
+    ("list_gn_modifiers", {{"object_name": "test_cube"}}, "geometry"),
+
+    # Rigging
+    ("create_armature", {{"name": "test_armature"}}, "rigging"),
+    ("add_bone", {{"armature_name": "test_armature", "bone_name": "test_bone", "head": [0,0,0], "tail": [0,0,1]}}, "rigging"),
+    ("add_vertex_group", {{"object_name": "test_cube", "group_name": "test_vg"}}, "rigging"),
+    ("add_constraint", {{"object_name": "test_cube", "constraint_type": "COPY_LOCATION", "target_name": "test_sphere"}}, "rigging"),
+
+    # 3D Printing
+    ("check_manifold", {{"object_name": "test_cube"}}, "printing"),
+    ("set_dimensions_mm", {{"object_name": "test_cube", "width_mm": 100, "height_mm": 50}}, "printing"),
+    ("add_wall_thickness", {{"object_name": "test_cube", "thickness_mm": 2}}, "printing"),
+
+    # Animation extra
+    ("create_action", {{"object_name": "test_sphere", "action_name": "test_action"}}, "animation"),
+    ("set_keyframe_interpolation", {{"object_name": "test_sphere", "interpolation": "LINEAR"}}, "animation"),
+
+    # Render
+    ("set_render_resolution", {{"width": 640, "height": 480}}, "render"),
+    ("set_render_engine", {{"engine": "WORKBENCH"}}, "render"),
+    ("set_cycles_device", {{"device": "CPU"}}, "render"),
+
+    # IO
+    ("export_scene", {{"filepath": "/tmp/test_export.glb", "format": "glb"}}, "io"),
+    ("export_selected", {{"filepath": "/tmp/test_selected.glb", "format": "glb"}}, "io"),
+
+    # Batch
+    ("batch_delete_by_type", {{"object_type": "LIGHT"}}, "batch"),
+    ("apply_transforms_all", {{}}, "batch"),
+
+    # Scene extra
+    ("select_by_type", {{"object_type": "MESH"}}, "scene_utils"),
+    ("apply_transform", {{"object_name": "test_cube"}}, "scene_utils"),
+
+    # Material extra
+    ("set_color", {{"object_name": "test_cube", "color": [0,1,0,1]}}, "materials"),
+
     # Cleanup
     ("purge_orphans", {{}}, "scene_utils"),
 ]

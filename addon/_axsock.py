@@ -280,7 +280,13 @@ class BlenderSocketServer:
         ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
         buf = io.StringIO()
         with redirect_stdout(buf):
-            exec(code, ns)
+            try:
+                compiled = compile(code, "<blender_code>", "exec")
+                exec(compiled, ns)
+            except SyntaxError as e:
+                return {"output": f"❌ SyntaxError: {e}"}
+            except Exception as e:
+                return {"output": f"❌ Error: {str(e)[:200]}"}
         return {"output": buf.getvalue()}
 
     def cmd_chat_send(self, message="", model=""):
