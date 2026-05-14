@@ -1,6 +1,6 @@
 # blender-mcp — Socket server for Blender (ahujasid-compatible)
 # Runs inside Blender, listens on port 9876 for JSON commands via TCP socket.
-import bpy, json, socket, threading, time, io, traceback
+import bpy, json, socket, threading, time, io, traceback, importlib
 import sys, os
 from contextlib import redirect_stdout
 
@@ -108,6 +108,12 @@ class BlenderSocketServer:
     def _dispatch_to_handlers(self, cmd_type, params):
         """Try to dispatch command to modular handler modules.
         Supports both module-level cmd_* functions and class-based *_Handler.cmd_* methods."""
+        # Determine package name (e.g., 'axiom_engine' or whatever the addon dir is)
+        pkg = __package__ or ""
+        if not pkg:
+            pkg = os.path.basename(os.path.dirname(__file__))
+        handler_base = f"{pkg}.handlers" if pkg else "handlers"
+
         handler_modules = [
             "polyhaven", "sketchfab", "hyper3d", "hunyuan", "ambientcg",
             "shader_nodes", "animation", "geometry_nodes", "render",
@@ -116,7 +122,7 @@ class BlenderSocketServer:
         ]
         for mod_name in handler_modules:
             try:
-                mod = __import__(f"addon.handlers.{mod_name}", fromlist=[mod_name])
+                mod = importlib.import_module(f"{handler_base}.{mod_name}")
                 # Try module-level function first (e.g., cmd_search_polyhaven)
                 func = getattr(mod, f"cmd_{cmd_type}", None)
                 if func:
