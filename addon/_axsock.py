@@ -106,29 +106,25 @@ class BlenderSocketServer:
         return {"status": "error", "message": f"Unknown command: {cmd_type}"}
 
     def _dispatch_to_handlers(self, cmd_type, params):
-        """Try to dispatch command to modular handler modules.
-        Supports both module-level cmd_* functions and class-based *_Handler.cmd_* methods."""
-        # Determine package name (e.g., 'axiom_engine' or whatever the addon dir is)
-        pkg = __package__ or ""
-        if not pkg:
-            pkg = os.path.basename(os.path.dirname(__file__))
-        handler_base = f"{pkg}.handlers" if pkg else "handlers"
+        """Try to dispatch command to modular handler modules."""
+        if __package__:
+            handler_base = f"{__package__}.handlers"
+        else:
+            handler_base = "handlers"
 
         handler_modules = [
-            "polyhaven", "sketchfab", "hyper3d", "hunyuan", "ambientcg",
+            "scene", "objects", "materials", "modifiers", "lights", "camera",
             "shader_nodes", "animation", "geometry_nodes", "render",
             "io", "uv_texture", "batch", "rigging", "scene_utils", "printing",
-            "scene", "objects", "materials", "modifiers", "lights", "camera",
+            "polyhaven", "sketchfab", "hyper3d", "hunyuan", "ambientcg",
         ]
         for mod_name in handler_modules:
             try:
                 mod = importlib.import_module(f"{handler_base}.{mod_name}")
-                # Try module-level function first (e.g., cmd_search_polyhaven)
                 func = getattr(mod, f"cmd_{cmd_type}", None)
                 if func:
                     result = func(**params)
                     return {"status": "success", "result": result}
-                # Try class-based method (e.g., SceneHandler.cmd_get_scene_info)
                 for attr_name in sorted(dir(mod)):
                     if attr_name.endswith("Handler") and attr_name != "BaseHandler":
                         handler_cls = getattr(mod, attr_name)
