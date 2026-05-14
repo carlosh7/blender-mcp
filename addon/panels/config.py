@@ -3,9 +3,9 @@ blender-mcp — Config Panel
 Model selector with provider browsing, status, connection state.
 """
 import bpy
-import importlib
 from bpy.types import Panel
 from .. import PROVIDER_ORDER, PROVIDER_LABELS
+from .. import _axsock as bsock
 
 
 class PN_PT_Config(Panel):
@@ -20,7 +20,6 @@ class PN_PT_Config(Panel):
         c = ctx.scene
 
         # ── Status ──
-        bsock = importlib.import_module("_axsock")
         box = L.box()
         box.label(text="Status", icon='LINKED')
         row = box.row(align=True)
