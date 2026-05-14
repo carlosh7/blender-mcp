@@ -4,7 +4,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 84),
+    "version": (0, 8, 85),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -29,7 +29,7 @@ def _ensure_deps():
     return True
 
 def register():
-    print("\n[AXIOM] 🚀 RESTAURANDO UI V0.8.84")
+    print("\n[AXIOM] 🚀 RESTAURANDO CONFIGURACIÓN V0.8.85")
     if not _ensure_deps(): return
 
     from .addon import _axsock as bsock
@@ -40,9 +40,11 @@ def register():
     except: pass
 
     try:
+        # --- ETAPA 1: TIPOS BASE ---
         from .addon.chat_types import ChatMsg, ModelItem
         for cls in [ChatMsg, ModelItem]: bpy.utils.register_class(cls)
             
+        # --- ETAPA 2: PROPIEDADES Y PANELES ---
         from .addon.properties import ChatData, ModelsData, MCP_UL_Chat
         from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
         from .addon.panels import chat, config, integrations
@@ -53,9 +55,7 @@ def register():
             try: bpy.utils.register_class(cls)
             except: pass
 
-        _props.register_properties()
-        _prefs.register_preferences()
-        
+        # --- ETAPA 3: OPERADORES Y PROPIEDADES DE ESCENA ---
         from .addon.operators import connect, chat as chat_ops, capture, export, setup, embedded, model_ops
         connect.register_connect_operators()
         chat_ops.register_chat_operators()
@@ -64,25 +64,11 @@ def register():
         setup.register_setup_operators()
         embedded.register_embedded_operators()
         model_ops.register_model_operators()
-            
-        # ⚡ RESTAURACIÓN TOTAL DE PROPIEDADES (CRÍTICO PARA EL PANEL)
-        Scene = bpy.types.Scene
-        from bpy.props import PointerProperty, StringProperty, BoolProperty, IntProperty
         
-        setattr(Scene, "aimcp_chat", PointerProperty(type=ChatData))
-        setattr(Scene, "aimcp_input", StringProperty(default=""))
-        setattr(Scene, "aimcp_connected", BoolProperty(default=False))
-        setattr(Scene, "aimcp_ai_state", StringProperty(default="disconnected"))
-        setattr(Scene, "aimcp_status", StringProperty(default=""))
-        setattr(Scene, "aimcp_models", PointerProperty(type=ModelsData))
+        _props.register_properties()
+        _prefs.register_preferences()
         
-        # Propiedades auxiliares para UI (Spinner, Waiting, Index)
-        setattr(Scene, "aimcp_waiting", BoolProperty(default=False))
-        setattr(Scene, "aimcp_spinner_idx", IntProperty(default=0))
-        setattr(Scene, "aimcp_connection_status", StringProperty(default=""))
-        setattr(Scene, "aimcp_chat_index", IntProperty(default=0))
-        setattr(Scene, "aimcp_model", StringProperty(default=""))
-        
+        # --- ETAPA 4: SERVICIOS ---
         _start_mcp_server()
         
         try:
@@ -90,10 +76,17 @@ def register():
             bpy.app.timers.register(_status_ticker, first_interval=0.2)
         except: pass
         
-        print("[AXIOM] ✅ UI RESTAURADA")
+        # --- ETAPA 5: AUTO-POBLADO DE CONFIGURACIÓN ---
+        def auto_refresh():
+            try: bpy.ops.aimcp.refresh()
+            except: pass
+            return None
+        bpy.app.timers.register(auto_refresh, first_interval=1.0)
+        
+        print("[AXIOM] ✅ CONFIGURACIÓN RESTAURADA E INICIALIZADA")
         
     except Exception as e:
-        print(f"[AXIOM] ❌ ERROR EN REGISTRO UI: {e}")
+        print(f"[AXIOM] ❌ ERROR EN REGISTRO: {e}")
         traceback.print_exc()
 
 def _start_mcp_server():
@@ -108,3 +101,5 @@ def _start_mcp_server():
 def unregister():
     from .addon import _axsock as bsock
     bsock.stop_socket_server()
+    from .addon import properties as _props
+    _props.unregister_properties()
