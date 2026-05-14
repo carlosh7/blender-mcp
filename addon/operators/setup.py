@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from bpy.types import Operator
 
-from ..platform import get_log_dir
+from ..platform_utils import get_log_dir
 
 
 class BLENDERMCP_OT_InstallDeps(Operator):

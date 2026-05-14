@@ -3,16 +3,20 @@ blender-mcp — Cross-platform utilities (inside Blender)
 Duplicated from src/blender_mcp/platform.py for ZIP self-containment.
 """
 import os
-import platform
+import sys
 from pathlib import Path
 
-SYSTEM = platform.system()
+SYSTEM = sys.platform  # 'win32', 'darwin', 'linux'
+
+def _is_windows(): return SYSTEM == "win32"
+def _is_mac(): return SYSTEM == "darwin"
+def _is_linux(): return SYSTEM.startswith("linux")
 
 
 def get_config_dir() -> Path:
-    if SYSTEM == "Windows":
+    if _is_windows():
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    elif SYSTEM == "Darwin":
+    elif _is_mac():
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path.home() / ".config"
@@ -26,9 +30,9 @@ def get_log_dir() -> Path:
 
 
 def get_opencode_auth_path() -> Path:
-    if SYSTEM == "Windows":
+    if _is_windows():
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    elif SYSTEM == "Darwin":
+    elif _is_mac():
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path.home() / ".local" / "share"
@@ -37,11 +41,11 @@ def get_opencode_auth_path() -> Path:
 
 def get_opencode_config_paths() -> list[Path]:
     paths = []
-    if SYSTEM == "Windows":
+    if _is_windows():
         appdata = Path(os.environ.get("APPDATA", ""))
         if appdata:
             paths.append(appdata / "opencode" / "opencode.json")
-    elif SYSTEM == "Darwin":
+    elif _is_mac():
         paths.append(Path.home() / "Library" / "Application Support" / "opencode" / "opencode.json")
     else:
         paths.append(Path.home() / ".config" / "opencode" / "opencode.json")
