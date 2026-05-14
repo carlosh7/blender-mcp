@@ -355,6 +355,13 @@ def register():
         return 1.0
     bpy.app.timers.register(health_check, first_interval=0.1)
 
+    # Status ticker for thread-safe model verification updates
+    try:
+        from .operators.model_ops import _status_ticker
+        bpy.app.timers.register(_status_ticker, first_interval=0.2)
+    except:
+        pass
+
     try:
         bsock.start_socket_server()
     except:
