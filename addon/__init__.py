@@ -1,9 +1,9 @@
-# blender-mcp v0.8.9 — Embedded-first Blender MCP
+# blender-mcp v0.8.10 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 9),
+    "version": (0, 8, 10),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -20,8 +20,40 @@ sys.path.insert(0, os.path.dirname(__file__))
 import blender_socket as bsock
 from . import spatial
 
-# ─── Auto-start embedded MCP server at startup ───
+# ─── Auto-install pip dependencies + auto-start servers ───
 _EMBEDDED_STARTED = False
+_DEPS_INSTALLED = False
+
+def _ensure_deps():
+    global _DEPS_INSTALLED
+    if _DEPS_INSTALLED:
+        return
+    packages = []
+    for pkg_name, import_name in [("mcp", "mcp"), ("requests", "requests")]:
+        try:
+            __import__(import_name)
+        except ImportError:
+            packages.append(pkg_name)
+    if not packages:
+        _DEPS_INSTALLED = True
+        return
+    print(f"[blender-mcp] Instalando dependencias: {', '.join(packages)}...")
+    for pkg in packages:
+        try:
+            import subprocess
+            cmd = [sys.executable, "-m", "pip", "install", pkg, "--quiet"]
+            # PEP 668 / externally-managed-environment workaround
+            if hasattr(sys, 'real_prefix') or sys.prefix != sys.base_prefix:
+                pass  # inside venv, no flag needed
+            else:
+                cmd.append("--break-system-packages")
+            subprocess.check_call(cmd, timeout=60)
+            print(f"[blender-mcp] ✅ {pkg} instalado")
+            _DEPS_INSTALLED = True
+        except subprocess.CalledProcessError:
+            print(f"[blender-mcp] ⚠️  No se pudo instalar {pkg}")
+        except Exception as e:
+            print(f"[blender-mcp] ⚠️  Error instalando {pkg}: {e}")
 
 def _start_embedded():
     global _EMBEDDED_STARTED
@@ -32,6 +64,8 @@ def _start_embedded():
         start_embedded_server()
         _EMBEDDED_STARTED = True
         print("[blender-mcp] ✅ Embedded MCP server ready on :45677")
+    except ImportError as e:
+        print(f"[blender-mcp] ⚠️  Embedded server requiere mcp SDK: {e}")
     except Exception as e:
         print(f"[blender-mcp] ⚠️  Embedded server: {e}")
 
@@ -200,7 +234,8 @@ classes = [
 ]
 
 def register():
-    # 0. Embedded server + auto-process + auto-config + client
+    # 0. Dependencies + embedded server + auto-process + auto-config + client
+    _ensure_deps()
     _start_embedded()
     try:
         from . import auto_process
