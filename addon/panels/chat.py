@@ -103,13 +103,15 @@ class PN_PT_Chat(Panel):
     def draw(self, ctx):
         L = self.layout
         c = ctx.scene
-        # Row 1: Status
+        # Row 1: Status with connection indicator
+        conn = c.aimcp_connection_status or "Listo"
+        icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'CHECKBOX_DEHLT'
         row = L.row(align=True)
         if c.aimcp_waiting:
             row.operator("aimcp.stop_agent", text="STOP", icon='CANCEL')
             row.label(text="Working...", icon='SORTTIME')
         else:
-            row.label(text="Ready", icon='CHECKBOX_HLT')
+            row.label(text=conn[:28], icon=icon)
         row.operator("blendermcp.start_embedded", text="", icon='SYSTEM')
         row.operator("blendermcp.open_web", text="", icon='URL')
         row = L.row(align=True)

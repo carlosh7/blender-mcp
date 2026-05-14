@@ -397,6 +397,7 @@ def register():
     Scene.aimcp_models = PointerProperty(type=ModelsData)
     Scene.aimcp_ai_state = StringProperty(default="connected")
     Scene.aimcp_spinner_idx = IntProperty(default=0)
+    Scene.aimcp_connection_status = StringProperty(default="")
     for pid in PROVIDER_ORDER:
         setattr(Scene, f"aimcp_search_{pid.replace('-','_')}", StringProperty(default=""))
         setattr(Scene, f"aimcp_show_{pid.replace('-','_')}", BoolProperty(default=False))
@@ -490,7 +491,7 @@ def unregister():
     attrs = ["aimcp_models", "aimcp_status", "aimcp_model",
              "aimcp_pending_msg_id", "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing",
              "aimcp_connected", "aimcp_input", "aimcp_chat",
-             "aimcp_ai_state", "aimcp_spinner_idx"]
+             "aimcp_ai_state", "aimcp_spinner_idx", "aimcp_connection_status"]
     for pid in PROVIDER_ORDER:
         attrs.append(f"aimcp_search_{pid.replace('-','_')}")
     for a in attrs:

@@ -98,6 +98,12 @@ def register_properties():
         description="Current LLM provider ID",
     )
 
+    # ─── Connection status (verificación al seleccionar modelo) ───
+    Scene.aimcp_connection_status = StringProperty(
+        name="Connection Status", default="",
+        description="Estado de la conexión con el LLM (✅ conectado / 🔴 error)",
+    )
+
     # ─── Agent Mode (Fase 4) ───
     Scene.blendermcp_agent_mode = EnumProperty(
         name="Agent Mode", default='AUTO',
@@ -125,6 +131,7 @@ def unregister_properties():
         "blendermcp_use_ambientcg",
         "aimcp_provider",
         "blendermcp_agent_mode",
+        "aimcp_connection_status",
     ]
     for a in attrs:
         if hasattr(bpy.types.Scene, a):

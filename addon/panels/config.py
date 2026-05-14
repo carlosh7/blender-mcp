@@ -33,6 +33,11 @@ class PN_PT_Config(Panel):
         row = box.row(align=True)
         row.label(text="Agent Mode:", icon='MODIFIER')
         row.prop(c, "blendermcp_agent_mode", text="")
+        conn = c.aimcp_connection_status
+        if conn:
+            row = box.row(align=True)
+            icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'INFO'
+            row.label(text=conn, icon=icon)
         status = c.aimcp_status
         if status:
             L.label(text=status, icon='INFO')

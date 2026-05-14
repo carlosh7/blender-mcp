@@ -131,10 +131,50 @@ class OP_SelectModel(Operator):
 
     def execute(self, ctx):
         ctx.scene.aimcp_model = self.model_id
-        ctx.scene.aimcp_status = f"Selected: {self.model_id}"
+        ctx.scene.aimcp_connection_status = "🟡 Verificando..."
+        ctx.scene.aimcp_status = "Verificando conexión..."
         if ctx.area:
             ctx.area.tag_redraw()
+        threading.Thread(target=self._verify, args=(ctx,), daemon=True).start()
         return {'FINISHED'}
+
+    def _verify(self, ctx):
+        provider = self._detect_provider(self.model_id)
+        key = _get_api_key(provider)
+        if not key:
+            self._update_status(ctx, "🔴 Sin API key para " + provider)
+            return
+        cfg = _PROVIDER_API.get(provider)
+        if not cfg:
+            self._update_status(ctx, "⚠️ Modelo seleccionado (sin verificación)")
+            return
+        try:
+            headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
+            req = urllib.request.Request(cfg["url"], headers=headers)
+            urllib.request.urlopen(req, timeout=10)
+            self._update_status(ctx, "✅ Conectado: " + provider)
+        except urllib.error.HTTPError as e:
+            self._update_status(ctx, f"🔴 Key inválida ({e.code})")
+        except Exception as e:
+            self._update_status(ctx, f"🔴 Error: {str(e)[:40]}")
+    
+    def _detect_provider(self, model_id):
+        for pid in PROVIDER_ORDER:
+            if model_id.startswith(pid):
+                return pid
+        for pid in _PROVIDER_API:
+            if pid in model_id:
+                return pid
+        return "opencode-go"
+
+    def _update_status(self, ctx, msg):
+        def update():
+            ctx.scene.aimcp_connection_status = msg
+            ctx.scene.aimcp_status = msg
+            if ctx.area:
+                ctx.area.tag_redraw()
+            return None
+        bpy.app.timers.register(update, first_interval=0.0)
 
 
 class OP_ApplyModel(Operator):
