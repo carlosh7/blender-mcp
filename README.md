@@ -167,6 +167,7 @@ Responde: "El objeto silla tiene 24,500 polígonos..."
 | Documento | Contenido |
 |-----------|-----------|
 | [GUIDE.md](GUIDE.md) | Guía completa paso a paso de todas las tools |
+| [COMPLETE_RESEARCH_V2.md](docs/COMPLETE_RESEARCH_V2.md) | Investigación completa de proyectos similares + decisiones de diseño |
 | [ROADMAP.md](ROADMAP.md) | Plan de desarrollo |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Diagrama de arquitectura |
 | [docs/claude-desktop.md](docs/claude-desktop.md) | Configurar Claude Desktop |
