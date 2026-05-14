@@ -66,7 +66,22 @@ def register_properties():
     Scene.aimcp_chat_index = IntProperty(default=0)
     Scene.aimcp_model = StringProperty(name="Selected Model", default="")
 
-    # 3. INTEGRATION TOGGLES
+    # 3. CONFIG & API PROPERTIES (LAS QUE FALTABAN)
+    Scene.aimcp_show_opencode_go = BoolProperty(name="OpenCode.go", default=True)
+    Scene.aimcp_api_opencode_go = StringProperty(name="API Key", subtype='PASSWORD')
+    
+    Scene.aimcp_show_openrouter = BoolProperty(name="OpenRouter", default=False)
+    Scene.aimcp_api_openrouter = StringProperty(name="API Key", subtype='PASSWORD')
+    
+    Scene.aimcp_show_deepseek = BoolProperty(name="DeepSeek", default=False)
+    Scene.aimcp_api_deepseek = StringProperty(name="API Key", subtype='PASSWORD')
+    
+    Scene.aimcp_show_groq = BoolProperty(name="Groq", default=False)
+    Scene.aimcp_api_groq = StringProperty(name="API Key", subtype='PASSWORD')
+
+    Scene.aimcp_provider = StringProperty(name="Provider", default="opencode-go")
+
+    # 4. INTEGRATION TOGGLES
     Scene.blendermcp_port = IntProperty(name="MCP Port", default=9876)
     Scene.blendermcp_server_running = BoolProperty(default=False)
     Scene.blendermcp_use_polyhaven = BoolProperty(name="Use Poly Haven", default=True)
@@ -76,11 +91,11 @@ def register_properties():
     Scene.blendermcp_hyper3d_api_key = StringProperty(name="Rodin API Key", subtype='PASSWORD')
     Scene.blendermcp_use_hunyuan3d = BoolProperty(name="Use Hunyuan3D", default=False)
     Scene.blendermcp_use_ambientcg = BoolProperty(name="Use AmbientCG", default=True)
+    
     Scene.blendermcp_agent_mode = EnumProperty(
         name="Agent Mode", default='AUTO',
         items=[('AUTO', "Auto", ""), ('PROXY', "Proxy", ""), ('AUTONOMOUS', "Autonomous", "")]
     )
-    Scene.aimcp_provider = StringProperty(name="Provider", default="opencode-go")
 
 def unregister_properties():
     Scene = bpy.types.Scene
@@ -88,11 +103,14 @@ def unregister_properties():
         "aimcp_chat", "aimcp_models", "aimcp_input", "aimcp_connected", 
         "aimcp_ai_state", "aimcp_status", "aimcp_waiting", "aimcp_spinner_idx",
         "aimcp_connection_status", "aimcp_chat_index", "aimcp_model",
-        "blendermcp_port", "blendermcp_server_running", "blendermcp_use_polyhaven",
-        "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
+        "aimcp_show_opencode_go", "aimcp_api_opencode_go",
+        "aimcp_show_openrouter", "aimcp_api_openrouter",
+        "aimcp_show_deepseek", "aimcp_api_deepseek",
+        "aimcp_show_groq", "aimcp_api_groq",
+        "aimcp_provider", "blendermcp_port", "blendermcp_server_running",
+        "blendermcp_use_polyhaven", "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
         "blendermcp_use_hyper3d", "blendermcp_hyper3d_api_key",
-        "blendermcp_use_hunyuan3d", "blendermcp_use_ambientcg",
-        "blendermcp_agent_mode", "aimcp_provider"
+        "blendermcp_use_hunyuan3d", "blendermcp_use_ambientcg", "blendermcp_agent_mode"
     ]
     for p in props:
         if hasattr(Scene, p): delattr(Scene, p)
