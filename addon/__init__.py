@@ -1,16 +1,5 @@
-# blender-mcp v0.8.51 — Embedded-first Blender MCP
-# Cero configuración: el addon auto-instala dependencias y arranca el servidor.
-bl_info = {
-    "name": "AXIOM Precision Engine",
-    "author": "CarlosH & Antigravity",
-    "version": (0, 8, 52),
-    "blender": (4, 2, 0),
-    "location": "View3D > Sidebar > Axiom tab",
-    "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
-    "doc_url": "https://github.com/carlosh7/blender-mcp",
-    "category": "3D View",
-}
-
+# blender-mcp v0.8.52 — Extension for Blender 4.2+
+# Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, PointerProperty
