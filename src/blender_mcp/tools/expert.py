@@ -60,9 +60,9 @@ STANDARDS = {
 }
 
 def register_tools(mcp):
-    @mcp.tool(**RO(doc="Returns real-world standard dimensions and functional rules for a given category."))
+    @mcp.tool(**RO())
     def get_standard_dimensions(category: str) -> str:
-        """
+        """Returns real-world standard dimensions and functional rules for a given category.
         Consulta las dimensiones estándar y reglas funcionales (Trinity Matrix Download).
         Categorías disponibles: arcade_machine, table, chair, door, human_reference.
         """
@@ -74,9 +74,9 @@ def register_tools(mcp):
             })
         return json.dumps(data, indent=2)
 
-    @mcp.tool(**RO(doc="Validates if the provided dimensions for an object type are within reasonable human-scale bounds."))
+    @mcp.tool(**RO())
     def validate_human_scale(object_type: str, dimensions: list[float]) -> str:
-        """
+        """Validates if the provided dimensions for an object type are within reasonable human-scale bounds.
         Verifica si las dimensiones [x, y, z] son realistas para un humano.
         Retorna advertencias si el objeto es demasiado grande o pequeño.
         """

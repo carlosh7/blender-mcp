@@ -32,12 +32,12 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 mcp = FastMCP("blender-mcp", log_level="INFO")
 
-def RO(doc=""):
-    return dict(annotations=ToolAnnotations(readOnlyHint=True), description=doc)
-def RW(doc=""):
-    return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), description=doc)
-def ADD(doc=""):
-    return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False), description=doc)
+def RO():
+    return dict(annotations=ToolAnnotations(readOnlyHint=True))
+def RW():
+    return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True))
+def ADD():
+    return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
 
 _proxy_active = False  # Track if external MCP client handles chat (starts as False)
 
@@ -54,19 +54,22 @@ for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
              analysis, docs, viewport, ui, connection, expert, av_tools, assembly]:
     mod.register_tools(mcp)
 
-@mcp.tool(**RO("Get information about the current Blender scene (objects, counts, names)."))
+@mcp.tool(**RO())
 def get_scene_info() -> str:
+    """Get information about the current Blender scene (objects, counts, names)."""
     b = get_blender()
     return json.dumps(b.send_command("get_scene_info"), indent=2)
 
-@mcp.tool(**RW("Ejecuta código Python arbitrario en Blender. Usa bpy, C (bpy.context), D (bpy.data), ops (bpy.ops)."))
+@mcp.tool(**RW())
 def execute_blender_code(code: str) -> str:
+    """Ejecuta código Python arbitrario en Blender. Usa bpy, C (bpy.context), D (bpy.data), ops (bpy.ops)."""
     b = get_blender()
     result = b.send_command("execute_code", {"code": code})
     return f"Salida:\n{result.get('output', '')}"
 
-@mcp.tool(**RO("Captura una imagen del viewport 3D de Blender. Retorna la ruta del archivo."))
+@mcp.tool(**RO())
 def get_viewport_screenshot() -> str:
+    """Captura una imagen del viewport 3D de Blender. Retorna la ruta del archivo."""
     b = get_blender()
     result = b.send_command("get_viewport_screenshot")
     if "error" in result:

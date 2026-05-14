@@ -10,9 +10,10 @@ from mcp.types import ToolAnnotations
 def RW(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), **kw)
 
 def register_tools(mcp):
-    @mcp.tool(**RW(doc="Builds a high-fidelity LED wall with modular cabinets (front/back details)."))
+    @mcp.tool(**RW())
     def av_build_led_wall_hifi(width_m: float, height_m: float, name: str = "LED_Wall_HiFi") -> str:
-        """Genera una pantalla LED modular con cabinets realistas de 50x50cm."""
+        """Builds a high-fidelity LED wall with modular cabinets (front/back details).
+        Genera una pantalla LED modular con cabinets realistas de 50x50cm."""
         cols = math.ceil(width_m / 0.5)
         rows = math.ceil(height_m / 0.5)
         
@@ -52,9 +53,10 @@ result = {{"total_panels": build_wall({cols}, {rows}, "{name}")}}
         b = get_blender()
         return json.dumps(b.send_command("execute_code", {"code": code}), indent=2)
 
-    @mcp.tool(**RW(doc="Creates a high-fidelity F34 aluminum truss structure with chords and diagonal webbing."))
+    @mcp.tool(**RW())
     def av_setup_truss_rig_hifi(length_m: float, height_m: float = 6.0, name: str = "Truss_F34_HiFi") -> str:
-        """Genera una estructura de Truss F34 realista con tubos principales y diagonales."""
+        """Creates a high-fidelity F34 aluminum truss structure with chords and diagonal webbing.
+        Genera una estructura de Truss F34 realista con tubos principales y diagonales."""
         num_sections = math.ceil(length_m / 2.0)
         
         code = f"""
@@ -98,9 +100,10 @@ result = {{"sections": build_rig({num_sections}, {height_m}, "{name}")}}
         b = get_blender()
         return json.dumps(b.send_command("execute_code", {"code": code}), indent=2)
 
-    @mcp.tool(**RW(doc="Deploys a high-fidelity moving head fixture (Base, Yoke, Head)."))
+    @mcp.tool(**RW())
     def av_add_moving_heads_hifi(truss_name: str, count: int = 4) -> str:
-        """Distribuye luminarias realistas compuestas por base, yugo y cabeza óptica."""
+        """Deploys a high-fidelity moving head fixture (Base, Yoke, Head).
+        Distribuye luminarias realistas compuestas por base, yugo y cabeza óptica."""
         code = f"""
 import bpy
 

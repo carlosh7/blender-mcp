@@ -80,11 +80,37 @@ def register():
         bpy.utils.register_class(_config_panel.PN_PT_Config)
         for p in _int_panel.PANELS: bpy.utils.register_class(p)
         
-        # Clases de datos del chat
-        from .addon import __init__ as _addon_init
-        for cls in _addon_init.classes: 
-            try: bpy.utils.register_class(cls)
-            except: pass
+        # Clases de datos del chat (Importadas de forma robusta)
+        import addon as _addon_pkg
+        if hasattr(_addon_pkg, "classes"):
+            for cls in _addon_pkg.classes:
+                try: bpy.utils.register_class(cls)
+                except: pass
+        else:
+            # Fallback manual si el import anterior falla
+            from .addon.properties import ChatMsg, ChatData, ModelsData, ModelItem
+            from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
+            from .addon import MCP_UL_Chat
+            for cls in [ChatMsg, ChatData, ModelsData, ModelItem, BLENDERMCP_OT_OpenWeb, MCP_UL_Chat]:
+                try: bpy.utils.register_class(cls)
+                except: pass
+            
+        # ⚡ REGISTRO DE PROPIEDADES DE ESCENA (Crucial para eliminar AttributeError)
+        Scene = bpy.types.Scene
+        from bpy.props import PointerProperty, StringProperty, BoolProperty, IntProperty
+        from .addon.properties import ChatData, ModelsData
+        
+        setattr(Scene, "aimcp_chat", PointerProperty(type=ChatData))
+        setattr(Scene, "aimcp_input", StringProperty(default=""))
+        setattr(Scene, "aimcp_connected", BoolProperty(default=False))
+        setattr(Scene, "aimcp_ai_state", StringProperty(default="disconnected"))
+        setattr(Scene, "aimcp_model", StringProperty(default=""))
+        setattr(Scene, "aimcp_status", StringProperty(default=""))
+        setattr(Scene, "aimcp_models", PointerProperty(type=ModelsData))
+        setattr(Scene, "aimcp_waiting", BoolProperty(default=False))
+        setattr(Scene, "aimcp_spinner_idx", IntProperty(default=0))
+        setattr(Scene, "aimcp_connection_status", StringProperty(default=""))
+        setattr(Scene, "aimcp_chat_index", IntProperty(default=0))
             
         # Iniciar Ticker de Status y Timers
         try:

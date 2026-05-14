@@ -9,9 +9,10 @@ from mcp.types import ToolAnnotations
 def RO(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=True), **kw)
 
 def register_tools(mcp):
-    @mcp.tool(**RO(doc="Syncs with Blender: connects, checks health, and gets scene info in one call."))
+    @mcp.tool(**RO())
     def sync_blender_state() -> str:
-        """Connects to Blender and retrieves health + scene info to avoid multiple authorizations."""
+        """Syncs with Blender: connects, checks health, and gets scene info in one call.
+        Connects to Blender and retrieves health + scene info to avoid multiple authorizations."""
         try:
             b = get_blender()
             if not b.connect():
