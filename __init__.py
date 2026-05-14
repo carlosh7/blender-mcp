@@ -98,7 +98,7 @@ def register():
         # ⚡ REGISTRO DE PROPIEDADES DE ESCENA (Crucial para eliminar AttributeError)
         Scene = bpy.types.Scene
         from bpy.props import PointerProperty, StringProperty, BoolProperty, IntProperty
-        from .addon.properties import ChatData, ModelsData
+        from .addon import ChatData, ModelsData
         
         setattr(Scene, "aimcp_chat", PointerProperty(type=ChatData))
         setattr(Scene, "aimcp_input", StringProperty(default=""))
