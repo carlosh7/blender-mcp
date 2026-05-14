@@ -1,9 +1,9 @@
-# blender-mcp v0.8.30 — Embedded-first Blender MCP
+# blender-mcp v0.8.31 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 30),
+    "version": (0, 8, 31),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -70,12 +70,15 @@ def _start_embedded():
 
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
 
-# ─── Persistencia (archivo fijo independiente del .blend) ───
-CHAT_LOG_PATH = os.path.expanduser("~/.config/blender-mcp/chat_log.json")
+# ─── Persistencia (per-project con fallback global) ───
+GLOBAL_CHAT_LOG = os.path.expanduser("~/.config/blender-mcp/chat_log.json")
 
 def get_history_path():
-    """Usa archivo fijo para persistencia, no depende del .blend."""
-    return CHAT_LOG_PATH
+    """Por proyecto: junto al .blend. Si no está guardado: global."""
+    blend_path = bpy.data.filepath
+    if blend_path:
+        return blend_path + ".chat"
+    return GLOBAL_CHAT_LOG
 
 def load_history(chat):
     path = get_history_path()
