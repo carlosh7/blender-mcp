@@ -102,9 +102,9 @@ def start_embedded_server():
     mcp = _discover_tools()
 
     def run_mcp():
-        import asyncio
         try:
-            asyncio.run(mcp.run_sse_async(host="localhost", port=45677))
+            import uvicorn
+            uvicorn.run(mcp.sse_app(), host="localhost", port=45677, log_level="warning")
         except Exception as e:
             print(f"[EMBEDDED MCP] Server error: {e}")
 

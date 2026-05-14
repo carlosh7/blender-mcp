@@ -1,9 +1,9 @@
-# blender-mcp v0.8.11 — Embedded-first Blender MCP
+# blender-mcp v0.8.12 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 11),
+    "version": (0, 8, 12),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -11,7 +11,7 @@ bl_info = {
     "category": "3D View",
 }
 
-import bpy, os, json, time, mathutils, sys, threading
+import bpy, os, json, time, mathutils, sys, threading, subprocess
 from pathlib import Path
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, PointerProperty
 from bpy.types import Panel, Operator, PropertyGroup, UIList
@@ -40,18 +40,17 @@ def _ensure_deps():
     print(f"[blender-mcp] Instalando dependencias: {', '.join(packages)}...")
     for pkg in packages:
         try:
-            import subprocess
             cmd = [sys.executable, "-m", "pip", "install", pkg, "--quiet"]
             # PEP 668 / externally-managed-environment workaround
-            if hasattr(sys, 'real_prefix') or sys.prefix != sys.base_prefix:
-                pass  # inside venv, no flag needed
+            if sys.prefix != sys.base_prefix:
+                pass  # dentro de venv, no hace falta flag
             else:
                 cmd.append("--break-system-packages")
-            subprocess.check_call(cmd, timeout=60)
+            subprocess.check_call(cmd, timeout=120)
             print(f"[blender-mcp] ✅ {pkg} instalado")
             _DEPS_INSTALLED = True
-        except subprocess.CalledProcessError:
-            print(f"[blender-mcp] ⚠️  No se pudo instalar {pkg}")
+        except subprocess.CalledProcessError as e:
+            print(f"[blender-mcp] ⚠️  No se pudo instalar {pkg}: {e}")
         except Exception as e:
             print(f"[blender-mcp] ⚠️  Error instalando {pkg}: {e}")
 
