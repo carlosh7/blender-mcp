@@ -21,7 +21,7 @@ from .platform_utils import _is_windows, _is_mac
 
 def start():
     creados = []
-    if _config_opencode_mcp():
+    if _config_opencode():
         creados.append("opencode")
     if _config_claude():
         creados.append("Claude Desktop")
@@ -37,22 +37,22 @@ def _server_url():
 
 
 # ─── opencode ───
-def _opencode_mcp_path():
-    """Ruta del archivo MCP de opencode (separado del principal)."""
+def _opencode_path():
+    """Ruta del archivo principal de opencode."""
     if _is_windows():
         base = Path(os.environ.get("APPDATA", ""))
     elif _is_mac():
         base = Path.home() / "Library" / "Application Support"
     else:
         base = Path.home() / ".config"
-    return base / "opencode" / "mcp.json"
+    return base / "opencode" / "opencode.json"
 
 
-def _config_opencode_mcp():
-    """Crea/actualiza ~/.config/opencode/mcp.json (formato opencode)."""
-    path = _opencode_mcp_path()
+def _config_opencode():
+    """Agrega blender al opencode.json principal (sección mcp)."""
+    path = _opencode_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = {"mcp": {}}
+    data = {"$schema": "https://opencode.ai/config.json"}
     if path.exists():
         try:
             existing = json.loads(path.read_text())

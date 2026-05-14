@@ -1,6 +1,6 @@
 [project]
 name = "blender-mcp"
-version = "0.8.12"
+version = "0.8.13"
 description = "AI-powered Blender MCP Server — Control Blender from any MCP client (Claude, Cursor, opencode, etc.)"
 readme = "README.md"
 requires-python = ">=3.10"
