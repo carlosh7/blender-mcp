@@ -19,6 +19,15 @@ class OP_Send(Operator):
         if not txt:
             return {'CANCELLED'}
 
+        # Check if model is configured
+        model = ctx.scene.aimcp_model
+        if not model:
+            ctx.scene.aimcp_chat.add("system", "⚠️ No AI model configured. Go to Scene Properties → Axiom Engine Config → Refresh Models → select one.", scene=ctx.scene)
+            ctx.scene.aimcp_input = ""
+            if ctx.area:
+                ctx.area.tag_redraw()
+            return {'FINISHED'}
+
         ctx.scene.aimcp_chat.add("user", txt, scene=ctx.scene)
         ctx.scene.aimcp_input = ""
         ctx.scene.aimcp_waiting = True

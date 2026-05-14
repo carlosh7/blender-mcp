@@ -22,12 +22,17 @@ class PN_PT_Config(Panel):
         # ── Status ──
         box = L.box()
         box.label(text="Status", icon='LINKED')
-        row = box.row(align=True)
+
         is_connected = bsock._socket_server is not None and bsock._socket_server.running
-        row.label(text="Socket: Online" if is_connected else "Socket: Offline",
+        row = box.row(align=True)
+        row.label(text="Socket:" + (" Online" if is_connected else " Offline"),
                   icon='CHECKBOX_HLT' if is_connected else 'CHECKBOX_DEHLT')
 
-        # ── Connection status ──
+        is_mcp = bsock.mcp_connected
+        row = box.row(align=True)
+        row.label(text="MCP:" + (" Connected" if is_mcp else " Waiting"),
+                  icon='CHECKBOX_HLT' if is_mcp else 'SORTTIME')
+
         conn = c.aimcp_connection_status
         if conn:
             row = box.row(align=True)

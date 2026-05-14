@@ -120,6 +120,13 @@ _CHAT_URLS = {
     "deepseek": "https://api.deepseek.com/v1/chat/completions",
     "openrouter": "https://openrouter.ai/api/v1/chat/completions",
     "google": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    "anthropic": "https://api.anthropic.com/v1/messages",
+    "ollama": "http://localhost:11434/v1/chat/completions",
+}
+
+_ANTHROPIC_HEADERS = {
+    "anthropic-version": "2023-06-01",
+    "content-type": "application/json",
 }
 
 SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D. Genera código Python completo para crear, modificar y texturizar objetos.
@@ -156,7 +163,7 @@ def _append_to_log(text, tag="AI"):
 
 
 def _call_llm(url, headers, model, messages):
-    """LLamada directa a la API REST sin tools. El LLM genera código Python en texto plano."""
+    """LLamada directa a la API REST (OpenAI-compatible)."""
     body = json.dumps({
         "model": model,
         "messages": messages,
@@ -167,6 +174,41 @@ def _call_llm(url, headers, model, messages):
     with urllib.request.urlopen(req, timeout=120) as resp:
         return json.loads(resp.read())
 
+
+def _call_anthropic(url, headers, api_key, model, messages):
+    """LLamada directa a la API de Anthropic."""
+    system = ""
+    msgs = []
+    for m in messages:
+        if m["role"] == "system":
+            system += m["content"] + "\n"
+        elif m["role"] in ("user", "assistant"):
+            msgs.append({"role": m["role"], "content": m["content"]})
+    body = json.dumps({
+        "model": model,
+        "max_tokens": 8192,
+        "system": system.strip(),
+        "messages": msgs,
+        "temperature": 0.4,
+    }).encode()
+    hdrs = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        return json.loads(resp.read())
+
+
+_VISION_PROVIDERS = {"opencode-go", "openai", "openrouter", "google", "anthropic"}
+
+def _capture_screenshot_b64():
+    try:
+        from .handlers.analysis import AnalysisHandler
+        return AnalysisHandler.cmd_get_screenshot_as_base64()
+    except:
+        return None
 
 def _process_with_client(mid, text):
     scene = bpy.context.scene
@@ -201,11 +243,30 @@ def _process_with_client(mid, text):
         objs = [o.name for o in bpy.data.objects if hasattr(o, 'name')]
         if objs:
             messages.append({"role": "system", "content": f"Escena actual: {', '.join(objs[:10])}"})
-        messages.append({"role": "user", "content": text})
 
+        user_msg = text
+
+        if provider in _VISION_PROVIDERS:
+            shot = _capture_screenshot_b64()
+            if shot and "base64" in shot:
+                user_msg = [
+                    {"type": "text", "text": text},
+                    {"type": "image_url", "image_url": {"url": f"data:{shot['mime']};base64,{shot['base64']}"}},
+                ]
+
+        messages.append({"role": "user", "content": user_msg})
+
+        is_anthropic = provider == "anthropic"
         try:
-            result = _call_llm(url, headers, model, messages)
-            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if is_anthropic:
+                result = _call_anthropic(url, headers, api_key, model, messages)
+                content = ""
+                for block in result.get("content", []):
+                    if block.get("type") == "text":
+                        content += block.get("text", "")
+            else:
+                result = _call_llm(url, headers, model, messages)
+                content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
         except urllib.error.HTTPError as e:
             err = e.read().decode()[:200]
             print(f"[AUTO] HTTP Error {e.code}: {err}")
@@ -225,7 +286,6 @@ def _process_with_client(mid, text):
 
         print(f"[AUTO] Respuesta recibida ({len(content)} chars)")
 
-        # Extraer y ejecutar bloques de código Python
         code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
         if code_blocks:
             for i, code in enumerate(code_blocks):
@@ -251,7 +311,6 @@ def _try_auto_start_client():
 def _respond(mid, text, is_status=False):
     def update():
         for s in bpy.data.scenes:
-            # Remove old status
             for i, m in enumerate(s.aimcp_chat.msgs):
                 if m.role == "status" and m.text.endswith("..."):
                     s.aimcp_chat.msgs.remove(i)
@@ -259,17 +318,14 @@ def _respond(mid, text, is_status=False):
             if is_status:
                 s.aimcp_chat.add("status", text, scene=s)
             else:
-                # Add response directly to chat (no polling needed)
                 s.aimcp_chat.add("assistant", text, scene=s)
                 with bsock._chat_lock:
                     bsock._chat_queue[:] = [m for m in bsock._chat_queue if m["id"] != mid]
             s.aimcp_waiting = False
             s.aimcp_pending_msg_id = ""
-            # Force redraw ALL areas (not just active one)
             for screen in bpy.data.screens:
                 for area in screen.areas:
                     area.tag_redraw()
-            # Auto-save to log
             if not is_status:
                 _append_to_log(text)
         return None

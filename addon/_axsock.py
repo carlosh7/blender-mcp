@@ -117,6 +117,7 @@ class BlenderSocketServer:
             "shader_nodes", "animation", "geometry_nodes", "render",
             "io", "uv_texture", "batch", "rigging", "scene_utils", "printing",
             "polyhaven", "sketchfab", "hyper3d", "hunyuan", "ambientcg",
+            "analysis", "docs", "viewport",
         ]
         for mod_name in handler_modules:
             try:

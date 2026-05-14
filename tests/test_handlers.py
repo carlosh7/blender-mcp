@@ -145,3 +145,25 @@ class TestAssetsHandler:
         import handlers.ambientcg as ac
         assert hasattr(ac, "cmd_search_ambientcg")
         assert hasattr(ac, "cmd_download_ambientcg_material")
+
+    @pytest.mark.skip(reason="Requires Blender Python API (bpy)")
+    def test_analysis_handler(self):
+        from handlers.analysis import AnalysisHandler
+        cmds = AnalysisHandler.get_commands()
+        assert "get_objects_summary" in cmds
+        assert "get_object_detail_summary" in cmds
+        assert "get_blendfile_summary_datablocks" in cmds
+        assert "get_screenshot_as_base64" in cmds
+
+    @pytest.mark.skip(reason="Requires Blender Python API (bpy)")
+    def test_docs_handler(self):
+        from handlers.docs import DocsHandler
+        cmds = DocsHandler.get_commands()
+        assert "search_api_docs" in cmds
+        assert "get_python_api_docs" in cmds
+
+    @pytest.mark.skip(reason="Requires Blender Python API (bpy)")
+    def test_viewport_handler(self):
+        from handlers.viewport import ViewportHandler
+        cmds = ViewportHandler.get_commands()
+        assert "jump_to_view3d_object_by_name" in cmds

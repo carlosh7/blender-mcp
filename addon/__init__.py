@@ -3,7 +3,7 @@
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 51),
+    "version": (0, 8, 52),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -355,7 +355,7 @@ def register():
         return None
 
 def _read_opencode_model():
-    """Read configured model from opencode config or cached."""
+    """Read configured model from opencode config, auth, or cache."""
     import json
     from .operators.model_ops import get_opencode_config_paths
     # 1. Try opencode config files
@@ -367,7 +367,18 @@ def _read_opencode_model():
                     return d["model"]
             except:
                 pass
-    # 2. Try local cache
+    # 2. Try opencode auth.json (model key in provider entries)
+    from .platform_utils import get_opencode_auth_path
+    auth_p = get_opencode_auth_path()
+    if auth_p and auth_p.exists():
+        try:
+            auth = json.loads(auth_p.read_text())
+            for prov, entry in auth.items():
+                if isinstance(entry, dict) and entry.get("model"):
+                    return entry["model"]
+        except:
+            pass
+    # 3. Try local cache
     try:
         from .config_cache import get_last_model
         cached = get_last_model()

@@ -52,6 +52,14 @@ class RenderHandler(BaseHandler):
         return {"rendered": bpy.context.scene.render.filepath}
 
     @staticmethod
+    def cmd_render_viewport_to_path(filepath=""):
+        if not filepath:
+            return {"error": "Provide a filepath to save the render."}
+        bpy.context.scene.render.filepath = filepath
+        bpy.ops.render.render(write_still=True)
+        return {"rendered": filepath, "exists": os.path.exists(filepath)}
+
+    @staticmethod
     def cmd_render_animation(filepath=""):
         if filepath:
             bpy.context.scene.render.filepath = filepath

@@ -103,7 +103,17 @@ class PN_PT_Chat(Panel):
     def draw(self, ctx):
         L = self.layout
         c = ctx.scene
-        # Row 1: Status with connection indicator
+
+        # ── Show warning if no model configured ──
+        if not c.aimcp_model and not getattr(ctx.scene, 'aimcp_waiting', False):
+            box = L.box()
+            box.label(text="⚠️ No AI model selected", icon='ERROR')
+            box.label(text="Go to Scene Properties → Axiom Engine Config")
+            row = box.row(align=True)
+            row.operator("aimcp.refresh", text="Refresh Models", icon='FILE_REFRESH')
+            L.separator()
+
+        # ── Row 1: Status ──
         conn = c.aimcp_connection_status or "Listo"
         icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'CHECKBOX_DEHLT'
         row = L.row(align=True)
@@ -114,12 +124,15 @@ class PN_PT_Chat(Panel):
             row.label(text=conn[:28], icon=icon)
         row.operator("blendermcp.start_embedded", text="", icon='SYSTEM')
         row.operator("blendermcp.open_web", text="", icon='URL')
+
+        # ── Row 2: Actions ──
         row = L.row(align=True)
         row.operator("aimcp.capture", text="Vision", icon='CAMERA_DATA')
         row.operator("aimcp.export", text="Export", icon='EXPORT')
         row.operator("blendermcp.open_web", text="Web", icon='URL')
         row.operator("blendermcp.copy_chat", text="Copy", icon='COPYDOWN')
         row.operator("blendermcp.export_log", text="Log", icon='TEXT')
+
         L.separator()
         col = L.column(align=True)
         num = len(c.aimcp_chat.msgs)

@@ -39,17 +39,21 @@ jobs:
       - name: Test tool registration
         run: |
           python -c "
-import sys; sys.path.insert(0, '.')
+import sys; sys.path.insert(0, '.'); sys.path.insert(0, 'src')
 from mcp.server.fastmcp import FastMCP
+from blender_mcp.tools import (
+    polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
+    shader_nodes, animation, geometry_nodes, render,
+    io, uv_texture, batch, rigging, scene_utils, printing,
+    analysis, docs, viewport,
+)
 mcp = FastMCP('test')
-import tools_polyhaven, tools_sketchfab, tools_hyper3d, tools_hunyuan, tools_ambientcg
-import tools_shader_nodes, tools_animation, tools_geometry_nodes, tools_render
-import tools_io, tools_uv_texture, tools_batch, tools_rigging, tools_scene_utils, tools_printing
-for mod in [tools_polyhaven, tools_sketchfab, tools_hyper3d, tools_hunyuan, tools_ambientcg,
-             tools_shader_nodes, tools_animation, tools_geometry_nodes, tools_render,
-             tools_io, tools_uv_texture, tools_batch, tools_rigging, tools_scene_utils, tools_printing]:
+for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
+             shader_nodes, animation, geometry_nodes, render,
+             io, uv_texture, batch, rigging, scene_utils, printing,
+             analysis, docs, viewport]:
     mod.register_tools(mcp)
 tools = list(mcp._tool_manager.list_tools())
-assert len(tools) >= 60, f'Only {len(tools)} tools registered'
+assert len(tools) >= 65, f'Only {len(tools)} tools registered'
 print(f'✅ {len(tools)} tools registered')
           "

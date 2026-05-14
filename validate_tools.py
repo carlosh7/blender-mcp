@@ -129,6 +129,21 @@ commands = [
     # Material extra
     ("set_color", {{"object_name": "test_cube", "color": [0,1,0,1]}}, "materials"),
 
+    # Analysis (Phase 1)
+    ("get_objects_summary", {{}}, "analysis"),
+    ("get_object_detail_summary", {{"name": "test_cube"}}, "analysis"),
+    ("get_blendfile_summary_datablocks", {{}}, "analysis"),
+
+    # Docs (Phase 4)
+    ("search_api_docs", {{"query": "object"}}, "docs"),
+    ("get_python_api_docs", {{"topic": "Object.location"}}, "docs"),
+
+    # Viewport (Phase 5)
+    ("jump_to_view3d_object_by_name", {{"name": "test_cube"}}, "viewport"),
+
+    # Render (Phase 5)
+    ("render_viewport_to_path", {{"filepath": "/tmp/test_render.png"}}, "render"),
+
     # Cleanup
     ("purge_orphans", {{}}, "scene_utils"),
 ]

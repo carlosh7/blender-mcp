@@ -1,18 +1,16 @@
 """
 blender-mcp — Health Check (--doctor)
-Inspired by yuri-schmaltz/mcp-blender --doctor
 """
-import sys
-import os
-import shutil
-import platform
-import subprocess
+import sys, os, shutil, platform, subprocess
+
+
+def _v(x): return f"  {'✅' if x else '❌'}"
 
 
 def check_python():
     v = sys.version_info
     ok = v.major >= 3 and v.minor >= 10
-    print(f"  {'✅' if ok else '❌'} Python {v.major}.{v.minor}.{v.micro}")
+    print(f"{_v(ok)} Python {v.major}.{v.minor}.{v.micro}")
     return ok
 
 
@@ -68,12 +66,34 @@ def check_disk():
     return ok
 
 
+def check_opencode_config():
+    try:
+        from blender_mcp.platform import get_log_dir
+        config_dir = get_log_dir().parent
+        opencode_configs = list(config_dir.glob("opencode*.json"))
+        if opencode_configs:
+            import json
+            for p in opencode_configs:
+                try:
+                    d = json.loads(p.read_text())
+                    model = d.get("model", "not set")
+                    print(f"  ✅ opencode config: {p.name} → model={model}")
+                    return True
+                except:
+                    pass
+        print(f"  ⚠️ No opencode config with model found in {config_dir}")
+        return False
+    except:
+        print(f"  ⚠️ Could not check opencode config")
+        return False
+
+
 def run_doctor():
     print(f"\n{'='*50}")
     print(f"  blender-mcp — Health Check")
     print(f"  OS: {platform.system()} {platform.release()}")
     print(f"{'='*50}\n")
-    results = [check_python(), check_blender(), check_mcp_sdk(), check_socket(), check_disk()]
+    results = [check_python(), check_blender(), check_mcp_sdk(), check_socket(), check_disk(), check_opencode_config()]
     ok = sum(results)
     total = len(results)
     print(f"\n{'='*50}")
