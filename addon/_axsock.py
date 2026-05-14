@@ -129,17 +129,13 @@ class BlenderSocketServer:
                     result = func(**params)
                     return {"status": "success", "result": result}
                 # Try class-based method (e.g., SceneHandler.cmd_get_scene_info)
-                handler_class_name = None
-                for attr_name in dir(mod):
-                    if attr_name.endswith("Handler"):
-                        handler_class_name = attr_name
-                        break
-                if handler_class_name:
-                    handler_cls = getattr(mod, handler_class_name)
-                    class_func = getattr(handler_cls, f"cmd_{cmd_type}", None)
-                    if class_func:
-                        result = class_func(**params)
-                        return {"status": "success", "result": result}
+                for attr_name in sorted(dir(mod)):
+                    if attr_name.endswith("Handler") and attr_name != "BaseHandler":
+                        handler_cls = getattr(mod, attr_name)
+                        class_func = getattr(handler_cls, f"cmd_{cmd_type}", None)
+                        if class_func:
+                            result = class_func(**params)
+                            return {"status": "success", "result": result}
             except ImportError:
                 continue
             except Exception as e:
