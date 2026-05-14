@@ -1,9 +1,9 @@
-# blender-mcp v0.8.15 — Embedded-first Blender MCP
+# blender-mcp v0.8.16 — Embedded-first Blender MCP
 # Cero configuración: el addon auto-instala dependencias y arranca el servidor.
 bl_info = {
     "name": "AXIOM Precision Engine",
     "author": "CarlosH & Antigravity",
-    "version": (0, 8, 15),
+    "version": (0, 8, 16),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom tab",
     "description": "AI-powered Blender MCP — 82 tools, 5 integrations. Zero-config.",
@@ -290,22 +290,32 @@ def register():
             pass
 
     Scene = bpy.types.Scene
-    Scene.aimcp_chat = PointerProperty(type=ChatData)
-    Scene.aimcp_input = StringProperty(default="")
-    Scene.aimcp_connected = BoolProperty(default=False)
-    Scene.aimcp_refreshing = BoolProperty(default=False)
-    Scene.aimcp_waiting = BoolProperty(default=False)
-    Scene.aimcp_pending_msg_id = StringProperty(default="")
-    Scene.aimcp_chat_index = IntProperty(default=0)
-    Scene.aimcp_model = StringProperty(default="")
-    Scene.aimcp_status = StringProperty(default="")
-    Scene.aimcp_models = PointerProperty(type=ModelsData)
-    Scene.aimcp_ai_state = StringProperty(default="connected")
-    Scene.aimcp_spinner_idx = IntProperty(default=0)
-    Scene.aimcp_connection_status = StringProperty(default="")
+    _scene_props = {
+        "aimcp_chat": PointerProperty(type=ChatData),
+        "aimcp_input": StringProperty(default=""),
+        "aimcp_connected": BoolProperty(default=False),
+        "aimcp_refreshing": BoolProperty(default=False),
+        "aimcp_waiting": BoolProperty(default=False),
+        "aimcp_pending_msg_id": StringProperty(default=""),
+        "aimcp_chat_index": IntProperty(default=0),
+        "aimcp_model": StringProperty(default=""),
+        "aimcp_status": StringProperty(default=""),
+        "aimcp_models": PointerProperty(type=ModelsData),
+        "aimcp_ai_state": StringProperty(default="connected"),
+        "aimcp_spinner_idx": IntProperty(default=0),
+        "aimcp_connection_status": StringProperty(default=""),
+    }
+    for name, prop in _scene_props.items():
+        try:
+            setattr(Scene, name, prop)
+        except:
+            pass
     for pid in PROVIDER_ORDER:
-        setattr(Scene, f"aimcp_search_{pid.replace('-','_')}", StringProperty(default=""))
-        setattr(Scene, f"aimcp_show_{pid.replace('-','_')}", BoolProperty(default=False))
+        try:
+            setattr(Scene, f"aimcp_search_{pid.replace('-','_')}", StringProperty(default=""))
+            setattr(Scene, f"aimcp_show_{pid.replace('-','_')}", BoolProperty(default=False))
+        except:
+            pass
 
     # ─── Timers (CRITICAL: must always register) ───
     _delayed_step = 0

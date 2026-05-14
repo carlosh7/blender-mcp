@@ -5,6 +5,7 @@ Model selector with provider browsing, status, connection state.
 import bpy
 from bpy.types import Panel
 from .. import PROVIDER_ORDER, PROVIDER_LABELS
+from .. import blender_socket as bsock
 
 
 class PN_PT_Config(Panel):
@@ -22,7 +23,7 @@ class PN_PT_Config(Panel):
         box = L.box()
         box.label(text="Status", icon='LINKED')
         row = box.row(align=True)
-        is_connected = hasattr(ctx.scene, 'aimcp_connected') and ctx.scene.aimcp_connected
+        is_connected = bsock._socket_server is not None and bsock._socket_server.running
         row.label(text="Socket: Online" if is_connected else "Socket: Offline",
                   icon='CHECKBOX_HLT' if is_connected else 'CHECKBOX_DEHLT')
 

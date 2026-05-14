@@ -66,9 +66,8 @@ def _config_opencode():
             pass
     data.setdefault("mcp", {})
     data["mcp"]["blender"] = {
-        "type": "stdio",
-        "command": sys.executable,
-        "args": [_bridge_path()],
+        "type": "local",
+        "command": [sys.executable, _bridge_path()],
         "enabled": True,
     }
     path.write_text(json.dumps(data, indent=2))
