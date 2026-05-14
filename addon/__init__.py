@@ -232,107 +232,8 @@ PROVIDER_LABELS = {
     "openrouter": "OpenRouter"
 }
 
-# ─── Config Panel ───
-class PN_PT_Config(Panel):
-    bl_label = "Axiom Engine Config"; bl_idname = "PN_PT_Config"
-    bl_space_type = 'PROPERTIES'; bl_region_type = 'WINDOW'; bl_context = 'scene'
-
-    def draw(self, ctx):
-        L = self.layout; c = ctx.scene
-        box = L.box()
-        box.label(text="Status", icon='LINKED')
-        row = box.row(align=True)
-        is_connected = bsock._socket_server is not None and bsock._socket_server.running
-        if is_connected:
-            row.label(text="Socket: Online", icon='CHECKBOX_HLT')
-        else:
-            row.label(text="Socket: Offline", icon='CHECKBOX_DEHLT')
-
-        L.separator()
-        box = L.box()
-        box.label(text="AI Model", icon='SETTINGS')
-        current = c.aimcp_model or "(reading from opencode.json...)"
-        box.label(text=f"Current: {current}")
-        row = box.row(align=True)
-        row.operator("aimcp.refresh", text="Refresh", icon='FILE_REFRESH')
-
-        md = c.aimcp_models
-        if md and md.count > 0:
-            for prov_id in PROVIDER_ORDER:
-                prov_models = [m for m in md.items if m.provider == prov_id]
-                if not prov_models: continue
-                
-                # SECCIÓN PLEGABLE POR PROVEEDOR
-                prop_name = f"aimcp_show_{prov_id.replace('-','_')}"
-                is_expanded = getattr(c, prop_name, False)
-                
-                box_prov = box.box()
-                row = box_prov.row(align=True)
-                # Botón de plegado más profesional
-                row.prop(c, prop_name, 
-                         text=PROVIDER_LABELS.get(prov_id, prov_id), 
-                         icon='TRIA_DOWN' if is_expanded else 'TRIA_RIGHT', 
-                         icon_only=False, emboss=False)
-                
-                if is_expanded:
-                    col = box_prov.column(align=True)
-                    for m in prov_models:
-                        row = col.row(align=True)
-                        if m.model_id == current:
-                            row.label(text="", icon='RADIOBUT_ON')
-                            row.label(text=f"{m.model_name}")
-                        else:
-                            op = row.operator("aimcp.select", text=m.model_id, icon='RADIOBUT_OFF'); op.model_id = m.model_id
-        else:
-            row = box.row(align=True)
-            row.operator("aimcp.refresh", text="Load models", icon='FILE_REFRESH')
-
-        L.separator()
-        status = c.aimcp_status
-        if status: L.label(text=status, icon='INFO')
-
-# ─── Chat Panel ───
-class PN_PT_Chat(Panel):
-    bl_label = "AXIOM Chat Panel"; bl_idname = "PN_PT_Chat"
-    bl_space_type = 'VIEW_3D'; bl_region_type = 'UI'; bl_category = 'Axiom'
-
-    def draw(self, ctx):
-        L = self.layout; c = ctx.scene
-        state = c.aimcp_ai_state
-        m = c.aimcp_model or "?"
-        if len(m) > 18: m = m[:17] + ".."
-
-        # FILA 1: ESTADO + CONEXIÓN + STOP
-        row = L.row(align=True)
-        if not c.aimcp_connected:
-            row.operator("aimcp.check", text="Connect", icon='ADD')
-            row.label(text=m)
-        else:
-            row.operator("aimcp.disconnect", text="", icon='X')
-            row.label(text="Online", icon='CHECKBOX_HLT')
-            if c.aimcp_waiting:
-                row.operator("aimcp.stop_agent", text="STOP", icon='CANCEL')
-            row.label(text=m)
-
-        # FILA 2: UTILIDADES
-        row = L.row(align=True)
-        row.operator("aimcp.capture", text="Axiom Vision", icon='CAMERA_DATA')
-        row.operator("aimcp.export", text="Axiom Export", icon='EXPORT')
-
-        # CHAT DINÁMICO (Máximo 11 filas)
-        L.separator()
-        col = L.column(align=True)
-        # La altura crece con las líneas hasta un tope de 11
-        num_lines = len(c.aimcp_chat.msgs)
-        chat_rows = min(max(num_lines, 2), 11)
-        col.template_list("MCP_UL_Chat", "", c.aimcp_chat, "msgs", c, "aimcp_chat_index", rows=chat_rows)
-        
-        # INPUT Y BOTONES (Fila única y proporcionada)
-        L.separator()
-        L.prop(c, "aimcp_input", text="")
-        row = L.row(align=True); row.scale_y = 1.2
-        row.operator("aimcp.send", text="Enviar", icon='PLAY')
-        row.operator("aimcp.clear_chat", text="Limpiar", icon='X')
+# ─── Panels (modulares) — importados de addon/panels/ ───
+from .panels import chat as _chat_panel, config as _config_panel, integrations as _integrations
 
 # ─── Register (modular) ───
 from . import properties as _props
@@ -344,15 +245,11 @@ from .operators import export as _export_ops
 from .operators import setup as _setup_ops
 from .operators import embedded as _embedded_ops
 from .operators import model_ops as _model_ops
-from .panels import integrations as _integrations
 from .panels.chat import BLENDERMCP_OT_OpenWeb
-
-# Not yet migrated to separate files (kept here for locator reference):
-# PN_PT_Config, PN_PT_Chat, ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData
 
 classes = [
     ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData,
-    PN_PT_Config, PN_PT_Chat, BLENDERMCP_OT_OpenWeb,
+    BLENDERMCP_OT_OpenWeb,
 ]
 
 def register():
@@ -377,6 +274,9 @@ def register():
     _embedded_ops.register_embedded_operators()
     _model_ops.register_model_operators()
 
+    # Register modular panels
+    for panel_cls in [_chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config]:
+        bpy.utils.register_class(panel_cls)
     for panel_cls in _integrations.PANELS:
         bpy.utils.register_class(panel_cls)
 
@@ -471,6 +371,11 @@ def unregister():
     for cls in reversed(classes):
         try:
             bpy.utils.unregister_class(cls)
+        except:
+            pass
+    for panel_cls in reversed([_chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config]):
+        try:
+            bpy.utils.unregister_class(panel_cls)
         except:
             pass
     for panel_cls in reversed(_integrations.PANELS):
