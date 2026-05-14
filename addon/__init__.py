@@ -11,7 +11,7 @@ bl_info = {
     "category": "3D View",
 }
 
-import bpy, os, json, time, mathutils, sys, subprocess, importlib
+import bpy, os, json, time, mathutils, sys, threading
 from pathlib import Path
 from bpy.props import StringProperty, IntProperty, CollectionProperty, BoolProperty, PointerProperty
 from bpy.types import Panel, Operator, PropertyGroup, UIList
@@ -20,29 +20,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 import blender_socket as bsock
 from . import spatial
 
-# ─── Auto-install pip dependencies (first time only) ───
-_REQUIRED_PACKAGES = ["mcp>=1.3.0", "requests>=2.25.0"]
-
-def _ensure_deps():
-    """Install missing pip packages into Blender's Python."""
-    for pkg in _REQUIRED_PACKAGES:
-        try:
-            pkg_name = pkg.split(">=")[0].split("==")[0].split("<")[0]
-            importlib.import_module(pkg_name)
-        except ImportError:
-            print(f"[blender-mcp] Installing {pkg}...")
-            try:
-                subprocess.check_call(
-                    [sys.executable, "-m", "pip", "install", pkg, "--quiet"],
-                    timeout=60,
-                )
-                print(f"[blender-mcp] ✅ {pkg} installed")
-            except Exception as e:
-                print(f"[blender-mcp] ⚠️  Could not install {pkg}: {e}")
-
-# ─── Auto-start embedded MCP server + external auto-process at startup ───
+# ─── Auto-start embedded MCP server at startup ───
 _EMBEDDED_STARTED = False
-_MCP_PROCESS = None
 
 def _start_embedded():
     global _EMBEDDED_STARTED
@@ -55,38 +34,6 @@ def _start_embedded():
         print("[blender-mcp] ✅ Embedded MCP server ready on :45677")
     except Exception as e:
         print(f"[blender-mcp] ⚠️  Embedded server: {e}")
-
-def _start_mcp_process():
-    """Start mcp_server.py as a subprocess so _auto_process runs."""
-    global _MCP_PROCESS
-    if _MCP_PROCESS is not None:
-        return
-    try:
-        import subprocess, sys
-        root = os.path.dirname(__file__)
-        server_script = os.path.join(root, "..", "mcp_server.py")
-        if os.path.exists(server_script):
-            _MCP_PROCESS = subprocess.Popen(
-                [sys.executable, server_script],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            )
-            print(f"[blender-mcp] ✅ MCP auto-process started (PID {_MCP_PROCESS.pid})")
-    except Exception as e:
-        print(f"[blender-mcp] ⚠️  Could not start MCP process: {e}")
-
-def _stop_mcp_process():
-    global _MCP_PROCESS
-    if _MCP_PROCESS:
-        try:
-            _MCP_PROCESS.terminate()
-            _MCP_PROCESS.wait(timeout=5)
-        except:
-            try:
-                _MCP_PROCESS.kill()
-            except:
-                pass
-        _MCP_PROCESS = None
-        print("[blender-mcp] MCP auto-process stopped")
 
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
 
@@ -253,10 +200,18 @@ classes = [
 ]
 
 def register():
-    # 0. Auto-dependencies + embedded server + auto-process + client
-    _ensure_deps()
+    # 0. Embedded server + auto-process + auto-config + client
     _start_embedded()
-    _start_mcp_process()
+    try:
+        from . import auto_process
+        auto_process.start()
+    except Exception as e:
+        print(f"[blender-mcp] auto_process: {e}")
+    try:
+        from . import auto_config
+        auto_config.start()
+    except Exception as e:
+        print(f"[blender-mcp] auto_config: {e}")
     try:
         from .operators.embedded import auto_start
         auto_start()
@@ -319,62 +274,63 @@ def register():
                 pass
             return 2.0  # wait 2s for refresh to complete
 
-        if _delayed_step == 2:
-            # Step 2: auto-select model from opencode config
-            import json
-            from pathlib import Path
-            from ..operators.model_ops import get_opencode_config_paths, _status_ticker
-            model = ""
-            for p in get_opencode_config_paths():
-                if os.path.exists(p):
-                    try:
-                        d = json.loads(open(p).read())
-                        if d.get("model"):
-                            model = d["model"]
-                            break
-                    except:
-                        pass
-            if model:
-                for s in bpy.data.scenes:
-                    s.aimcp_model = model
-                    s.aimcp_connection_status = "🟡 Verificando..."
-                    # Trigger verification in background
-                    threading.Thread(
-                        target=_auto_verify_model,
-                        args=(model, s.name),
-                        daemon=True,
-                    ).start()
-            return None
-
+    if _delayed_step == 2:
+        # Step 2: auto-select model from opencode config
+        model = _read_opencode_model()
+        if model:
+            for s in bpy.data.scenes:
+                s.aimcp_model = model
+                s.aimcp_connection_status = "🟡 Verificando..."
+                threading.Thread(
+                    target=_auto_verify_model,
+                    args=(model, s.name),
+                    daemon=True,
+                ).start()
         return None
 
-    def _auto_verify_model(model_id, scene_name):
-        """Auto-verify model at startup (thread-safe)."""
-        try:
-            from ..operators.model_ops import (
-                _detect_provider, _get_api_key, _PROVIDER_API,
-                _queue_status,
-            )
-            provider = _detect_provider(model_id)
-            key = _get_api_key(provider)
-            if not key:
-                _queue_status(scene_name, "🔴 Sin API key para " + provider)
-                return
-            cfg = _PROVIDER_API.get(provider)
-            if not cfg:
-                _queue_status(scene_name, "⚠️ Modelo sin verificar")
-                return
-            import urllib.request
-            headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
-            req = urllib.request.Request(cfg["url"], headers=headers)
-            urllib.request.urlopen(req, timeout=5)
-            _queue_status(scene_name, "✅ Conectado: " + provider)
-        except urllib.error.HTTPError as e:
-            _queue_status(scene_name, f"🔴 Key inválida ({e.code})")
-        except urllib.error.URLError:
-            _queue_status(scene_name, "🔴 No se pudo contactar servidor")
-        except Exception as e:
-            _queue_status(scene_name, f"🔴 Error: {str(e)[:40]}")
+    return None
+
+def _read_opencode_model():
+    """Read configured model from opencode config files."""
+    import json
+    from .operators.model_ops import get_opencode_config_paths
+    for p in get_opencode_config_paths():
+        if os.path.exists(p):
+            try:
+                d = json.loads(open(p).read())
+                if d.get("model"):
+                    return d["model"]
+            except:
+                pass
+    return ""
+
+def _auto_verify_model(model_id, scene_name):
+    """Auto-verify model at startup (thread-safe)."""
+    try:
+        from .operators.model_ops import (
+            _detect_provider, _get_api_key, _PROVIDER_API,
+            _queue_status,
+        )
+        provider = _detect_provider(model_id)
+        key = _get_api_key(provider)
+        if not key:
+            _queue_status(scene_name, "🔴 Sin API key para " + provider)
+            return
+        cfg = _PROVIDER_API.get(provider)
+        if not cfg:
+            _queue_status(scene_name, "⚠️ Modelo sin verificar")
+            return
+        import urllib.request
+        headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
+        req = urllib.request.Request(cfg["url"], headers=headers)
+        urllib.request.urlopen(req, timeout=5)
+        _queue_status(scene_name, "✅ Conectado: " + provider)
+    except urllib.error.HTTPError as e:
+        _queue_status(scene_name, f"🔴 Key inválida ({e.code})")
+    except urllib.error.URLError:
+        _queue_status(scene_name, "🔴 No se pudo contactar servidor")
+    except Exception as e:
+        _queue_status(scene_name, f"🔴 Error: {str(e)[:40]}")
 
     bpy.app.timers.register(delayed_load, first_interval=0.5)
 
@@ -438,7 +394,6 @@ def unregister():
         auto_stop()
     except:
         pass
-    _stop_mcp_process()
     bsock.stop_socket_server()
     for cls in reversed(classes):
         try:

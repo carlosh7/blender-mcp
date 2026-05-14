@@ -41,21 +41,8 @@ class OP_Send(Operator):
             bsock._chat_queue.append({"id": msg_id, "message": txt, "timestamp": time.time()})
         ctx.scene.aimcp_pending_msg_id = msg_id
 
-        # Start polling
+        # Start polling (auto_process handles timeout messages)
         bpy.app.timers.register(self._make_poller(ctx, msg_id), first_interval=0.5)
-
-        # ── 3. If no response in 5s, show help message ──
-        def show_help():
-            if ctx.scene.aimcp_waiting:
-                ctx.scene.aimcp_chat.add(
-                    "system",
-                    "⏳ Aún procesando... Si no hay respuesta en 30s, "
-                    "configura Local AI en Integrations o conecta Claude Desktop.",
-                    scene=ctx.scene,
-                )
-            return None
-        bpy.app.timers.register(show_help, first_interval=5.0)
-
         return {'FINISHED'}
 
     def _make_poller(self, ctx, msg_id):
