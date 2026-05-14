@@ -75,7 +75,7 @@ def _check_in_flight():
     for mid, started in list(_in_flight.items()):
         elapsed = now - started
         if elapsed > 30:
-            _respond(mid, f"⏳ Generando... (ya van {elapsed:.0f}s)", is_status=True)
+            _respond(mid, f"⏳ {elapsed:.0f}s", is_status=True, is_update=True)
             return 2.0
     return 0.5
 
@@ -721,15 +721,16 @@ def _try_auto_start_client():
     return has_key
 
 
-def _respond(mid, text, is_status=False):
+def _respond(mid, text, is_status=False, is_update=False):
     def update():
         for s in bpy.data.scenes:
-            for i, m in enumerate(s.aimcp_chat.msgs):
-                if m.role == "status" and m.text.endswith("..."):
-                    s.aimcp_chat.msgs.remove(i)
-                    break
+            if is_status and not is_update:
+                for i, m in enumerate(s.aimcp_chat.msgs):
+                    if m.role == "status" and m.text.endswith("..."):
+                        s.aimcp_chat.msgs.remove(i)
+                        break
             if is_status:
-                s.aimcp_chat.add("status", text, scene=s)
+                s.aimcp_chat.add("status", text, scene=s, is_update=is_update)
             else:
                 s.aimcp_chat.add("assistant", text, scene=s)
                 with bsock._chat_lock:
