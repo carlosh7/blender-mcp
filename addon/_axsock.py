@@ -147,28 +147,33 @@ class BlenderSocketServer:
             filepath = os.path.join(temp_dir, f"axiom_vision_{int(time.time())}.png")
         
         try:
-            # Buscar el área de 3D Viewport
-            area = next((a for a in bpy.context.screen.areas if a.type == 'VIEW_3D'), None)
-            if not area:
-                return {"error": "No se encontró un viewport 3D activo"}
+            # Buscar una ventana y pantalla válidas (Blender 4.2+ requiere contexto explícito)
+            window = bpy.context.window if bpy.context.window else bpy.context.window_manager.windows[0]
+            screen = window.screen
+            area = next((a for a in screen.areas if a.type == 'VIEW_3D'), None)
             
-            # Forzar el renderizado de la captura en el área correcta
-            with bpy.context.temp_override(area=area):
+            if not area:
+                return {"error": "No se encontró un viewport 3D activo en la ventana principal"}
+            
+            # Forzar el renderizado de la captura con el contexto completo
+            with bpy.context.temp_override(window=window, screen=screen, area=area):
                 bpy.ops.screen.screenshot_area(filepath=filepath)
             
-            # Cargar y redimensionar para ahorrar ancho de banda si es necesario
-            img = bpy.data.images.load(filepath)
-            if max(img.size) > max_size:
-                scale = max_size / max(img.size)
-                img.scale(int(img.size[0] * scale), int(img.size[1] * scale))
-                img.save()
-            
-            return {
-                "success": True, 
-                "filepath": filepath, 
-                "width": img.size[0], 
-                "height": img.size[1]
-            }
+            # Cargar y redimensionar
+            if os.path.exists(filepath):
+                img = bpy.data.images.load(filepath)
+                if max(img.size) > max_size:
+                    scale = max_size / max(img.size)
+                    img.scale(int(img.size[0] * scale), int(img.size[1] * scale))
+                    img.save()
+                
+                return {
+                    "success": True, 
+                    "filepath": filepath, 
+                    "width": img.size[0], 
+                    "height": img.size[1]
+                }
+            return {"error": "Falló la creación del archivo de captura"}
         except Exception as e:
             return {"error": str(e)}
 
@@ -278,7 +283,16 @@ class BlenderSocketServer:
         return {"pong": True, "time": mcp_last_ping}
 
     def cmd_execute_code(self, code=""):
-        ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
+        # Intentar obtener un contexto lo más real posible
+        win = bpy.context.window if bpy.context.window else (bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None)
+        ns = {
+            "bpy": bpy, 
+            "C": bpy.context, 
+            "D": bpy.data, 
+            "ops": bpy.ops,
+            "window": win,
+            "screen": win.screen if win else None,
+        }
         buf = io.StringIO()
         with redirect_stdout(buf):
             try:

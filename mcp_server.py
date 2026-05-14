@@ -46,12 +46,12 @@ from blender_mcp.tools import (
     polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
     shader_nodes, animation, geometry_nodes, render,
     io, uv_texture, batch, rigging, scene_utils, printing,
-    analysis, docs, viewport, ui,
+    analysis, docs, viewport, ui, connection,
 )
 for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
              shader_nodes, animation, geometry_nodes, render,
              io, uv_texture, batch, rigging, scene_utils, printing,
-             analysis, docs, viewport, ui]:
+             analysis, docs, viewport, ui, connection]:
     mod.register_tools(mcp)
 
 @mcp.tool(**RO("Get information about the current Blender scene (objects, counts, names)."))
