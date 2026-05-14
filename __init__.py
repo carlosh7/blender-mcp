@@ -4,7 +4,7 @@ bl_info = {
     "name": "AXIOM Precision Engine",
     "description": "Industrial-grade AI assembly pipeline for Blender",
     "author": "CarlosH",
-    "version": (0, 8, 88),
+    "version": (0, 8, 89),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > Axiom",
     "category": "3D View",
@@ -29,7 +29,8 @@ def _ensure_deps():
     return True
 
 def register():
-    ver_str = ".".join(map(str, bl_info["version"]))
+    # VERSIÓN FIJA PARA EVITAR NAMEERROR EN SCOPE DE BLENDER
+    ver_str = "0.8.89"
     print(f"\n[AXIOM] 🚀 INICIALIZANDO MOTOR v{ver_str}")
     
     if not _ensure_deps(): return
@@ -42,7 +43,7 @@ def register():
         bsock.start_socket_server()
     except Exception as e:
         if "Address already in use" in str(e):
-            print("[AXIOM] ℹ️ Socket 9876 ya ocupado (¿Otra instancia activa?)")
+            print("[AXIOM] ℹ️ Socket 9876 ya ocupado")
         else:
             print(f"[AXIOM] ❌ Socket Error: {e}")
 
@@ -102,7 +103,7 @@ def _start_mcp_server():
             uvicorn.run(mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
         except Exception as e:
             if "Address already in use" in str(e):
-                print("[AXIOM] ℹ️ Puerto 9879 ya ocupado (MCP corriendo en otra instancia)")
+                print("[AXIOM] ℹ️ Puerto 9879 ya ocupado")
             else:
                 print(f"[AXIOM] ❌ MCP Server Error: {e}")
     threading.Thread(target=run, daemon=True).start()
@@ -114,4 +115,3 @@ def unregister():
     from .addon import properties as _props
     try: _props.unregister_properties()
     except: pass
-    # (Unregister manual de clases omitido por brevedad, manejado por Blender en recargas)
