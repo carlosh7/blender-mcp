@@ -84,7 +84,7 @@ def handle_request(req):
     req_id = req.get("id")
 
     if method == "initialize":
-        return {"jsonrpc": "2.0", "id": req_id, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "blender-mcp", "version": "0.8.18"}}}
+        return {"jsonrpc": "2.0", "id": req_id, "result": {"protocolVersion": "2024-11-05", "capabilities": {"tools": {}}, "serverInfo": {"name": "blender-mcp", "version": "0.8.19"}}}
 
     elif method == "notifications/initialized":
         return None  # no response needed
@@ -159,8 +159,7 @@ def main():
         if resp is None:
             continue
 
-        out = json.dumps(resp, indent=2)
-        sys.stdout.write(f"Content-Length: {len(out)}\r\n\r\n{out}")
+        sys.stdout.write(json.dumps(resp) + "\n")
         sys.stdout.flush()
 
 

@@ -146,17 +146,24 @@ def _queue_status(scene_name, msg):
 
 def _status_ticker():
     """Timer callback: flush pending status updates to scene."""
-    with _pending_lock:
-        while _pending_status:
-            scene_name, msg = _pending_status.pop(0)
-            for s in bpy.data.scenes:
-                if s.name == scene_name:
-                    s.aimcp_connection_status = msg
-                    s.aimcp_status = msg
-                    for area in bpy.context.screen.areas if bpy.context.screen else []:
-                        area.tag_redraw()
-                    break
-    return 0.2  # poll every 200ms
+    try:
+        with _pending_lock:
+            while _pending_status:
+                scene_name, msg = _pending_status.pop(0)
+                for s in bpy.data.scenes:
+                    if s.name == scene_name:
+                        s.aimcp_connection_status = msg
+                        s.aimcp_status = msg
+                        try:
+                            if bpy.context.screen:
+                                for area in bpy.context.screen.areas:
+                                    area.tag_redraw()
+                        except:
+                            pass
+                        break
+    except Exception as e:
+        print(f"[blender-mcp] _status_ticker error: {e}")
+    return 0.2
 
 
 class OP_SelectModel(Operator):

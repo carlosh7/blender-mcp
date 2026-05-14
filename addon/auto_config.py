@@ -36,16 +36,14 @@ def _server_url():
     return "http://localhost:45677/sse"
 
 
-# ─── opencode ───
-def _opencode_path():
-    """Ruta del archivo principal de opencode."""
+# ─── Rutas opencode ───
+def _opencode_dir():
     if _is_windows():
-        base = Path(os.environ.get("APPDATA", ""))
+        return Path(os.environ.get("APPDATA", "")) / "opencode"
     elif _is_mac():
-        base = Path.home() / "Library" / "Application Support"
+        return Path.home() / "Library" / "Application Support" / "opencode"
     else:
-        base = Path.home() / ".config"
-    return base / "opencode" / "opencode.json"
+        return Path.home() / ".config" / "opencode"
 
 
 def _bridge_path():
@@ -53,24 +51,36 @@ def _bridge_path():
     return str(Path(__file__).parent / "stdio_bridge.py")
 
 
-def _config_opencode():
-    """Agrega blender al opencode.json principal (sección mcp) usando STDIO."""
-    path = _opencode_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = {"$schema": "https://opencode.ai/config.json"}
-    if path.exists():
-        try:
-            existing = json.loads(path.read_text())
-            data = existing if isinstance(existing, dict) else data
-        except:
-            pass
-    data.setdefault("mcp", {})
-    data["mcp"]["blender"] = {
+def _stdio_config():
+    """Config STDIO estándar para cualquier cliente MCP."""
+    return {
         "type": "local",
         "command": [sys.executable, _bridge_path()],
         "enabled": True,
     }
-    path.write_text(json.dumps(data, indent=2))
+
+
+def _config_opencode():
+    """Escribe configuración STDIO en opencode.json y mcp.json."""
+    d = _opencode_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    cfg = _stdio_config()
+
+    # Abrir ambos: opencode.json + mcp.json
+    for fname in ["opencode.json", "mcp.json"]:
+        path = d / fname
+        data = {}
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+            except:
+                pass
+        if not isinstance(data, dict):
+            data = {}
+        data.setdefault("mcp", {})
+        data["mcp"]["blender"] = cfg
+        path.write_text(json.dumps(data, indent=2))
+
     return True
 
 
