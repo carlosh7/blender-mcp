@@ -66,3 +66,30 @@ def register_tools(mcp):
         b = get_blender()
         r = b.send_command("get_blendfile_summary_usage_guess")
         return json.dumps(r, indent=2)
+
+    # ── CLI variants (analyze .blend without running Blender) ──
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_datablocks_for_cli(blend_file: str) -> str:
+        """Analyze a .blend file on disk for data-block counts (no Blender instance needed)."""
+        from blender_mcp.blender_cli import run_blender_cli
+        code = "import bpy; result = {k: len(getattr(bpy.data, k)) for k in dir(bpy.data) if not k.startswith('_') and hasattr(getattr(bpy.data, k), '__len__')}"
+        r = run_blender_cli(blend_file, code)
+        return json.dumps(r, indent=2)
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_path_info_for_cli(blend_file: str) -> str:
+        """Get file path, save status, age, and backups from a .blend file on disk (no Blender instance needed)."""
+        from blender_mcp.blender_cli import run_blender_cli
+        import os, time
+        code = "import bpy, os, time; fp = bpy.data.filepath; st = os.stat(fp) if fp and os.path.exists(fp) else None; result = {'filepath': fp, 'is_saved': bool(fp), 'is_dirty': bpy.data.is_dirty, 'age_seconds': round(time.time() - st.st_mtime, 1) if st else None, 'file_size_bytes': st.st_size if st else None}"
+        r = run_blender_cli(blend_file, code)
+        return json.dumps(r, indent=2)
+
+    @mcp.tool(**RO())
+    def get_blendfile_summary_missing_files_for_cli(blend_file: str) -> str:
+        """Find missing external file references in a .blend file on disk (no Blender instance needed)."""
+        from blender_mcp.blender_cli import run_blender_cli
+        code = "import bpy, os; missing = []; checked = [0]; f = lambda id_data, path, _: (checked.__setitem__(0, checked[0]+1) or missing.append({'id_type': type(id_data).__name__, 'id_name': getattr(id_data, 'name', ''), 'path': bpy.path.abspath(path)}) if not os.path.exists(bpy.path.abspath(path)) else None); bpy.data.file_path_foreach(f, flags={'SKIP_PACKED', 'SKIP_WEAK_REFERENCES', 'RESOLVE_TOKEN'}); result = {'missing_files': missing, 'total_checked': checked[0]}"
+        r = run_blender_cli(blend_file, code)
+        return json.dumps(r, indent=2)
