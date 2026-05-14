@@ -10,8 +10,7 @@ import json
 from pathlib import Path
 from bpy.types import Operator
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-from blender_mcp.platform import get_log_dir
+from ..platform import get_log_dir
 
 
 class BLENDERMCP_OT_InstallDeps(Operator):

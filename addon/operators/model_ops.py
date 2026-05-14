@@ -12,9 +12,7 @@ from bpy.types import Operator
 from bpy.props import StringProperty
 from .. import blender_socket as bsock
 
-# Cross-platform paths
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
-from blender_mcp.platform import get_opencode_auth_path, get_opencode_config_paths
+from ..platform import get_opencode_auth_path, get_opencode_config_paths
 
 _PROVIDER_API = {
     "deepseek": {"url": "https://api.deepseek.com/v1/models", "auth": True},

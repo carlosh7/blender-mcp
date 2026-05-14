@@ -4,9 +4,7 @@ blender-mcp — Config Cache (cross-platform)
 import json
 import os
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from blender_mcp.platform import get_config_dir
+from .platform import get_config_dir
 
 CONFIG_DIR = get_config_dir()
 CONFIG_FILE = CONFIG_DIR / "provider_cache.json"
