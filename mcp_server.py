@@ -29,7 +29,7 @@ def RW():
 def ADD():
     return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False))
 
-_proxy_active = False  # Track if external MCP client handles chat
+_proxy_active = False
 
 # ─── Register modular tools (blender_mcp/tools/) ───
 from .blender_mcp.tools import (
@@ -38,168 +38,51 @@ from .blender_mcp.tools import (
     io, uv_texture, batch, rigging, scene_utils, printing,
     analysis, docs, viewport, ui, connection, expert, av_tools, assembly,
 )
-for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
-             shader_nodes, animation, geometry_nodes, render,
-             io, uv_texture, batch, rigging, scene_utils, printing,
-             analysis, docs, viewport, ui, connection, expert, av_tools, assembly]:
+_mods = [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
+         shader_nodes, animation, geometry_nodes, render,
+         io, uv_texture, batch, rigging, scene_utils, printing,
+         analysis, docs, viewport, ui, connection, expert, av_tools, assembly]
+
+for mod in _mods:
     mod.register_tools(mcp)
 
 @mcp.tool(**RO())
 def get_scene_info() -> str:
-    """Get information about the current Blender scene (objects, counts, names)."""
+    """Get information about the current Blender scene."""
     b = get_blender()
     return json.dumps(b.send_command("get_scene_info"), indent=2)
 
 @mcp.tool(**RW())
 def execute_blender_code(code: str) -> str:
-    """Ejecuta código Python arbitrario en Blender. Usa bpy, C (bpy.context), D (bpy.data), ops (bpy.ops)."""
+    """Ejecuta código Python arbitrario en Blender."""
     b = get_blender()
     result = b.send_command("execute_code", {"code": code})
     return f"Salida:\n{result.get('output', '')}"
 
 @mcp.tool(**RO())
 def get_viewport_screenshot() -> str:
-    """Captura una imagen del viewport 3D de Blender. Retorna la ruta del archivo."""
+    """Captura una imagen del viewport 3D de Blender."""
     b = get_blender()
     result = b.send_command("get_viewport_screenshot")
-    if "error" in result:
-        return f"Error al capturar: {result['error']}"
-    return f"Captura Axiom guardada en: {result['filepath']} ({result['width']}x{result['height']})"
+    if "error" in result: return f"Error: {result['error']}"
+    return f"Captura Axiom guardada en: {result['filepath']}"
 
-@mcp.tool(**RO())
-def search_assets(provider: str = "polyhaven", query: str = "", asset_type: str = "textures") -> str:
-    """Busca assets externos (Polyhaven o Sketchfab). 
-    Tipos para Polyhaven: textures, hdris, models."""
-    b = get_blender()
-    result = b.send_command("search_assets", {"provider": provider, "query": query, "asset_type": asset_type})
-    return json.dumps(result, indent=2)
-
-@mcp.tool(**RW())
-def generate_3d_model(prompt: str) -> str:
-    """Inicia la generación de un modelo 3D por IA usando Rodin/Hyper3D a partir de un texto."""
-    b = get_blender()
-    result = b.send_command("generate_3d", {"prompt": prompt})
-    return json.dumps(result, indent=2)
-
-@mcp.tool(**RO())
-def get_scene_visual() -> str:
-    """Get a top-down ASCII visualization of the scene for spatial reasoning."""
-    from .blender_mcp.spatial import get_spatial_summary
-    b = get_blender()
-    scene_info = b.send_command("get_scene_info")
-    return get_spatial_summary(scene_info)
-
-@mcp.tool(**ADD())
-def chat_send(message: str) -> str:
-    """Send a message to the Blender chat (from external tools). User messages go here."""
-    global _proxy_active
-    _proxy_active = True
-    b = get_blender()
-    result = b.send_command("chat_send", {"message": message})
-    return json.dumps(result)
-
-@mcp.tool(**RW())
-def export_to_planner(name: str) -> str:
-    """Export the current Blender scene as a .glb model to the 3D Planner directory."""
-    from .config import PLANNER_MODELS_DIR
-    b = get_blender()
-    filename = f"{name}.glb" if not name.endswith(".glb") else name
-    path = str(PLANNER_MODELS_DIR / filename)
-    result = b.send_command("export_glb", {"filepath": path})
-    return json.dumps(result, indent=2)
-
-@mcp.tool(**RO())
-def read_chat() -> str:
-    """Read pending chat messages from the Blender user. Returns messages waiting for AI response."""
-    b = get_blender()
-    result = b.send_command("read_chat")
-    return json.dumps(result, indent=2)
-
-@mcp.tool(**RW())
-def respond_chat(message_id: str, response: str) -> str:
-    """Respond to a pending chat message from Blender. The user will see this in the chat panel."""
-    global _proxy_active
-    _proxy_active = True
-    b = get_blender()
-    result = b.send_command("respond_chat", {"message_id": message_id, "response": response})
-    return json.dumps(result)
-
-@mcp.tool(**RW())
-def clear_history() -> str:
-    """Clear the AI agent's conversation history/memory."""
-    global _chat_history
-    _chat_history = []
-    b = get_blender()
-    b.send_command("clear_chat")
-    return "History cleared."
-
-@mcp.tool(**RO())
-def poll_response(message_id: str) -> str:
-    """Check if a response is ready for a chat message. Returns {status: 'done'/'pending', response: '...'}"""
-    b = get_blender()
-    result = b.send_command("poll_response", {"message_id": message_id})
-    return json.dumps(result)
-
-# ─── Resources MCP ───
+# ─── Resources ───
 @mcp.resource("blender://scene/info")
 def resource_scene_info() -> str:
-    """Current Blender scene overview: name, object count, materials count."""
     b = get_blender()
     return json.dumps(b.send_command("get_scene_info"), indent=2)
 
-@mcp.resource("blender://scene/objects")
-def resource_scene_objects() -> str:
-    """List all objects in the current Blender scene with types and locations."""
-    b = get_blender()
-    info = b.send_command("get_scene_info")
-    return json.dumps(info.get("objects", []), indent=2)
-
-@mcp.resource("blender://scene/materials")
-def resource_scene_materials() -> str:
-    """List all materials in the current Blender scene."""
-    b = get_blender()
-    result = b.send_command("list_materials")
-    return json.dumps(result, indent=2)
-
-# ─── Image Response MCP ───
-from mcp.server.fastmcp import Image as MCPImage
-
-@mcp.tool(**RO())
-def get_viewport_screenshot_image() -> object:
-    """Capture a screenshot of the Blender 3D viewport and return as an image."""
-    import tempfile
-    b = get_blender()
-    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
-    result = b.send_command("get_viewport_screenshot", {"filepath": tmp, "max_size": 800})
-    if "error" in result:
-        return {"error": result["error"]}
-    try:
-        with open(tmp, "rb") as f:
-            img_data = f.read()
-        return MCPImage(data=img_data, format="png")
-    except Exception as e:
-        return {"error": str(e)}
-    finally:
-        try:
-            os.unlink(tmp)
-        except:
-            pass
-
 # ─── Agent Host Logic ───
 MEMORY_PATH = str(get_log_dir().parent / "server_memory.json")
-
-def save_memory(history):
+def save_memory(h):
     try:
-        os.makedirs(os.path.dirname(MEMORY_PATH), exist_ok=True)
-        with open(MEMORY_PATH, 'w') as f:
-            json.dump(history, f, indent=2)
+        with open(MEMORY_PATH, 'w') as f: json.dump(h, f, indent=2)
     except: pass
-
 def load_memory():
     if os.path.exists(MEMORY_PATH):
         try:
-            with open(MEMORY_PATH, 'r') as f:
-                return json.load(f)
+            with open(MEMORY_PATH, 'r') as f: return json.load(f)
         except: pass
     return []
 
@@ -213,29 +96,22 @@ def _get_auto_connection():
     if _auto_connection is None:
         from .blender_connection import SOCKET_HOST, SOCKET_PORT
         _auto_connection = BlenderConnection(host=SOCKET_HOST, port=SOCKET_PORT)
-    if not _auto_connection.sock:
-        _auto_connection.connect()
+    if not _auto_connection.sock: _auto_connection.connect()
     return _auto_connection
 
-def _agent_send(cmd_type, params=None):
-    b = _get_auto_connection()
-    return b.send_command(cmd_type, params or {})
-
 def _auto_process():
-    global _chat_history, _last_ping, _proxy_active, _auto_connection
-    from .blender_mcp.tool_cache import invalidate as cache_invalidate
+    global _chat_history, _last_ping, _proxy_active
     while True:
         try:
             b = _get_auto_connection()
             if not b:
-                time.sleep(2)
+                time.sleep(1)
                 continue
-
+            
             try:
                 res = b.send_command("get_clear_signal")
                 if res and res.get("clear"):
                     _chat_history.clear()
-                    cache_invalidate()
                     if os.path.exists(MEMORY_PATH): os.remove(MEMORY_PATH)
                 now = time.time()
                 if now - _last_ping > 2:
@@ -246,66 +122,67 @@ def _auto_process():
             try:
                 result = b.send_command("read_chat")
                 messages = result.get("messages", [])
-            except:
-                time.sleep(1)
-                continue
-
-            if not messages:
-                time.sleep(0.5)
-                continue
-
-            for msg in messages:
-                mid = msg.get("id")
-                if not mid or mid in _processed_ids: continue
-                _processed_ids.add(mid)
-
-                text = msg.get("message", "")
-                if _proxy_active: continue
-
-                def status_cb(t):
-                    try: b.send_command("respond_status", {"message_id": mid, "response": t})
-                    except: pass
-
-                def check_stop_cb():
-                    try: return b.send_command("is_stopped").get("stopped", False)
-                    except: return False
-
-                try:
-                    from . import agent_host
-                    import importlib
-                    importlib.reload(agent_host)
-
-                    _chat_history = agent_host.process_message(
-                        text, _agent_send, history=_chat_history,
-                        status_callback=status_cb, check_stop_callback=check_stop_cb,
-                    )
-                    save_memory(_chat_history)
-                except Exception as e:
-                    logger.error(f"Agent error: {e}")
-                finally:
-                    try: b.send_command("respond_chat", {"message_id": mid, "response": ""})
-                    except: pass
-
-            if len(_processed_ids) > 1000: _processed_ids.clear()
-
-        except Exception as e:
-            logger.error(f"Auto-process error: {e}")
+                for msg in messages:
+                    mid = msg.get("id")
+                    if mid not in _processed_ids:
+                        _processed_ids.add(mid)
+                        from . import agent_host
+                        _chat_history = agent_host.process_message(msg.get("message"), b.send_command, history=_chat_history)
+                        save_memory(_chat_history)
+                        b.send_command("respond_chat", {"message_id": mid, "response": ""})
+            except: pass
+        except Exception as e: logger.error(f"Auto-process: {e}")
         time.sleep(0.5)
 
+# ─── Web UI & Server ───
 def main():
-    logger.info("Starting blender-mcp MCP server...")
+    logger.info("Iniciando Axiom MCP Server...")
     from .blender_connection import SOCKET_HOST, SOCKET_PORT
     
-    t = threading.Thread(target=_auto_process, daemon=True)
-    t.start()
+    threading.Thread(target=_auto_process, daemon=True).start()
     
     try:
         import uvicorn
         from starlette.responses import HTMLResponse
+        from starlette.middleware.cors import CORSMiddleware
+        
+        def _make_html():
+            tools_count = len(mcp._tool_manager.list_tools())
+            return f"""<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"><title>AXIOM Diagnostic</title>
+<style>
+body{{font-family:sans-serif;background:#0d0d0d;color:#00f2ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}}
+.card{{background:#1a1a1a;padding:2rem;border-radius:12px;border:1px solid #00f2ff;box-shadow:0 0 20px #00f2ff44;width:400px}}
+h1{{font-size:1.5rem;margin-bottom:0.5rem}}
+.status{{margin:1rem 0;padding:0.5rem;background:#000;border-radius:4px;font-family:monospace}}
+.dot{{height:10px;width:10px;background:#00f2ff;border-radius:50%;display:inline-block;margin-right:8px;box-shadow:0 0 8px #00f2ff}}
+a{{color:#fff;text-decoration:none;border-bottom:1px solid #00f2ff}}
+</style></head>
+<body><div class="card">
+<h1>AXIOM ENGINE ●</h1>
+<div class="status"><span class="dot"></span> v0.8.83 Stable</div>
+<div class="status"><span class="dot"></span> {tools_count} Tools Loaded</div>
+<div class="status"><span class="dot"></span> Socket: {SOCKET_HOST}:{SOCKET_PORT}</div>
+<div class="status"><span class="dot"></span> <a href="/sse">SSE Stream Active</a></div>
+<div style="margin-top:1rem;font-size:0.8rem;color:#666">© 2026 Axiom Precision Engine</div>
+</div></body></html>"""
+
         sse_app = mcp.sse_app()
-        uvicorn.run(sse_app, host="127.0.0.1", port=9879, log_level="warning")
-    except Exception as e:
-        logger.warning(f"SSE server error: {e}")
+        async def app(scope, receive, send):
+            if scope["type"] == "http" and scope["path"] == "/":
+                html = _make_html()
+                await send({ "type": "http.response.start", "status": 200, "headers": [[b"content-type", b"text/html"]] })
+                await send({ "type": "http.response.body", "body": html.encode() })
+            elif scope["type"] == "http" and scope["path"] == "/health":
+                body = json.dumps({"status":"ok","socket":f"{SOCKET_HOST}:{SOCKET_PORT}"})
+                await send({ "type": "http.response.start", "status": 200, "headers": [[b"content-type", b"application/json"]] })
+                await send({ "type": "http.response.body", "body": body.encode() })
+            else:
+                await sse_app(scope, receive, send)
+
+        uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
+    except Exception as e: logger.warning(f"SSE Error: {e}")
 
 if __name__ == "__main__":
     main()
