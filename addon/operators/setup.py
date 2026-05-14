@@ -20,12 +20,16 @@ class BLENDERMCP_OT_InstallDeps(Operator):
     def execute(self, context):
         self.report({'INFO'}, "Checking dependencies...")
         root = os.path.dirname(os.path.dirname(__file__))
+        req_file = os.path.join(root, "requirements.txt")
+        if not os.path.exists(req_file):
+            self.report({'INFO'}, "No requirements.txt, checking pip packages...")
+            self.report({'INFO'}, "Dependencies are auto-installed on activation")
+            return {'FINISHED'}
         try:
-            result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-r",
-                 os.path.join(root, "requirements.txt")],
-                capture_output=True, text=True, timeout=60
-            )
+            cmd = [sys.executable, "-m", "pip", "install", "-r", req_file, "--quiet"]
+            if sys.prefix == sys.base_prefix:
+                cmd.append("--break-system-packages")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             if result.returncode == 0:
                 self.report({'INFO'}, "Dependencies installed")
             else:

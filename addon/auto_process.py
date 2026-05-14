@@ -213,6 +213,7 @@ def _try_auto_start_client():
 def _respond(mid, text, is_status=False):
     def update():
         for s in bpy.data.scenes:
+            # Remove old status
             for i, m in enumerate(s.aimcp_chat.msgs):
                 if m.role == "status" and m.text.endswith("..."):
                     s.aimcp_chat.msgs.remove(i)
@@ -220,10 +221,15 @@ def _respond(mid, text, is_status=False):
             if is_status:
                 s.aimcp_chat.add("status", text, scene=s)
             else:
+                # Add response directly to chat (no polling needed)
+                s.aimcp_chat.add("assistant", text, scene=s)
                 with bsock._chat_lock:
-                    bsock._chat_responses[mid] = text
                     bsock._chat_queue[:] = [m for m in bsock._chat_queue if m["id"] != mid]
             s.aimcp_waiting = False
+            # Force redraw ALL areas (not just active one)
+            for screen in bpy.data.screens:
+                for area in screen.areas:
+                    area.tag_redraw()
         return None
     bpy.app.timers.register(update, first_interval=0.0)
 
