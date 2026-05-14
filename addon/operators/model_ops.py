@@ -124,9 +124,25 @@ class OP_Refresh(Operator):
         return {'FINISHED'}
 
 
+def _detect_provider(model_id):
+    """Detect provider from model ID string."""
+    for pid in PROVIDER_ORDER:
+        if model_id.startswith(pid):
+            return pid
+    for pid in _PROVIDER_API:
+        if pid in model_id:
+            return pid
+    return "opencode-go"
+
+
 # Thread-safe status queue (main thread picks up results)
 _pending_status = []
 _pending_lock = threading.Lock()
+
+def _queue_status(scene_name, msg):
+    """Thread-safe: queue status update for main thread timer."""
+    with _pending_lock:
+        _pending_status.append((scene_name, msg))
 
 def _status_ticker():
     """Timer callback: flush pending status updates to scene."""
@@ -158,41 +174,30 @@ class OP_SelectModel(Operator):
         return {'FINISHED'}
 
     def _verify(self, ctx):
-        provider = self._detect_provider(self.model_id)
+        provider = _detect_provider(self.model_id)
         key = _get_api_key(provider)
         if not key:
-            self._queue_status(ctx, "🔴 Sin API key para " + provider)
+            _queue_status(ctx.scene.name, "🔴 Sin API key para " + provider)
             return
         cfg = _PROVIDER_API.get(provider)
         if not cfg:
-            self._queue_status(ctx, "⚠️ Modelo seleccionado (sin verificación)")
+            _queue_status(ctx.scene.name, "⚠️ Modelo seleccionado (sin verificación)")
             return
         try:
             headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
             req = urllib.request.Request(cfg["url"], headers=headers)
             urllib.request.urlopen(req, timeout=5)
-            self._queue_status(ctx, "✅ Conectado: " + provider)
+            _queue_status(ctx.scene.name, "✅ Conectado: " + provider)
         except urllib.error.HTTPError as e:
-            self._queue_status(ctx, f"🔴 Key inválida ({e.code})")
+            _queue_status(ctx.scene.name, f"🔴 Key inválida ({e.code})")
         except urllib.error.URLError:
-            self._queue_status(ctx, "🔴 No se pudo contactar el servidor")
+            _queue_status(ctx.scene.name, "🔴 No se pudo contactar el servidor")
         except Exception as e:
-            self._queue_status(ctx, f"🔴 Error: {str(e)[:40]}")
-
-    def _detect_provider(self, model_id):
-        for pid in PROVIDER_ORDER:
-            if model_id.startswith(pid):
-                return pid
-        for pid in _PROVIDER_API:
-            if pid in model_id:
-                return pid
-        return "opencode-go"
+            _queue_status(ctx.scene.name, f"🔴 Error: {str(e)[:40]}")
 
     def _queue_status(self, ctx, msg):
         """Thread-safe: queue status update for main thread timer."""
-        global _pending_status
-        with _pending_lock:
-            _pending_status.append((ctx.scene.name, msg))
+        _queue_status(ctx.scene.name, msg)
 
 
 class OP_ApplyModel(Operator):

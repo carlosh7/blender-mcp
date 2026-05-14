@@ -303,14 +303,79 @@ def register():
         setattr(Scene, f"aimcp_show_{pid.replace('-','_')}", BoolProperty(default=False))
 
     # ─── Timers (CRITICAL: must always register) ───
+    _delayed_step = 0
+
     def delayed_load():
-        for s in bpy.data.scenes:
-            load_history(s.aimcp_chat)
-        try:
-            bpy.ops.aimcp.refresh()
-        except:
-            pass
+        nonlocal _delayed_step
+        _delayed_step += 1
+
+        if _delayed_step == 1:
+            # Step 1: load history + start model refresh
+            for s in bpy.data.scenes:
+                load_history(s.aimcp_chat)
+            try:
+                bpy.ops.aimcp.refresh()
+            except:
+                pass
+            return 2.0  # wait 2s for refresh to complete
+
+        if _delayed_step == 2:
+            # Step 2: auto-select model from opencode config
+            import json
+            from pathlib import Path
+            from ..operators.model_ops import get_opencode_config_paths, _status_ticker
+            model = ""
+            for p in get_opencode_config_paths():
+                if os.path.exists(p):
+                    try:
+                        d = json.loads(open(p).read())
+                        if d.get("model"):
+                            model = d["model"]
+                            break
+                    except:
+                        pass
+            if model:
+                for s in bpy.data.scenes:
+                    s.aimcp_model = model
+                    s.aimcp_connection_status = "🟡 Verificando..."
+                    # Trigger verification in background
+                    threading.Thread(
+                        target=_auto_verify_model,
+                        args=(model, s.name),
+                        daemon=True,
+                    ).start()
+            return None
+
         return None
+
+    def _auto_verify_model(model_id, scene_name):
+        """Auto-verify model at startup (thread-safe)."""
+        try:
+            from ..operators.model_ops import (
+                _detect_provider, _get_api_key, _PROVIDER_API,
+                _queue_status,
+            )
+            provider = _detect_provider(model_id)
+            key = _get_api_key(provider)
+            if not key:
+                _queue_status(scene_name, "🔴 Sin API key para " + provider)
+                return
+            cfg = _PROVIDER_API.get(provider)
+            if not cfg:
+                _queue_status(scene_name, "⚠️ Modelo sin verificar")
+                return
+            import urllib.request
+            headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
+            req = urllib.request.Request(cfg["url"], headers=headers)
+            urllib.request.urlopen(req, timeout=5)
+            _queue_status(scene_name, "✅ Conectado: " + provider)
+        except urllib.error.HTTPError as e:
+            _queue_status(scene_name, f"🔴 Key inválida ({e.code})")
+        except urllib.error.URLError:
+            _queue_status(scene_name, "🔴 No se pudo contactar servidor")
+        except Exception as e:
+            _queue_status(scene_name, f"🔴 Error: {str(e)[:40]}")
+
     bpy.app.timers.register(delayed_load, first_interval=0.5)
 
     def _redraw_areas():
