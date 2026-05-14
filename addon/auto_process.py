@@ -134,43 +134,14 @@ REGLAS:
 
 
 def _exec_code(code):
-    """Ejecuta código Python en Blender. Intenta como bloque, si falla, línea por línea."""
+    """Ejecuta código Python completo en Blender. Reporta errores pero no detiene el addon."""
     ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
     try:
         compiled = compile(code, "<blender_code>", "exec")
         exec(compiled, ns)
-        return
+        print("[AUTO] Código ejecutado correctamente")
     except Exception as e:
-        print(f"[AUTO] Error en bloque completo: {e}. Intentando línea por línea...")
-
-    # Línea por línea (para funciones, def, for, if se ejecutan como bloque pequeño)
-    errors = 0
-    buffer = ""
-    for line in code.split("\n"):
-        buffer += line + "\n"
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        # Si la línea parece completa (termina sin indentación abierta), ejecutar
-        if buffer.strip():
-            try:
-                compiled = compile(buffer, "<line>", "exec")
-                exec(compiled, ns)
-                buffer = ""
-            except SyntaxError:
-                continue  # Línea incompleta, seguir acumulando
-            except Exception:
-                errors += 1
-                buffer = ""
-
-    if buffer.strip():
-        try:
-            exec(compile(buffer, "<line>", "exec"), ns)
-        except:
-            errors += 1
-
-    if errors:
-        print(f"[AUTO] Ejecutado con {errors} error(es) menor(es)")
+        print(f"[AUTO] Error en código: {e}")
 
 
 def _append_to_log(text, tag="AI"):
