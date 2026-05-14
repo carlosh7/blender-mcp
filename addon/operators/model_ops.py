@@ -182,9 +182,10 @@ class OP_SelectModel(Operator):
         return {'FINISHED'}
 
     def _verify(self, ctx):
-        provider = _detect_provider(self.model_id)
+        model_id = self.model_id  # guardar antes del thread (StructRNA se elimina en thread)
+        provider = _detect_provider(model_id)
         key = _get_api_key(provider)
-        print(f"[VERIFY] Modelo={self.model_id}, Provider={provider}, Key={'✅' if key else '❌'}")
+        print(f"[VERIFY] Modelo={model_id}, Provider={provider}, Key={'✅' if key else '❌'}")
         if not key:
             _queue_status(ctx.scene.name, "🔴 Sin API key para " + provider)
             return

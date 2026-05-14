@@ -51,7 +51,7 @@ class MiniAPIHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/health":
             self._send({
                 "status": "ok",
-                "version": "0.8.26",
+                "version": "0.8.27",
                 "blender": bpy.app.version_string,
                 "scene": bpy.context.scene.name,
                 "objects": len(bpy.data.objects),
@@ -83,7 +83,7 @@ h1{{font-size:1.5em}} .v{{color:#888;font-size:.9em;margin:.3em 0 1.5em}}
 a{{color:#64b5f6;text-decoration:none}} .f{{margin-top:1.5em;padding-top:1em;border-top:1px solid #2a2a4a;font-size:.8em;color:#666}}
 </style></head>
 <body><div class="card">
-<h1>blender-mcp ●</h1><div class="v">v0.8.26</div>
+<h1>blender-mcp ●</h1><div class="v">v0.8.27</div>
 <div class="s"><span class="g"></span> Blender {bpy.app.version_string}</div>
 <div class="s"><span class="g"></span> Escena: {bpy.context.scene.name}</div>
 <div class="s"><span class="g"></span> <a href="/api/health">/api/health</a></div>
