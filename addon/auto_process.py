@@ -164,12 +164,12 @@ ORGANIZACIÓN DE ESCENA:
 - NUNCA apiles objetos en (0,0,0). Usa la posición sugerida en el contexto.
 - Nombres ÚNICOS: si "Dona" ya existe, usa "Dona_001", "Dona_002", etc.
 - "hola" → bpy.ops.object.text_add(location=(0, 2, 0)). body = "Hola".
-- Para objetos con múltiples partes (batería, mesa, etc.):
-  1. Crea colección: col = bpy.data.collections.new("NombreColeccion")
+- Para objetos con múltiples partes:
+  1. col = bpy.data.collections.new("Nombre")
   2. bpy.context.collection.children.link(col)
-  3. Linkea cada parte: col.objects.link(parte)
-  NOTA: NO uses unlink(). Los objetos pueden estar en múltiples colecciones.
-- "50 manzanas" → Manzana_001 a Manzana_050, todas distribuidas como pida.
+  3. Después de crear CADA parte, haz: col.objects.link(parte)
+  ⚠️ IMPORTANTE: NO uses NUNCA bpy.context.collection.objects.unlink(). Es innecesario. Los objetos pueden estar en varias colecciones a la vez. Unlink causa error "not in collection".
+- "50 manzanas" → Manzana_001 a Manzana_050
 
 OBJETOS COMPLEJOS (curvas, orgánicos):
 - Para formas curvas usa: lattice + proportional editing + Simple Deform modifier.
@@ -281,12 +281,19 @@ def _get_prefs_context():
 
 # ─── Ejecución de código en main thread ───
 
+def _strip_unlink(code):
+    import re
+    code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+    code = re.sub(r'^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+    return code
+
 def _exec_code_main(code_blocks):
     results = []
     done = threading.Event()
 
     def execute():
         for code in code_blocks:
+            code = _strip_unlink(code)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, _HELPER_NAMESPACE)
