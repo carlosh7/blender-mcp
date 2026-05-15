@@ -1,4 +1,4 @@
-# blender-mcp v0.8.103 — Extension for Blender 4.2+
+# blender-mcp v0.8.104 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -152,11 +152,11 @@ from .operators import export as _export_ops
 from .operators import setup as _setup_ops
 from .operators import embedded as _embedded_ops
 from .operators import model_ops as _model_ops
-from .panels.chat import BLENDERMCP_OT_OpenWeb
+from .panels.chat import BLENDERMCP_OT_OpenWeb, BLENDERMCP_OT_InsertCommand
 
 classes = [
     ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData,
-    BLENDERMCP_OT_OpenWeb,
+    BLENDERMCP_OT_OpenWeb, BLENDERMCP_OT_InsertCommand,
 ]
 
 def register():

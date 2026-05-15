@@ -1,5 +1,5 @@
 """
-blender-mcp — Chat Panel (refactored from addon/__init__.py)
+blender-mcp — Chat Panel
 3D View Sidebar — Axiom tab chat interface.
 """
 import bpy
@@ -7,7 +7,7 @@ import json
 import os
 import time
 import webbrowser
-from bpy.props import StringProperty, CollectionProperty, BoolProperty, IntProperty, PointerProperty
+from bpy.props import StringProperty, CollectionProperty, BoolProperty, IntProperty, PointerProperty, EnumProperty
 from bpy.types import Panel, UIList, PropertyGroup, Operator
 
 from .. import _axsock as bsock
@@ -44,7 +44,7 @@ class ChatData(PropertyGroup):
             scene.aimcp_chat_index = self.count - 1
 
     @staticmethod
-    def _wrap(text, max_chars=45):
+    def _wrap(text, max_chars=90):
         lines = []
         for p in text.split("\n"):
             if not p:
@@ -78,9 +78,11 @@ class MCP_UL_Chat(UIList):
         row = layout.row(align=True)
         if item.is_new:
             tag = "Usted" if item.role == "user" else "IA" if item.role == "assistant" else "Sys"
+            if item.role == "status":
+                tag = "⏳"
             row.label(text=f"[{tag}] {item.text}")
         else:
-            row.label(text=f"      {item.text}")
+            row.label(text=f"   {item.text}")
 
 
 class BLENDERMCP_OT_OpenWeb(Operator):
@@ -91,6 +93,31 @@ class BLENDERMCP_OT_OpenWeb(Operator):
     def execute(self, context):
         webbrowser.open("http://127.0.0.1:9877/")
         return {'FINISHED'}
+
+
+class BLENDERMCP_OT_InsertCommand(Operator):
+    bl_idname = "blendermcp.insert_command"
+    bl_label = "Insert Command"
+    bl_description = "Insert selected AKB command into chat input"
+    
+    command: StringProperty()
+
+    def execute(self, context):
+        context.scene.aimcp_input = self.command
+        if context.area:
+            context.area.tag_redraw()
+        return {'FINISHED'}
+
+
+_AKB_COMMANDS_LIST = [
+    ("!akb_help", "!akb_help", "Show available commands"),
+    ("!akb_list", "!akb_list", "List AKB blueprints"),
+    ("!akb_specs truss", "!akb_specs ...", "Search specs in AKB"),
+    ("!feed_category av, truss", "!feed_category av, ...", "Feed AV category"),
+    ("!feed_category furniture, table", "!feed_category furniture", "Feed furniture"),
+    ("!feed_all", "!feed_all", "Feed all categories"),
+    ("!akb_clean", "!akb_clean", "Clean test objects"),
+]
 
 
 class PN_PT_Chat(Panel):
@@ -112,6 +139,18 @@ class PN_PT_Chat(Panel):
             row = box.row(align=True)
             row.operator("aimcp.refresh", text="Refresh Models", icon='FILE_REFRESH')
             L.separator()
+
+        # ── AKB Command Dropdown ──
+        box = L.box()
+        row = box.row(align=True)
+        row.label(text="AKB Commands:", icon='BOOKMARKS')
+        for cmd_id, cmd_text, cmd_desc in _AKB_COMMANDS_LIST:
+            op = row.operator("blendermcp.insert_command", text="", icon='ADD')
+            op.command = cmd_text
+        row = box.row(align=True)
+        for cmd_id, cmd_text, cmd_desc in _AKB_COMMANDS_LIST:
+            op = row.operator("blendermcp.insert_command", text=cmd_text, emboss=True)
+            op.command = cmd_text
 
         # ── Row 1: Status ──
         conn = c.aimcp_connection_status or "Listo"
@@ -136,7 +175,8 @@ class PN_PT_Chat(Panel):
         L.separator()
         col = L.column(align=True)
         num = len(c.aimcp_chat.msgs)
-        col.template_list("MCP_UL_Chat", "", c.aimcp_chat, "msgs", c, "aimcp_chat_index", rows=min(max(num, 2), 11))
+        rows_count = min(max(num, 3), 14)
+        col.template_list("MCP_UL_Chat", "", c.aimcp_chat, "msgs", c, "aimcp_chat_index", rows=rows_count)
         L.separator()
         L.prop(c, "aimcp_input", text="")
         row = L.row(align=True)
