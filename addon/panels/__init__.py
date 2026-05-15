@@ -2,6 +2,6 @@
 blender-mcp — Panels UI
 """
 
-from . import chat, integrations, config
+from . import chat, config
 
-__all__ = ["chat", "integrations", "config"]
+__all__ = ["chat", "config"]
