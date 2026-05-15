@@ -96,22 +96,22 @@ class BLENDERMCP_OT_OpenWeb(Operator):
 
 
 _AKB_COMMANDS = {
-    "!akb_help": "Show available AKB commands | Muestra los comandos disponibles",
-    "!akb_list": "List all AKB blueprints | Lista los blueprints en AKB",
-    "!akb_specs": "Search for object specs in AKB | Busca especificaciones en AKB",
-    "!feed_category": "Search Poly Haven and save blueprints | Busca en Poly Haven y guarda en AKB",
-    "!feed_all": "Feed all AKB categories automatically | Alimenta todas las categorías del AKB",
-    "!akb_clean": "Delete all test objects from scene | Elimina objetos de prueba de la escena",
+    "help": "Show available AKB commands | Muestra los comandos disponibles",
+    "list": "List all AKB blueprints | Lista los blueprints en AKB",
+    "specs": "Search for object specs in AKB | Busca especificaciones en AKB",
+    "feed": "Search Poly Haven and save blueprints | Busca en Poly Haven y guarda en AKB",
+    "feed_all": "Feed all AKB categories automatically | Alimenta todas las categorías del AKB",
+    "clean": "Delete all test objects from scene | Elimina objetos de prueba de la escena",
 }
 
-_AKB_COMMANDS_LIST = [
-    ("!akb_help", "!akb_help"),
-    ("!akb_list", "!akb_list"),
-    ("!akb_specs truss", "!akb_specs"),
-    ("!feed_category av, truss", "!feed_category"),
-    ("!feed_all", "!feed_all"),
-    ("!akb_clean", "!akb_clean"),
-]
+_AKB_CMD_MAP = {
+    "help": "!akb_help",
+    "list": "!akb_list",
+    "specs": "!akb_specs truss",
+    "feed": "!feed_category av, truss",
+    "feed_all": "!feed_all",
+    "clean": "!akb_clean",
+}
 
 
 class BLENDERMCP_OT_InsertCommand(Operator):
@@ -151,14 +151,14 @@ class PN_PT_Chat(Panel):
             row.operator("aimcp.refresh", text="Refresh Models", icon='FILE_REFRESH')
             L.separator()
 
-        # ── AKB Command Dropdown ──
+        # ── AKB Commands ──
         box = L.box()
         row = box.row(align=True)
-        row.label(text="AKB Commands:", icon='BOOKMARKS')
+        row.label(text="AKB Cmd:", icon='BOOKMARKS')
         row = box.row(align=True)
-        for cmd_id, cmd_text, cmd_desc in _AKB_COMMANDS_LIST:
-            op = row.operator("blendermcp.insert_command", text=cmd_text, emboss=True)
-            op.command = cmd_text
+        for key in _AKB_COMMANDS:
+            op = row.operator("blendermcp.insert_command", text=key, emboss=True)
+            op.command = _AKB_CMD_MAP[key]
 
         # ── Row 1: Status ──
         conn = c.aimcp_connection_status or "Listo"
