@@ -13,7 +13,8 @@ _stop_agent = False
 mcp_last_ping = 0  # timestamp of last ping from MCP server
 mcp_connected = False
 mcp_status = "idle"
-mcp_error = ""  # true if ping received in last 15s
+mcp_error = ""
+_mcp_process = None  # true if ping received in last 15s
 
 class BlenderSocketServer:
     """TCP socket server inside Blender for receiving MCP commands."""
