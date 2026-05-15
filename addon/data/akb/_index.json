@@ -1,5 +1,8 @@
 [
   {"name": "truss_f34", "category": "av", "display_name": "Global Truss F34 2m", "dimensions": [0.29, 2.0, 0.29], "source": "expert_standard"},
   {"name": "led_panel_500", "category": "av", "display_name": "LED Wall Cabinet 500x500", "dimensions": [0.5, 0.075, 0.5], "source": "expert_standard"},
-  {"name": "moving_head_robe", "category": "av", "display_name": "Robe BMFL Spot", "dimensions": [0.813, 0.483, 0.335], "source": "expert_standard"}
+  {"name": "moving_head_robe", "category": "av", "display_name": "Robe BMFL Spot", "dimensions": [0.813, 0.483, 0.335], "source": "expert_standard"},
+  {"name": "line_array_k2", "category": "av", "display_name": "L-Acoustics K2 Line Array", "dimensions": [1.338, 0.403, 0.4], "source": "expert_standard"},
+  {"name": "stage_deck", "category": "av", "display_name": "Stage Deck 2x1m", "dimensions": [2.0, 0.4, 1.0], "source": "expert_standard"},
+  {"name": "human_reference", "category": "structural", "display_name": "Human Reference", "dimensions": [0.45, 1.75, 0.3], "source": "expert_standard"}
 ]

@@ -1,0 +1,7 @@
+{
+  "name": "Stage Deck 2x1m",
+  "source": "expert_standard",
+  "mass_kg": 25,
+  "material": "Plywood, aluminum frame",
+  "dimensions": [2.0, 0.4, 1.0]
+}

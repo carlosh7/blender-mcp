@@ -1,0 +1,7 @@
+{
+  "name": "Human Reference",
+  "source": "expert_standard",
+  "mass_kg": 75,
+  "dimensions": [0.45, 1.75, 0.3],
+  "functional_points": []
+}

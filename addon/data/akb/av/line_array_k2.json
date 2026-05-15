@@ -1,0 +1,7 @@
+{
+  "name": "L-Acoustics K2 Line Array",
+  "source": "expert_standard",
+  "mass_kg": 56,
+  "material": "Birch plywood, steel",
+  "dimensions": [1.338, 0.403, 0.400]
+}
