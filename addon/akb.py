@@ -91,8 +91,33 @@ def save_blueprint(data, category, name):
     return str(filepath)
 
 
+def _normalize(bp):
+    """Asegura que el blueprint tenga schema v0.4.0 completo."""
+    if "geometry" not in bp:
+        dims = bp.get("dimensions", [1, 1, 1])
+        bp["geometry"] = {
+            "dimensions": dims,
+            "anchors_27pt": _calc_27_anchors(dims),
+            "topology_hash": bp.get("topology_hash", None),
+        }
+    if "metadata" not in bp:
+        bp["metadata"] = {
+            "category": bp.get("category", bp.get("name", "unknown")),
+            "name": bp.get("name", "unknown"),
+            "source": bp.get("source", "manual"),
+            "source_id": bp.get("source_id", ""),
+            "mass_kg": bp.get("mass_kg", 0),
+            "ior_refraction": bp.get("ior", 1.0),
+            "electrical_watts": bp.get("watts", 0),
+            "material": bp.get("material", ""),
+        }
+    if "functional_points" not in bp:
+        bp["functional_points"] = bp.get("functional_points", [])
+    return bp
+
+
 def get_specs(query):
-    """Busca en AKB por nombre o categoría. Devuelve lista de blueprints."""
+    """Busca en AKB por nombre o categoría. Devuelve lista de blueprints normalizados (schema v0.4.0)."""
     q = query.lower().strip()
     _ensure_dirs()
     results = []
@@ -102,7 +127,7 @@ def get_specs(query):
             fp = _AKB_DIR / entry["category"] / f"{entry['name']}.json"
             if fp.exists():
                 bp = json.loads(fp.read_text())
-                results.append(bp)
+                results.append(_normalize(bp))
     return results
 
 

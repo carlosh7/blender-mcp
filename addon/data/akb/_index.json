@@ -4,5 +4,10 @@
   {"name": "moving_head_robe", "category": "av", "display_name": "Robe BMFL Spot", "dimensions": [0.813, 0.483, 0.335], "source": "expert_standard"},
   {"name": "line_array_k2", "category": "av", "display_name": "L-Acoustics K2 Line Array", "dimensions": [1.338, 0.403, 0.4], "source": "expert_standard"},
   {"name": "stage_deck", "category": "av", "display_name": "Stage Deck 2x1m", "dimensions": [2.0, 0.4, 1.0], "source": "expert_standard"},
+  {"name": "mixer_cl5", "category": "av", "display_name": "AV Mixer CL5", "dimensions": [1.05, 0.3, 0.67], "source": "expert_standard"},
+  {"name": "arcade_machine", "category": "furniture", "display_name": "Arcade Machine", "dimensions": [0.7, 1.8, 0.8], "source": "expert_standard"},
+  {"name": "table", "category": "furniture", "display_name": "Table Standard", "dimensions": [1.2, 0.75, 0.8], "source": "expert_standard"},
+  {"name": "chair", "category": "furniture", "display_name": "Chair Standard", "dimensions": [0.5, 0.9, 0.5], "source": "expert_standard"},
+  {"name": "door", "category": "structural", "display_name": "Door Standard", "dimensions": [0.9, 2.1, 0.04], "source": "expert_standard"},
   {"name": "human_reference", "category": "structural", "display_name": "Human Reference", "dimensions": [0.45, 1.75, 0.3], "source": "expert_standard"}
 ]

@@ -1,0 +1,7 @@
+{
+  "name": "Table Standard",
+  "source": "expert_standard",
+  "mass_kg": 15,
+  "dimensions": [1.2, 0.75, 0.8],
+  "rules": ["Surface must be horizontal (Z-up normal)"]
+}

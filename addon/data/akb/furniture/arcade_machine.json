@@ -1,0 +1,10 @@
+{
+  "name": "Arcade Machine",
+  "source": "expert_standard",
+  "mass_kg": 80,
+  "dimensions": [0.7, 1.8, 0.8],
+  "functional_points": [
+    {"type": "panel", "name": "Control Panel", "pos": [0, 0.95, 0.4]}
+  ],
+  "rules": ["Control panel at 0.95m from floor", "Screen at eye level 1.4m-1.6m"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "AV Mixer CL5",
+  "source": "expert_standard",
+  "mass_kg": 25,
+  "dimensions": [1.05, 0.3, 0.67],
+  "rules": ["Place on stable desk or 19-inch rack adapter"]
+}
