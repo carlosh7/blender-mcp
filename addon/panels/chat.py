@@ -122,14 +122,10 @@ class BLENDERMCP_OT_InsertCommand(Operator):
 
     @classmethod
     def description(cls, context, properties):
-        raw = properties.command.lstrip("!").split()[0]
-        for key in _AKB_COMMANDS:
-            if raw.endswith(key) or key.endswith(raw):
-                return _AKB_COMMANDS[key]
-        return _AKB_COMMANDS.get(raw, "Insert AKB command | Inserta comando AKB")
+        return _AKB_COMMANDS.get(properties.command, "Insert AKB command | Inserta comando AKB")
 
     def execute(self, context):
-        context.scene.aimcp_input = self.command
+        context.scene.aimcp_input = _AKB_CMD_MAP.get(self.command, "!" + self.command)
         if context.area:
             context.area.tag_redraw()
         return {'FINISHED'}
@@ -162,7 +158,7 @@ class PN_PT_Chat(Panel):
         row = box.row(align=True)
         for key in _AKB_COMMANDS:
             op = row.operator("blendermcp.insert_command", text=key, emboss=True)
-            op.command = _AKB_CMD_MAP[key]
+            op.command = key
 
         # ── Row 1: Status ──
         conn = c.aimcp_connection_status or "Listo"
