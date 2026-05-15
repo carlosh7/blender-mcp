@@ -95,29 +95,40 @@ class BLENDERMCP_OT_OpenWeb(Operator):
         return {'FINISHED'}
 
 
+_AKB_COMMANDS = {
+    "!akb_help": "Show available AKB commands | Muestra los comandos disponibles",
+    "!akb_list": "List all AKB blueprints | Lista los blueprints en AKB",
+    "!akb_specs": "Search for object specs in AKB | Busca especificaciones en AKB",
+    "!feed_category": "Search Poly Haven and save blueprints | Busca en Poly Haven y guarda en AKB",
+    "!feed_all": "Feed all AKB categories automatically | Alimenta todas las categorías del AKB",
+    "!akb_clean": "Delete all test objects from scene | Elimina objetos de prueba de la escena",
+}
+
+_AKB_COMMANDS_LIST = [
+    ("!akb_help", "!akb_help"),
+    ("!akb_list", "!akb_list"),
+    ("!akb_specs truss", "!akb_specs"),
+    ("!feed_category av, truss", "!feed_category"),
+    ("!feed_all", "!feed_all"),
+    ("!akb_clean", "!akb_clean"),
+]
+
+
 class BLENDERMCP_OT_InsertCommand(Operator):
     bl_idname = "blendermcp.insert_command"
     bl_label = "Insert Command"
-    bl_description = "Insert selected AKB command into chat input"
     
     command: StringProperty()
+
+    @classmethod
+    def description(cls, context, properties):
+        return _AKB_COMMANDS.get(properties.command, "Insert AKB command | Inserta comando AKB")
 
     def execute(self, context):
         context.scene.aimcp_input = self.command
         if context.area:
             context.area.tag_redraw()
         return {'FINISHED'}
-
-
-_AKB_COMMANDS_LIST = [
-    ("!akb_help", "!akb_help", "Show available commands"),
-    ("!akb_list", "!akb_list", "List AKB blueprints"),
-    ("!akb_specs truss", "!akb_specs ...", "Search specs in AKB"),
-    ("!feed_category av, truss", "!feed_category av, ...", "Feed AV category"),
-    ("!feed_category furniture, table", "!feed_category furniture", "Feed furniture"),
-    ("!feed_all", "!feed_all", "Feed all categories"),
-    ("!akb_clean", "!akb_clean", "Clean test objects"),
-]
 
 
 class PN_PT_Chat(Panel):
