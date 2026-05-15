@@ -106,10 +106,25 @@ class BLENDERMCP_OT_StartMCP(Operator):
         import threading
         def _run():
             try:
+                import sys, os
+                ext_root = os.path.dirname(os.path.abspath(__file__))
+                ext_root = os.path.dirname(ext_root)
+                if ext_root not in sys.path:
+                    sys.path.insert(0, ext_root)
                 import uvicorn
-                from .. import mcp_server
-                app = mcp_server.mcp.sse_app()
-                uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
+                from mcp.server.fastmcp import FastMCP
+                from mcp.types import ToolAnnotations
+                from blender_connection import get_blender
+                _mcp = FastMCP("blender-mcp", log_level="INFO")
+                @_mcp.tool(**dict(annotations=ToolAnnotations(readOnlyHint=True)))
+                def get_scene_info() -> str:
+                    import json
+                    return json.dumps(get_blender().send_command("get_scene_info"), indent=2)
+                @_mcp.tool(**dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True)))
+                def execute_blender_code(code: str) -> str:
+                    r = get_blender().send_command("execute_code", {"code": code})
+                    return f"Salida:\n{r.get('output', '')}"
+                uvicorn.run(_mcp.sse_app(), host="127.0.0.1", port=9879, log_level="warning")
             except Exception as e:
                 print(f"[blender-mcp] MCP start: {e}")
         t = threading.Thread(target=_run, daemon=True)

@@ -1,4 +1,4 @@
-# blender-mcp v0.8.119 — Extension for Blender 4.2+
+# blender-mcp v0.8.120 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -177,11 +177,55 @@ def register():
         _axsock.mcp_status = "starting..."
         _axsock.mcp_error = ""
         try:
+            import sys
+            import os
+            ext_root = os.path.dirname(os.path.abspath(__file__))
+            if ext_root not in sys.path:
+                sys.path.insert(0, ext_root)
             import uvicorn
-            from . import mcp_server
-            app = mcp_server.mcp.sse_app()
+            from mcp.server.fastmcp import FastMCP
+            from mcp.types import ToolAnnotations
+            from blender_connection import get_blender
+            _mcp = FastMCP("blender-mcp", log_level="INFO")
+            def RO():
+                return dict(annotations=ToolAnnotations(readOnlyHint=True))
+            def RW():
+                return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True))
+
+            @_mcp.tool(**RO())
+            def get_scene_info() -> str:
+                import json
+                return json.dumps(get_blender().send_command("get_scene_info"), indent=2)
+
+            @_mcp.tool(**RW())
+            def execute_blender_code(code: str) -> str:
+                r = get_blender().send_command("execute_code", {"code": code})
+                return f"Salida:\n{r.get('output', '')}"
+
+            @_mcp.tool(**RO())
+            def get_viewport_screenshot() -> str:
+                r = get_blender().send_command("get_viewport_screenshot")
+                if "error" in r:
+                    return f"Error: {r['error']}"
+                return f"Captura: {r['filepath']}"
+
+            @_mcp.tool(**RO())
+            def search_api_docs(query: str) -> str:
+                import json
+                r = get_blender().send_command("search_api_docs", {"query": query})
+                return json.dumps(r, indent=2)
+
+            @_mcp.tool(**RW())
+            def snap_and_parent(obj_move: str, obj_target: str, anchor_move: str, anchor_target: str) -> str:
+                import json
+                r = get_blender().send_command("snap_and_parent", {
+                    "obj_move": obj_move, "obj_target": obj_target,
+                    "anchor_move": anchor_move, "anchor_target": anchor_target
+                })
+                return json.dumps(r, indent=2)
+
             _axsock.mcp_status = "running"
-            uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
+            uvicorn.run(_mcp.sse_app(), host="127.0.0.1", port=9879, log_level="warning")
         except Exception as e:
             _axsock.mcp_status = "error"
             _axsock.mcp_error = str(e)

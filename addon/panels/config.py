@@ -49,10 +49,18 @@ class PN_PT_Config(Panel):
                   icon='CHECKBOX_HLT' if is_connected else 'CHECKBOX_DEHLT')
 
         mcp_ok = _check_mcp()
+        if bsock.mcp_status == "error":
+            mcp_label = f" Error: {bsock.mcp_error[:40]}"
+            mcp_icon = 'ERROR'
+        elif mcp_ok:
+            mcp_label = " Online (:9879)"
+            mcp_icon = 'CHECKBOX_HLT'
+        else:
+            mcp_label = f" {bsock.mcp_status}"
+            mcp_icon = 'SORTTIME'
         row = box.row(align=True)
-        row.label(text="MCP:" + (" Online (:9879)" if mcp_ok else " Offline"),
-                  icon='CHECKBOX_HLT' if mcp_ok else 'CHECKBOX_DEHLT')
-        if not mcp_ok:
+        row.label(text="MCP:" + mcp_label, icon=mcp_icon)
+        if not mcp_ok and bsock.mcp_status != "starting...":
             row.operator("blendermcp.start_mcp", text="Start", icon='PLAY')
 
         row = box.row(align=True)
@@ -60,10 +68,6 @@ class PN_PT_Config(Panel):
             row.label(text="opencode: http://127.0.0.1:9879/sse", icon='URL')
         else:
             row.label(text="opencode: No disponible", icon='ERROR')
-
-        conn = c.aimcp_connection_status
-        if conn:
-            row = box.row(align=True)
 
         L.separator()
 
