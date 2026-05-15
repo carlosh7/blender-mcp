@@ -447,13 +447,10 @@ def _strip_bad_code(code):
 
 def _validate_code(code):
     try:
-        from ..src.blender_mcp.utils.validator import validate
-    except ImportError:
-        try:
-            from blender_mcp.utils.validator import validate
-        except ImportError:
-            return []
-    return validate(code)
+        from blender_mcp.utils.validator import validate
+        return validate(code)
+    except:
+        return []
 
 def _exec_code_main(code_blocks):
     results = []
@@ -632,29 +629,58 @@ def _handle_command(mid, text):
         return True
 
     if cmd == "!feed_category":
+        _VALID_CATS = {"av":["av","audio","audivisual","audiovisual","video","sonido","a/v"],
+                       "furniture":["furniture","muebles","mueble","furni"],
+                       "vehicles":["vehicles","vehiculos","autos","carros"],
+                       "structural":["structural","estructura","construccion"]}
+        def _resolve_cat(name):
+            name = name.lower().strip()
+            for cat, syns in _VALID_CATS.items():
+                if name in syns:
+                    return cat
+            return name
+        
         if not args:
-            _respond(mid, "⚠️ Uso: !feed_category <categoria>, <keyword1>, <keyword2>...\nEj: !feed_category av, truss, speaker, camera")
+            cats = ", ".join(_VALID_CATS.keys())
+            _respond(mid, f"⚠️ Uso: !feed_category <categoria>, <keyword1>, <keyword2>...\nCategorías válidas: {cats}\nEj: !feed_category av, truss, speaker")
             _cleanup(mid)
             return True
+        
         full = " ".join(args)
         parts = [p.strip() for p in full.split(",")]
-        category = parts[0]
+        raw_cat = parts[0]
+        category = _resolve_cat(raw_cat)
+        if category != raw_cat:
+            _respond(mid, f"🔀 '{raw_cat}' → categoría '{category}'", is_status=True)
         keywords = parts[1:] if len(parts) > 1 else [category]
-        _respond(mid, f"⏳ Alimentando {category} con {keywords}...", is_status=True)
+        
+        # Validate category exists
+        from .akb import _ensure_dirs
+        from pathlib import Path
+        akb_base = Path(__file__).parent / "data" / "akb"
+        if not (akb_base / category).exists():
+            cats = ", ".join(_VALID_CATS.keys())
+            _respond(mid, f"❌ Categoría '{category}' no existe. Válidas: {cats}\nEj: !feed_category av, truss, speaker")
+            _cleanup(mid)
+            return True
+        
+        _respond(mid, f"⏳ Buscando {keywords} en {category}...", is_status=True)
         
         def feed():
             try:
                 from .akb_fetcher import feed_from_polyhaven
                 result = feed_from_polyhaven(category, keywords)
                 total = result.get("feeded", 0)
-                msg = f"✅ **Alimentación completada:** {total} nuevos blueprints en {category}"
-                if result.get("items"):
-                    for item in result["items"]:
+                if total == 0:
+                    msg = f"⚠️ No se encontraron modelos para {keywords} en Poly Haven.\nPrueba otras palabras clave o verifica la categoría."
+                else:
+                    msg = f"✅ **{total} nuevo(s) blueprint(s) en {category}:**"
+                    for item in result.get("items", []):
                         dims = item.get("dimensions", "?")
                         msg += f"\n- {item['name']}: {dims}"
                 _respond(mid, msg)
             except Exception as e:
-                _respond(mid, f"❌ Error alimentando AKB: {e}")
+                _respond(mid, f"❌ Error: {e}")
             _cleanup(mid)
         threading.Thread(target=feed, daemon=True).start()
         return True
