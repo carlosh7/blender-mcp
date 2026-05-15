@@ -4,6 +4,8 @@ Model selector with provider browsing, status, connection state.
 """
 import bpy
 import os
+import socket
+import threading
 from bpy.types import Panel
 from .. import PROVIDER_ORDER, PROVIDER_LABELS
 from .. import _axsock as bsock
@@ -11,6 +13,16 @@ from .. import _axsock as bsock
 def _docs_installed():
     api_dir = os.path.join(os.path.dirname(__file__), "..", "data", "api")
     return os.path.exists(api_dir) and len(os.listdir(api_dir)) > 10
+
+def _check_mcp():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.connect(('127.0.0.1', 9879))
+        s.close()
+        return True
+    except:
+        return False
 
 
 class PN_PT_Config(Panel):
@@ -33,16 +45,22 @@ class PN_PT_Config(Panel):
         row.label(text="Socket:" + (" Online" if is_connected else " Offline"),
                   icon='CHECKBOX_HLT' if is_connected else 'CHECKBOX_DEHLT')
 
-        is_mcp = bsock.mcp_connected
+        mcp_ok = _check_mcp()
         row = box.row(align=True)
-        row.label(text="MCP:" + (" Connected" if is_mcp else " Waiting"),
-                  icon='CHECKBOX_HLT' if is_mcp else 'SORTTIME')
+        row.label(text="MCP:" + (" Online (:9879)" if mcp_ok else " Offline"),
+                  icon='CHECKBOX_HLT' if mcp_ok else 'CHECKBOX_DEHLT')
+        if not mcp_ok:
+            row.operator("blendermcp.start_mcp", text="Start", icon='PLAY')
+
+        row = box.row(align=True)
+        if mcp_ok:
+            row.label(text="opencode: http://127.0.0.1:9879/sse", icon='URL')
+        else:
+            row.label(text="opencode: No disponible", icon='ERROR')
 
         conn = c.aimcp_connection_status
         if conn:
             row = box.row(align=True)
-            icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'INFO'
-            row.label(text=conn, icon=icon)
 
         L.separator()
 

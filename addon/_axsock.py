@@ -395,6 +395,41 @@ class BlenderSocketServer:
         except Exception as e:
             return {"topic": topic, "error": str(e), "source": "error"}
 
+    def cmd_diagnose(self):
+        import socket
+        result = {"socket": False, "mcp": False}
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        try:
+            s.connect(('127.0.0.1', 9876))
+            result["socket"] = True
+        except:
+            pass
+        s.close()
+        try:
+            s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s2.settimeout(1)
+            s2.connect(('127.0.0.1', 9879))
+            result["mcp"] = True
+            s2.close()
+        except:
+            pass
+        return result
+
+    def cmd_start_mcp(self):
+        import threading
+        def _run():
+            try:
+                import uvicorn
+                import mcp_server
+                app = mcp_server.mcp.sse_app()
+                uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
+            except Exception:
+                pass
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        return {"status": "starting"}
+
     def cmd_get_scene_property(self, prop=""):
         """Get a property value from the current Blender scene (for proxy/agent mode detection)."""
         import bpy

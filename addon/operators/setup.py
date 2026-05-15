@@ -84,7 +84,6 @@ class BLENDERMCP_OT_HealthCheck(Operator):
     bl_label = "Health Check"
 
     def execute(self, context):
-        # Quick health check
         import socket
         host = "localhost"
         port = 9876
@@ -99,11 +98,32 @@ class BLENDERMCP_OT_HealthCheck(Operator):
         return {'FINISHED'}
 
 
+class BLENDERMCP_OT_StartMCP(Operator):
+    bl_idname = "blendermcp.start_mcp"
+    bl_label = "Start MCP Server"
+
+    def execute(self, context):
+        import threading
+        def _run():
+            try:
+                import uvicorn
+                import mcp_server
+                app = mcp_server.mcp.sse_app()
+                uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
+            except Exception as e:
+                print(f"[blender-mcp] MCP start: {e}")
+        t = threading.Thread(target=_run, daemon=True)
+        t.start()
+        self.report({'INFO'}, "MCP server starting on :9879")
+        return {'FINISHED'}
+
+
 SETUP_OPERATORS = [
     BLENDERMCP_OT_InstallDeps,
     BLENDERMCP_OT_CopyConfig,
     BLENDERMCP_OT_OpenLogs,
     BLENDERMCP_OT_HealthCheck,
+    BLENDERMCP_OT_StartMCP,
 ]
 
 
