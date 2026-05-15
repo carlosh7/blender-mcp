@@ -10,6 +10,7 @@ from pathlib import Path
 
 _AKB_DIR = Path(__file__).parent / "data" / "akb"
 _INDEX_FILE = _AKB_DIR / "_index.json"
+_REPO_AKB = Path(os.path.expanduser("~")) / "blender-mcp" / "addon" / "data" / "akb"
 
 
 def _ensure_dirs():
@@ -76,10 +77,34 @@ def save_blueprint(data, category, name):
     }
     filepath = cat_dir / f"{name}.json"
     filepath.write_text(json.dumps(bp, indent=2))
+
+    # Also save to repo for git tracking
+    try:
+        repo_cat = _REPO_AKB / category
+        repo_cat.mkdir(parents=True, exist_ok=True)
+        repo_fp = repo_cat / f"{name}.json"
+        repo_fp.write_text(json.dumps(bp, indent=2))
+        # Also update repo index
+        repo_idx = _REPO_AKB / "_index.json"
+        if repo_idx.exists():
+            ridx = json.loads(repo_idx.read_text())
+        else:
+            ridx = []
+        entry_r = {
+            "name": name, "category": category,
+            "display_name": data.get("name", name),
+            "dimensions": data.get("dimensions", [1, 1, 1]),
+            "source": data.get("source", "manual"),
+        }
+        if not any(e["name"] == name and e["category"] == category for e in ridx):
+            ridx.append(entry_r)
+        repo_idx.write_text(json.dumps(ridx, indent=2))
+    except:
+        pass
+
     index = _load_index()
     entry = {
-        "name": name,
-        "category": category,
+        "name": name, "category": category,
         "display_name": data.get("name", name),
         "dimensions": data.get("dimensions", [1, 1, 1]),
         "source": data.get("source", "manual"),
