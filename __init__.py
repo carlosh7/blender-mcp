@@ -47,7 +47,7 @@ def _ensure_deps():
     return True
 
 def register():
-    ver = "0.8.112"
+    ver = "0.8.113"
     print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE VERIFICACIÓN TOTAL v{ver}")
     
     if not _ensure_deps():
