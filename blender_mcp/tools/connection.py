@@ -3,7 +3,7 @@ blender-mcp — Connection & Sync tools
 Provides high-level tools to connect and sync with Blender in one go.
 """
 import json
-from ...blender_connection import get_blender
+from blender_connection import get_blender
 from mcp.types import ToolAnnotations
 
 def RO(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=True), **kw)

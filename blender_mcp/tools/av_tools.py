@@ -4,7 +4,7 @@ Advanced procedural generation for event engineering.
 """
 import json
 import math
-from ...blender_connection import get_blender
+from blender_connection import get_blender
 from mcp.types import ToolAnnotations
 
 def RW(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), **kw)

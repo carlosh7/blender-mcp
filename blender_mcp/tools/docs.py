@@ -3,7 +3,7 @@ blender-mcp — Blender API Docs MCP tools
 """
 import json
 import os
-from ...blender_connection import get_blender
+from blender_connection import get_blender
 from mcp.types import ToolAnnotations
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")

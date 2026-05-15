@@ -2,7 +2,7 @@
 blender-mcp — Assembly Engine v2.0 MCP tools
 """
 import json
-from ...blender_connection import get_blender
+from blender_connection import get_blender
 from mcp.types import ToolAnnotations
 
 def RW(**kw): return dict(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), **kw)

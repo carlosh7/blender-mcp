@@ -3,9 +3,9 @@ import json, os, sys, time, logging, threading, tempfile
 from pathlib import Path
 
 # Usamos imports relativos para cumplir con las políticas de Blender 4.2
-from .blender_mcp.platform import get_log_dir, SYSTEM as SYS
-from .blender_connection import get_blender, BlenderConnection
-from . import config
+from blender_mcp.platform import get_log_dir, SYSTEM as SYS
+from blender_connection import get_blender, BlenderConnection
+import config
 
 _log_dir = get_log_dir()
 _log_file = str(_log_dir / "server.log")
@@ -32,7 +32,7 @@ def ADD():
 _proxy_active = False
 
 # ─── Register modular tools (blender_mcp/tools/) ───
-from .blender_mcp.tools import (
+from blender_mcp.tools import (
     polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
     shader_nodes, animation, geometry_nodes, render,
     io, uv_texture, batch, rigging, scene_utils, printing,
@@ -94,7 +94,7 @@ _auto_connection = None
 def _get_auto_connection():
     global _auto_connection
     if _auto_connection is None:
-        from .blender_connection import SOCKET_HOST, SOCKET_PORT
+        from blender_connection import SOCKET_HOST, SOCKET_PORT
         _auto_connection = BlenderConnection(host=SOCKET_HOST, port=SOCKET_PORT)
     if not _auto_connection.sock: _auto_connection.connect()
     return _auto_connection
@@ -126,7 +126,7 @@ def _auto_process():
                     mid = msg.get("id")
                     if mid not in _processed_ids:
                         _processed_ids.add(mid)
-                        from . import agent_host
+                        import agent_host
                         _chat_history = agent_host.process_message(msg.get("message"), b.send_command, history=_chat_history)
                         save_memory(_chat_history)
                         b.send_command("respond_chat", {"message_id": mid, "response": ""})
@@ -137,7 +137,7 @@ def _auto_process():
 # ─── Web UI & Server ───
 def main():
     logger.info("Iniciando Axiom MCP Server...")
-    from .blender_connection import SOCKET_HOST, SOCKET_PORT
+    from blender_connection import SOCKET_HOST, SOCKET_PORT
     
     threading.Thread(target=_auto_process, daemon=True).start()
     

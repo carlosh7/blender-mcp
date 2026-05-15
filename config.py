@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 
-from .blender_mcp.platform import get_opencode_config_paths, get_opencode_auth_path, find_blender as _find_platform, SYSTEM
+from blender_mcp.platform import get_opencode_config_paths, get_opencode_auth_path, find_blender as _find_platform, SYSTEM
 
 # ─── Paths ───
 PLANNER_MODELS_DIR = Path.home() / "check-3d-planner" / "public" / "models"

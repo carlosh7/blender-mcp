@@ -8,8 +8,8 @@ from pathlib import Path
 logger = logging.getLogger("agent-host")
 
 # Usamos imports relativos para evitar Policy Violations
-from .config import PROVIDER_API_CONFIG, get_api_key
-from .blender_mcp.platform import get_config_dir
+from config import PROVIDER_API_CONFIG, get_api_key
+from blender_mcp.platform import get_config_dir
 
 # Provider API base URLs
 PROVIDER_CHAT_URLS = {

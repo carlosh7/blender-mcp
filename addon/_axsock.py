@@ -320,8 +320,19 @@ class BlenderSocketServer:
         mcp_connected = True
         return {"pong": True, "time": mcp_last_ping}
 
+    def _strip_bad_code(self, code):
+        import re
+        code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+        code = re.sub(r'^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+        def _fix_scale(m):
+            inner = m.group(1)
+            inner = re.sub(r'\s*/\s*2\s*', '', inner)
+            return '.scale = (' + inner + ')'
+        code = re.sub(r'\.scale\s*=\s*\(([^)]*)\)', _fix_scale, code)
+        return code
+
     def cmd_execute_code(self, code=""):
-        # Intentar obtener un contexto lo más real posible
+        code = self._strip_bad_code(code)
         win = bpy.context.window if bpy.context.window else (bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None)
         ns = {
             "bpy": bpy, 
