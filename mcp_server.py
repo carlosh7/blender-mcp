@@ -85,42 +85,14 @@ def resource_scene_info() -> str:
 
 def main():
     logger.info("Starting MCP Server (6 tools)...")
-    from blender_connection import SOCKET_HOST, SOCKET_PORT
 
     try:
         import uvicorn
 
-        tools_count = 6
-        sse_app = mcp.sse_app()
-        async def app(scope, receive, send):
-            if scope["type"] == "http" and scope["path"] == "/":
-                html = f"""<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="utf-8"><title>blender-mcp</title>
-<style>
-body{{font-family:sans-serif;background:#0d0d0d;color:#00f2ff;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}}
-.card{{background:#1a1a1a;padding:2rem;border-radius:12px;border:1px solid #00f2ff;width:400px}}
-h1{{font-size:1.5rem;margin-bottom:0.5rem}}
-.status{{margin:1rem 0;padding:0.5rem;background:#000;border-radius:4px;font-family:monospace}}
-.dot{{height:10px;width:10px;background:#00f2ff;border-radius:50%;display:inline-block;margin-right:8px}}
-</style></head>
-<body><div class="card">
-<h1>blender-mcp</h1>
-<div class="status"><span class="dot"></span> {tools_count} Tools Loaded</div>
-<div class="status"><span class="dot"></span> Socket: {SOCKET_HOST}:{SOCKET_PORT}</div>
-<div class="status"><span class="dot"></span> <a href="/sse">SSE Stream</a></div>
-</div></body></html>"""
-                await send({ "type": "http.response.start", "status": 200, "headers": [[b"content-type", b"text/html"]] })
-                await send({ "type": "http.response.body", "body": html.encode() })
-            elif scope["type"] == "http" and scope["path"] == "/health":
-                body = json.dumps({"status":"ok", "socket":f"{SOCKET_HOST}:{SOCKET_PORT}", "tools": tools_count})
-                await send({ "type": "http.response.start", "status": 200, "headers": [[b"content-type", b"application/json"]] })
-                await send({ "type": "http.response.body", "body": body.encode() })
-            else:
-                await sse_app(scope, receive, send)
+        app = mcp.sse_app()
 
-        logger.info(f"Uvicorn starting on :{SOCKET_PORT}")
-        uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
+        logger.info("Uvicorn starting on :9879")
+        uvicorn.run(app, host="127.0.0.1", port=9879, log_level="info")
     except Exception as e:
         logger.warning(f"Server error: {e}")
         print(f"MCP SERVER ERROR: {e}", flush=True)
