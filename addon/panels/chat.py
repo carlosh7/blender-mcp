@@ -122,7 +122,8 @@ class BLENDERMCP_OT_InsertCommand(Operator):
 
     @classmethod
     def description(cls, context, properties):
-        return _AKB_COMMANDS.get(properties.command, "Insert AKB command | Inserta comando AKB")
+        key = properties.command.lstrip("!").split()[0]
+        return _AKB_COMMANDS.get(key, "Insert AKB command | Inserta comando AKB")
 
     def execute(self, context):
         context.scene.aimcp_input = self.command
