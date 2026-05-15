@@ -5,6 +5,7 @@ extrae dimensiones reales, y guarda como Blueprint JSON v0.4.0.
 """
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -23,7 +24,8 @@ def _get_polyhaven_model_dimensions(asset_id):
     import bpy
     import shutil
     import urllib.request
-    from addon.handlers.polyhaven import _api_get
+    sys.path.insert(0, str(Path(__file__).parent / "handlers"))
+    from polyhaven import _api_get
 
     files_data = _api_get(f"files/{asset_id}")
     for fmt in ("gltf", "glb", "fbx", "obj"):
@@ -108,7 +110,8 @@ def _search_polyhaven_models(query):
 def feed_from_polyhaven(category, keywords=None):
     """Busca modelos en Poly Haven (gratis), descarga, extrae dimensiones, guarda blueprint."""
     import bpy
-    from addon.akb import save_blueprint
+    sys.path.insert(0, str(Path(__file__).parent))
+    from akb import save_blueprint
 
     if keywords is None:
         keywords = DEFAULT_CATEGORIES.get(category, [category])
@@ -144,7 +147,8 @@ def feed_from_polyhaven(category, keywords=None):
 def feed_from_scanner(obj_name):
     """Escanea un objeto existente y lo guarda como blueprint."""
     import bpy
-    from addon.akb import save_blueprint
+    sys.path.insert(0, str(Path(__file__).parent))
+    from akb import save_blueprint
 
     obj = bpy.data.objects.get(obj_name)
     if not obj:
