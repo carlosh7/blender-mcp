@@ -288,7 +288,7 @@ except ImportError:
 
 # Buscador de documentación — la IA puede consultarlo desde código generado
 try:
-    import addon.rst_search as _rst
+    from . import rst_search as _rst
     _HELPER_NAMESPACE["search_api_docs"] = _rst.search_api_docs
     _HELPER_NAMESPACE["get_python_api_docs"] = _rst.get_python_api_docs
 except ImportError:
