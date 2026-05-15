@@ -9,7 +9,6 @@ from . import _axsock as bsock
 from . import spatial
 
 # ─── Auto-install pip dependencies + auto-start servers ───
-_EMBEDDED_STARTED = False
 _DEPS_INSTALLED = False
 
 def _ensure_deps():
@@ -41,20 +40,6 @@ def _ensure_deps():
             print(f"[blender-mcp] ⚠️  No se pudo instalar {pkg}: {e}")
         except Exception as e:
             print(f"[blender-mcp] ⚠️  Error instalando {pkg}: {e}")
-
-def _start_embedded():
-    global _EMBEDDED_STARTED
-    if _EMBEDDED_STARTED:
-        return
-    try:
-        from .server import start_embedded_server
-        start_embedded_server()
-        _EMBEDDED_STARTED = True
-        print("[blender-mcp] ✅ Embedded MCP server ready on :45677")
-    except ImportError as e:
-        print(f"[blender-mcp] ⚠️  Embedded server requiere mcp SDK: {e}")
-    except Exception as e:
-        print(f"[blender-mcp] ⚠️  Embedded server: {e}")
 
 SPINNER_FRAMES = ["\u280b", "\u2819", "\u2839", "\u2838", "\u283c", "\u2834", "\u2826", "\u2827", "\u2807", "\u280f"]
 
@@ -139,7 +124,7 @@ PROVIDER_LABELS = {
 }
 
 # ─── Panels (modulares) — importados de addon/panels/ ───
-from .panels import chat as _chat_panel, config as _config_panel, integrations as _integrations
+from .panels import chat as _chat_panel, config as _config_panel
 
 # ─── Register (modular) ───
 from .properties import ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData
@@ -152,16 +137,16 @@ from .operators import export as _export_ops
 from .operators import setup as _setup_ops
 from .operators import embedded as _embedded_ops
 from .operators import model_ops as _model_ops
-from .panels.chat import BLENDERMCP_OT_OpenWeb, BLENDERMCP_OT_InsertCommand
+from .operators import download_docs as _download_ops
+from .panels.chat import BLENDERMCP_OT_OpenWeb
 
 classes = [
     ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData,
-    BLENDERMCP_OT_OpenWeb, BLENDERMCP_OT_InsertCommand,
+    BLENDERMCP_OT_OpenWeb,
 ]
 
 def register():
     _ensure_deps()
-    _start_embedded()
     try:
         import importlib
         from . import auto_process as _ap
@@ -199,7 +184,8 @@ def register():
                _conn_ops.register_connect_operators, _chat_ops.register_chat_operators,
                _capture_ops.register_capture_operators, _export_ops.register_export_operators,
                _setup_ops.register_setup_operators, _embedded_ops.register_embedded_operators,
-               _model_ops.register_model_operators]:
+                _model_ops.register_model_operators,
+                _download_ops.register_download_operators]:
         try:
             fn()
         except:
@@ -207,11 +193,6 @@ def register():
 
     # Register modular panels
     for panel_cls in [_chat_panel.PN_PT_Chat, _config_panel.PN_PT_Config]:
-        try:
-            bpy.utils.register_class(panel_cls)
-        except:
-            pass
-    for panel_cls in _integrations.PANELS:
         try:
             bpy.utils.register_class(panel_cls)
         except:
@@ -233,6 +214,8 @@ def register():
         "aimcp_ai_state": StringProperty(default="connected"),
         "aimcp_spinner_idx": IntProperty(default=0),
         "aimcp_connection_status": StringProperty(default=""),
+        "aimcp_use_rst": BoolProperty(default=False, description="Usar RST docs (búsqueda más precisa)"),
+        "aimcp_docs_status": StringProperty(default=""),
     }
     for name, prop in _scene_props.items():
         try:
@@ -420,17 +403,13 @@ def unregister():
             bpy.utils.unregister_class(panel_cls)
         except:
             pass
-    for panel_cls in reversed(_integrations.PANELS):
-        try:
-            bpy.utils.unregister_class(panel_cls)
-        except:
-            pass
     _conn_ops.unregister_connect_operators()
     _chat_ops.unregister_chat_operators()
     _capture_ops.unregister_capture_operators()
     _export_ops.unregister_export_operators()
     _model_ops.unregister_model_operators()
     _embedded_ops.unregister_embedded_operators()
+    _download_ops.unregister_download_operators()
     _setup_ops.unregister_setup_operators()
     _prefs.unregister_preferences()
     _props.unregister_properties()
@@ -438,7 +417,8 @@ def unregister():
     attrs = ["aimcp_models", "aimcp_status", "aimcp_model",
              "aimcp_pending_msg_id", "aimcp_chat_index", "aimcp_waiting", "aimcp_refreshing",
              "aimcp_connected", "aimcp_input", "aimcp_chat",
-             "aimcp_ai_state", "aimcp_spinner_idx", "aimcp_connection_status"]
+             "aimcp_ai_state", "aimcp_spinner_idx", "aimcp_connection_status",
+             "aimcp_use_rst", "aimcp_docs_status"]
     for pid in PROVIDER_ORDER:
         attrs.append(f"aimcp_search_{pid.replace('-','_')}")
     for a in attrs:

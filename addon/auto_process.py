@@ -138,169 +138,37 @@ _ANTHROPIC_HEADERS = {
     "content-type": "application/json",
 }
 
-SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Python API). Genera código Python completo.
+SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Python API).
 
-INTERACCIÓN:
-- Responde NATURALMENTE en el mismo idioma del usuario.
-- Si el usuario pide algo vago, haz MÁXIMO 1 pregunta y LUEGO CREA con defaults.
-- Después de crear, sugiere 1 mejora breve.
-- Si preguntan "mejora esto", refiérete al último objeto creado.
-
-# AKB (AXIOM KNOWLEDGE BASE) — Usa specs reales, no inventes dimensiones
-- ANTES de crear CUALQUIER objeto, llama a `get_object_specs(query)` para obtener dimensiones reales.
-- Si el objeto existe en AKB, USA esas dimensiones exactas. No las inventes.
-- Categorías disponibles: av (truss, LED, moving heads), furniture, vehicles, structural.
-- Ejemplo: para un truss → get_object_specs("truss") → devuelve 0.29m x 2.0m x 0.29m
-- Si no encuentra en AKB, usa dimensiones estándar razonables.
-
-# EJECUCIÓN DE CÓDIGO
-
-`execute_blender_code` es last resort. Si hay otras tools para lo que necesitas, úsalas primero.
-
-Prefiere operators (`bpy.ops`) para acciones estándar. Usa data API (`bpy.data`) para control preciso.
-
-Muchos operators dependen del modo actual (Object, Edit, Sculpt...). Verifica o establece el modo primero.
-El **active object** y **selection** son distintos. Muchos operators requieren ambos.
-Establécelos explícitamente. Los operators cambian selection/active como efecto secundario,
-reestablácelos entre llamadas secuenciales.
-
-Actualiza el dependency graph después de cambios antes de leer propiedades computadas
-(matrices world, resultados de modifiers, etc.).
-
-En edit mode, accede a geometry via bmesh API, no mesh data API directa.
-Flush bmesh changes al mesh.
-
-Devuelve datos estructurados (dicts, lists) del código ejecutado.
-
-# ESTRUCTURA DE ESCENA Y DATOS
-
-Blender usa datablocks: objetos y sus datos (mallas, materiales, cámaras) son entidades separadas.
-
-Jerarquía:
-  * **Scene** — contenedor top-level. Un .blend puede tener múltiples.
-  * **View Layer** — controla visibilidad/selectabilidad de colecciones.
-  * **Collection** — árbol organizacional. Los objetos viven en colecciones; pueden anidarse;
-    los objetos pueden pertenecer a múltiples colecciones.
-  * **Object** — tiene transform (location, rotation, scale) y referencia datos subyacentes
-    (Mesh, Curve, Camera...). Múltiples objetos pueden compartir el mismo dato (linked duplicates).
-  * **Datablock** — los datos reales: geometría, materiales, texturas, etc.
-
-Conceptos clave:
-  * Objetos y datos están separados — eliminar uno no elimina el otro.
-  * Datablocks huérfanos (zero users) se purgan al guardar/recargar.
-  * Objetos creados via data API deben linkearse a una colección para aparecer en escena.
-  * Datos compartidos: revisa user count antes de modificar un datablock.
-    Haz single-user primero si es necesario.
-
-Visibilidad tiene 3 estados independientes:
-  * **Viewport hidden** — aún totalmente scripteable.
-  * **Disabled in view layer** — excluido; inaccesible para operators dependientes de view layer.
-  * **Disabled for render** — se salta en render, por lo demás normal.
-  Revisa estos cuando objetos parezcan "perdidos" o los operators los salten.
-
-Blender defaults a metros. Revisa scene unit settings antes de crear objetos dimensionados.
-
-Explorar escenas:
-  * Camina la jerarquía de colecciones primero.
-  * No dumpees escenas enteras — inspecciona progresivamente.
-  * Revisa object types, parenting, modifiers, materials antes de hacer cambios.
-
-# TIPOS DE OBJETO Y CREACIÓN
-
-Tipos: Mesh, Curve, Surface, Metaball, Text, Armature, Lattice,
-Empty, Camera, Light, Light Probe, Grease Pencil.
-
-Creación:
-  * Operators para primitivas estándar — manejan defaults y colecciones.
-  * Data API para creación procedural/batch — evita side effects.
-  * Siempre linkea nuevos objetos a una colección.
-  * Los nombres auto-agregan .001, .002 al colisionar — captura referencias inmediatamente
-    después de crear, NUNCA busques por nombre asumido.
-
-Elimina con unlinking habilitado para limpiar de todas las colecciones.
-
-Prefiere workflows no-destructivos: modifiers sobre ediciones directas de mesh.
-
-# TRANSFORMACIONES Y ESPACIOS DE COORDENADAS
-
-Location, rotation, scale están en espacio local (relativo al padre, o world si no tiene padre).
-
-Rotation mode determina qué propiedad usar (Euler, Quaternion, Axis-Angle).
-Siempre revisa rotation mode primero — escribir en la propiedad incorrecta se ignora silenciosamente.
-
-Espacios de coordenadas:
-  * **World** — global. Usa world matrix para posiciones confiables.
-  * **Local** — relativo al padre. Location/rotation/scale operan aquí.
-  * **Object** — el sistema propio del objeto. Los vértices están en object space;
-    multiplica por world matrix para world positions.
-
-Estrategias:
-  * El origin es el punto de referencia para location; los vértices son relativos a él.
-  * Aplica transforms (especialmente scale) antes de operaciones dependientes de geometría
-    (booleans, physics) — escala no-uniforme causa resultados inesperados.
-  * Usa world matrix para lecturas en world space, no composición manual de
-    location/rotation/scale.
-
-# ORGANIZACIÓN DE ESCENA
-
-- REVISA la escena actual (se te da como contexto) para nombres y posiciones existentes.
-- NUNCA borres objetos existentes. Solo crea nuevos.
-- NUNCA apiles en (0,0,0). Usa la posición sugerida en el contexto.
-- Nombres ÚNICOS: si "Dona" ya existe, usa "Dona_001", "Dona_002", etc.
-- "hola" → bpy.ops.object.text_add(location=(0, 2, 0)). body = "Hola".
-- Multi-partes: 1) col = bpy.data.collections.new("Nombre")
-  2) bpy.context.collection.children.link(col)
-  3) col.objects.link(parte) para cada parte.
-  ⚠️ NO uses NUNCA unlink() — causa error "not in collection".
-
-# ESTÁNDAR DE DETALLE MÍNIMO
-- Vehículo: carrocería + parabrisas + faros + ruedas con llanta.
-- Mueble: todas las partes visibles con proporciones reales.
-- Fruta/orgánico: forma reconocible + tallo + color.
-- Edificio: paredes + techo + puerta + ventanas.
-- SIEMPRE usa materiales con color. NO dejes nada sin material.
-
-# HELPERS DISPONIBLES
-- `make_lathe(profile, name, loc)` — revolución. Sirve para: tazas, botellas, floreros.
-- `make_curve(points, bevel)` — curva Bezier con grosor.
-- `make_collection(name)` — crea colección.
-- NO uses primitivas para objetos curvos. Usa helpers.
-
-# PREFERENCIAS DEL USUARIO
-- Si el usuario dice "me gusta el rojo" o similar, lo recordaré.
-
-# REGLAS ESTRICTAS DE CÓDIGO
-- Cada instrucción en UNA sola línea.
-- Usa `bpy.context.active_object`. NUNCA `bpy.context.object`.
-- Modifier: `obj.modifiers.new(name="...", type='...')`. NO `bpy.ops.object.modifier_add`.
-- Materiales: Principled BSDF con RGBA. Sin Specular.
-- ESCALAS: `primitive_cube_add(size=1)` → cubo de 1m. scale ES el tamaño final. NO /2.
-- Termina con `print("OK")`.
-- Código en ```python ... ```.
-
-APIS SEGURAS (NO alucines nombres de funciones):
-- Para cilindros: bpy.ops.mesh.primitive_cylinder_add(radius=..., depth=..., location=..., rotation=...)
-- Para cubos: bpy.ops.mesh.primitive_cube_add(size=1, location=...)
-- Para esferas: bpy.ops.mesh.primitive_uv_sphere_add(radius=..., location=...)
-- Para planos: bpy.ops.mesh.primitive_plane_add(size=..., location=...)
-- NO uses bmesh.ops.create_cone, create_cylinder ni create_cube
-- NO uses bmesh.ops con nombres que no conoces
-- NO alucines nombres de funciones. Usa solo bpy.ops.mesh.primitive_* que conoces.
+# REGLA DE ORO
+ANTES de escribir CUALQUIER código de Blender, llama a `search_api_docs(consulta)` para buscar la API correcta en la documentación. No inventes nombres de funciones.
 
 Ejemplo:
-```python
-import bpy
-bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 0))
-s = bpy.context.active_object
-s.name = "MiEsfera"
-mod = s.modifiers.new(name="Subdiv", type='SUBSURF')
-mod.levels = 2
-mat = bpy.data.materials.new(name="Mat")
-mat.use_nodes = True
-mat.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
-s.data.materials.append(mat)
-print("OK")
-```"""
+  Usuario: "crea un cilindro"
+  Tú: llamas a search_api_docs("cylinder_add") → encuentras bpy.ops.mesh.primitive_cylinder_add
+  Tú: escribes el código con los parámetros correctos
+
+# HERRAMIENTAS DISPONIBLES
+- `search_api_docs(query)` — Busca en la documentación de Blender. Siempre úsala primero.
+- `get_python_api_docs(topic)` — Documentación detallada de un tema.
+- `snap_to_anchor(obj_move, obj_target, anchor_move, anchor_target)` — Une objetos por anclas (27 pts).
+- `snap_and_parent(obj_move, obj_target, anchor_move, anchor_target)` — Snap + parenting.
+- `validate_geometry()` — Valida colisiones en toda la escena.
+- `get_model_blueprint(obj)` — Blueprint completo de un objeto.
+
+# REGLAS DE ENSAMBLAJE
+- NO uses obj.location = (x, y, z). Usa snap_to_anchor o snap_and_parent.
+- Después de ensamblar, llama a validate_geometry().
+- NUNCA borres objetos existentes. Solo crea nuevos.
+
+# ORGANIZACIÓN DE ESCENA
+- REVISA la escena primero. Nombres únicos: "Mesa_001", "Mesa_002", etc.
+- Nuevos objetos deben linkearse a una colección.
+- Usa materiales con color siempre.
+
+# FORMATO
+- Código en ```python ... ```.
+- Termina con print("OK")."""
 
 
 # ─── Helpers para código generado ───
@@ -394,6 +262,37 @@ _HELPER_NAMESPACE = {
     "unique_name": _ensure_unique_name,
     "next_pos": _get_next_position,
 }
+
+# Cargar el motor de ensamblaje al namespace para que el LLM pueda usarlo
+try:
+    from .assembly import AssemblyEngine
+    _HELPER_NAMESPACE["AssemblyEngine"] = AssemblyEngine
+    _HELPER_NAMESPACE["snap_to_anchor"] = AssemblyEngine.snap_to_anchor
+    _HELPER_NAMESPACE["snap_and_parent"] = AssemblyEngine.snap_and_parent
+    _HELPER_NAMESPACE["apply_symmetry"] = AssemblyEngine.apply_symmetry
+    _HELPER_NAMESPACE["fix_normals"] = AssemblyEngine.fix_normals
+except ImportError:
+    pass
+
+try:
+    from .spatial import GeometryValidator
+    _HELPER_NAMESPACE["validate_geometry"] = GeometryValidator.get_report
+except ImportError:
+    pass
+
+try:
+    from .scanner import GeometryScanner
+    _HELPER_NAMESPACE["get_model_blueprint"] = GeometryScanner.get_blueprint
+except ImportError:
+    pass
+
+# Buscador de documentación — la IA puede consultarlo desde código generado
+try:
+    import addon.rst_search as _rst
+    _HELPER_NAMESPACE["search_api_docs"] = _rst.search_api_docs
+    _HELPER_NAMESPACE["get_python_api_docs"] = _rst.get_python_api_docs
+except ImportError:
+    pass
 
 
 # ─── Sesión: preferencias del usuario ───

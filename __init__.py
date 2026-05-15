@@ -131,7 +131,6 @@ def register():
 
 def _start_servers(pkg_name):
     try:
-        bridge_mod = _import_server("http_bridge")
         mcp_mod = _import_server("mcp_server")
         
         def run_mcp():
@@ -140,13 +139,7 @@ def _start_servers(pkg_name):
                 uvicorn.run(mcp_mod.mcp.sse_app(), host="127.0.0.1", port=9879, log_level="error")
             except: pass
 
-        def run_http():
-            try:
-                bridge_mod.start_http_server()
-            except: pass
-
         threading.Thread(target=run_mcp, daemon=True).start()
-        threading.Thread(target=run_http, daemon=True).start()
         
     except Exception as e:
         print(f"[AXIOM] ❌ ERROR DE INICIALIZACIÓN DE SERVIDORES: {e}")
@@ -158,7 +151,4 @@ def unregister():
     _props = _import_addon("properties")
     try: _props.unregister_properties()
     except: pass
-    try:
-        bridge_mod = _import_server("http_bridge")
-        bridge_mod.stop_http_server()
-    except: pass
+    pass

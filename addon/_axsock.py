@@ -116,57 +116,7 @@ class BlenderSocketServer:
             except Exception as e:
                 return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
 
-        # Try modular handlers (Fase 2)
-        handler_result = self._dispatch_to_handlers(cmd_type, params)
-        if handler_result is not None:
-            return handler_result
-
         return {"status": "error", "message": f"Unknown command: {cmd_type}"}
-
-    def _dispatch_to_handlers(self, cmd_type, params):
-        """Try to dispatch command to modular handler modules."""
-        candidates = []
-        pkg = __package__ or ""
-        if pkg:
-            candidates.append(f"{pkg}.handlers")           # e.g. "axiom_engine.handlers"
-            candidates.append(f"{pkg}.addon.handlers")     # e.g. "axiom_engine.addon.handlers"
-        else:
-            candidates.append("handlers")                   # direct fallback
-            candidates.append("addon.handlers")
-        candidates = list(dict.fromkeys(candidates))  # deduplicate, preserve order
-
-        handler_modules = [
-            "scene", "objects", "materials", "modifiers", "lights", "camera",
-            "shader_nodes", "animation", "geometry_nodes", "render",
-            "io", "uv_texture", "batch", "rigging", "scene_utils", "printing",
-            "polyhaven", "sketchfab", "hyper3d", "hunyuan", "ambientcg",
-            "analysis", "docs", "viewport", "ui", "akb",
-        ]
-        for mod_name in handler_modules:
-            mod = None
-            for handler_base in candidates:
-                try:
-                    mod = importlib.import_module(f"{handler_base}.{mod_name}")
-                    break
-                except ImportError:
-                    continue
-            if mod is None:
-                continue
-            try:
-                func = getattr(mod, f"cmd_{cmd_type}", None)
-                if func:
-                    result = func(**params)
-                    return {"status": "success", "result": result}
-                for attr_name in sorted(dir(mod)):
-                    if attr_name.endswith("Handler") and attr_name != "BaseHandler":
-                        handler_cls = getattr(mod, attr_name)
-                        class_func = getattr(handler_cls, f"cmd_{cmd_type}", None)
-                        if class_func:
-                            result = class_func(**params)
-                            return {"status": "success", "result": result}
-            except Exception as e:
-                return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
-        return None
 
     def cmd_get_viewport_screenshot(self, filepath=None, max_size=800):
         """Captura una imagen del viewport actual para validación Axiom."""
@@ -430,6 +380,20 @@ class BlenderSocketServer:
             _chat_queue.clear()
             _chat_responses.clear()
         return {"success": True}
+
+    def cmd_search_api_docs(self, query=""):
+        try:
+            from .rst_search import search_api_docs
+            return search_api_docs(query)
+        except Exception as e:
+            return {"query": query, "results": [], "total": 0, "error": str(e), "source": "error"}
+
+    def cmd_get_python_api_docs(self, topic=""):
+        try:
+            from .rst_search import get_python_api_docs
+            return get_python_api_docs(topic)
+        except Exception as e:
+            return {"topic": topic, "error": str(e), "source": "error"}
 
     def cmd_get_scene_property(self, prop=""):
         """Get a property value from the current Blender scene (for proxy/agent mode detection)."""

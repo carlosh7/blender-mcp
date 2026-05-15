@@ -1,43 +1,50 @@
-# 💎 AXIOM Precision Engine v2.0
+# blender-mcp
 
-**Axiom v2.0** es un ecosistema de ingeniería audiovisual autónomo para Blender. No es un generador de bocetos; es un motor de ensamblaje determinista diseñado para cumplir con estándares CNC e industriales mediante integración MCP (Model Context Protocol).
+Controla Blender desde cualquier LLM (IA) mediante chat interno o protocolo MCP.
 
-## 🚀 Características Principales (Axiom v2.0)
+## Cómo funciona
 
-### 1. Ensamblaje Determinista (27-pt Anchors)
-Axiom abandona las coordenadas manuales. Utiliza un sistema de **27 puntos de anclaje globales** (A_MIN_CENTER_MAX) para garantizar que cada pieza encaje con precisión milimétrica.
+El LLM recibe **6 herramientas** para controlar Blender:
 
-### 2. Trinity: El Cerebro Autónomo
-El Agente Trinity opera bajo un **Bucle de Reflexión**:
-*   **PLAN**: Diseño detallado antes de la ejecución.
-*   **ACT**: Construcción basada en anclas.
-*   **SCAN**: Validación mediante Scanner v0.4.0 (Blueprints JSON).
-*   **FIX**: Autocorrección inmediata ante desviaciones >0.001mm.
+| Herramienta | Para qué |
+|-------------|----------|
+| `search_api_docs(query)` | Buscar la API correcta en la documentación de Blender |
+| `get_python_api_docs(topic)` | Leer documentación detallada de una función |
+| `execute_blender_code(code)` | Ejecutar código Python en Blender |
+| `get_scene_info()` | Inspeccionar el estado de la escena |
+| `get_viewport_screenshot()` | Ver el resultado visual |
+| `snap_and_parent(...)` | Ensamblaje determinista por anclas (27 pts) |
 
-### 3. El Oráculo (Validación Espacial)
-Integración de detección de colisiones basada en **BVH (Bounding Volume Hierarchy)**. El Oráculo detecta:
-*   Intersecciones críticas de mallas.
-*   **Z-Fighting**: Solapamientos coplanares destructivos.
-*   **Stability**: Detección de objetos flotantes sin anclaje.
+**Regla de oro**: el LLM SIEMPRE busca en la documentación antes de ejecutar código. No inventa APIs.
 
-### 4. Blindaje de Seguridad AST
-Ejecución de código Python protegida. El validador de **Árbol de Sintaxis Abstracta (AST)** bloquea cualquier operación no autorizada fuera de la API de Blender, garantizando un entorno de ejecución seguro y reversible (Atomic Undo).
+## Instalación
 
-## 📦 Instalación Atómica (GitHub ZIP)
+1. Descarga el `.zip` desde GitHub Releases
+2. En Blender: `Edit > Preferences > Add-ons > Install...`
+3. Activa "AXIOM Precision Engine"
+4. Abre el panel Axiom (tecla N en 3D View > Axiom tab)
+5. En Scene Properties > Axiom Engine Config, selecciona un modelo de IA
 
-Este repositorio está diseñado para ser instalado directamente en Blender sin configuración externa:
+## Uso
 
-1.  Descarga el código como `.zip` desde el botón **Code > Download ZIP** de GitHub.
-2.  En Blender: `Edit > Preferences > Add-ons > Install...`
-3.  Selecciona el archivo descargado.
-4.  **Auto-Install**: Al activar el addon, Axiom instalará automáticamente todas las dependencias (`mcp`, `fastmcp`, `uvicorn`, etc.) vía `pip` de forma silenciosa.
+Escribe en el chat de Blender (panel Axiom):
 
-## 🛠️ Stack Tecnológico
-*   **Core**: Python 3.10+ / Blender API (bpy)
-*   **Protocol**: MCP (Model Context Protocol)
-*   **Security**: AST Static Analysis
-*   **Physics**: BVH Collision Trees
-*   **Generative**: Rodin (Hyper3D) / Hunyuan3D Bridge
+```
+pon un cilindro rojo de 2 metros
+```
 
----
-*Desarrollado por CarlosH para Ingeniería Audiovisual de Alta Fidelidad.*
+La IA busca en la documentación, encuentra la API correcta, genera el código y lo ejecuta.
+
+También puedes conectar opencode, Claude Desktop o Cursor vía MCP.
+
+## Documentación offline (opcional)
+
+Para búsqueda más precisa, ve a **Scene Properties > Axiom Engine Config > Documentación API** y haz clic en "Download RST Docs" (1.3 MB, descarga única).
+
+## Stack
+
+- **Core**: Python / Blender API (bpy)
+- **Protocol**: MCP (Model Context Protocol)
+- **Docs**: 2,062 RST + TF-IDF search engine
+- **Assembly**: 27-anchor deterministic snapping
+- **Validation**: BVH collision detection

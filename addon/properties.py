@@ -82,17 +82,9 @@ def register_properties():
 
     Scene.aimcp_provider = StringProperty(name="Provider", default="opencode-go")
 
-    # 4. INTEGRATION TOGGLES
+    # 4. MISC
     Scene.blendermcp_port = IntProperty(name="MCP Port", default=9876)
     Scene.blendermcp_server_running = BoolProperty(default=False)
-    Scene.blendermcp_use_polyhaven = BoolProperty(name="Use Poly Haven", default=True)
-    Scene.blendermcp_use_sketchfab = BoolProperty(name="Use Sketchfab", default=False)
-    Scene.blendermcp_sketchfab_api_key = StringProperty(name="Sketchfab API Key", subtype='PASSWORD')
-    Scene.blendermcp_use_hyper3d = BoolProperty(name="Use Hyper3D Rodin", default=False)
-    Scene.blendermcp_hyper3d_api_key = StringProperty(name="Rodin API Key", subtype='PASSWORD')
-    Scene.blendermcp_use_hunyuan3d = BoolProperty(name="Use Hunyuan3D", default=False)
-    Scene.blendermcp_use_ambientcg = BoolProperty(name="Use AmbientCG", default=True)
-    
     Scene.blendermcp_agent_mode = EnumProperty(
         name="Agent Mode", default='AUTO',
         items=[('AUTO', "Auto", ""), ('PROXY', "Proxy", ""), ('AUTONOMOUS', "Autonomous", "")]
@@ -109,9 +101,7 @@ def unregister_properties():
         "aimcp_show_deepseek", "aimcp_api_deepseek",
         "aimcp_show_groq", "aimcp_api_groq",
         "aimcp_provider", "blendermcp_port", "blendermcp_server_running",
-        "blendermcp_use_polyhaven", "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
-        "blendermcp_use_hyper3d", "blendermcp_hyper3d_api_key",
-        "blendermcp_use_hunyuan3d", "blendermcp_use_ambientcg", "blendermcp_agent_mode"
+        "blendermcp_agent_mode"
     ]
     for p in props:
         if hasattr(Scene, p): delattr(Scene, p)

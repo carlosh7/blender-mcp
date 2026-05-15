@@ -1,32 +1,55 @@
-# Arquitectura Técnica: Axiom Precision Engine v2.0
+# Arquitectura de blender-mcp
 
-Axiom v2.0 utiliza una arquitectura de microservicios desacoplada para garantizar estabilidad, seguridad y precisión.
+## Flujo
 
-## 🏗️ Diagrama de Flujo
-1. **Agent Host (Trinity)**: Procesa el lenguaje natural y genera planes de ingeniería.
-2. **AST Validator**: Filtra el código generado antes de enviarlo.
-3. **MCP Server**: Expone las herramientas de Blender al Agente.
-4. **Precision Socket**: Puente TCP (9876) que ejecuta comandos dentro del thread principal de Blender.
-5. **Oracle (QC)**: Valida la geometría resultante tras la ejecución.
+El sistema tiene dos caminos de entrada que convergen en el mismo backend:
 
-## 🛡️ Capa de Seguridad (AxiomValidator)
-Implementamos un validador de **Abstract Syntax Tree (AST)** en `agent_host.py` que analiza cada bloque de código Python. 
-*   **Whitelist**: Permite `bpy`, `mathutils`, `math`, `json`.
-*   **Blacklist**: Bloquea `os`, `sys`, `subprocess`, `exec`, `eval`.
-Cualquier intento de violación de seguridad dispara un bloqueo inmediato y un reporte al log de auditoría.
+### Camino A: Chat interno de Blender
 
-## 📐 Motor de Ensamblaje (Assembly Engine v2.0)
-El sistema de 27 anclas utiliza la caja delimitadora (Bounding Box) de los objetos para generar una matriz de puntos de control:
-*   Nomenclatura: `A_[MIN|CENTER|MAX]_[MIN|CENTER|MAX]_[MIN|CENTER|MAX]`.
-*   Ejemplo: `A_MIN_CENTER_MIN` representa el punto medio de la base frontal de un objeto.
-Esto permite un snapping determinista sin errores de flotación (Z-fighting).
+```
+Usuario escribe en chat Blender
+       ↓
+addon/auto_process.py  →  LLM API (function calling)
+       ↓                        ↓
+  search_api_docs()        execute_blender_code()
+  (búsqueda en RST         (ejecuta código bpy)
+   o introspección)
+       ↓
+  auto_process.py recibe resultado, exec el código
+       ↓
+  [undo_push] → [exec] → [validate_geometry]
+```
 
-## 🔮 El Oráculo (Detección de Colisiones)
-El Oráculo utiliza `mathutils.bvhtree` para construir árboles de jerarquía de volúmenes en tiempo real. 
-*   **Overlaps**: Detecta si las caras de dos mallas se intersectan.
-*   **Epsilon Checks**: Valida si hay huecos (gaps) no deseados entre componentes que deberían estar en contacto físico.
+### Camino B: Cliente MCP externo (opencode, Claude, Cursor)
 
-## 🔄 Transacciones Atómicas
-Todas las ejecuciones de código IA están envueltas en un wrapper de `undo_push`. 
-*   Si el Oráculo detecta una colisión crítica tras un ensamble, el sistema invoca un `bpy.ops.ed.undo()` automático.
-*   La escena de Blender se mantiene siempre en un estado "Válido" de ingeniería.
+```
+Cliente MCP → mcp_server.py (6 tools) → socket TCP :9876
+       ↓
+addon/_axsock.py (cmd_*) → ejecuta en main thread de Blender
+```
+
+## Componentes
+
+| Archivo | Rol |
+|---------|-----|
+| `addon/auto_process.py` | Orquesta LLM: envía mensaje, maneja function calling, ejecuta código |
+| `addon/rst_search.py` | Buscador TF-IDF sobre 2,062 RSTs de la API de Blender |
+| `addon/_axsock.py` | Servidor socket TCP :9876 dentro de Blender |
+| `addon/assembly.py` | AssemblyEngine: snap de 27 anclas, parenting, simetría |
+| `addon/spatial.py` | GeometryValidator: detección BVH de colisiones |
+| `addon/scanner.py` | GeometryScanner: blueprint de 27 anclas |
+| `mcp_server.py` | Servidor MCP externo, 6 tools |
+| `blender_connection.py` | Cliente socket para conectar a Blender |
+
+## Antes vs Después
+
+```
+Antes:   94 tools MCP + 22 handlers + agent_host + http_bridge + 300 líneas prompt
+Después: 6 tools + docs search + 25 líneas prompt
+```
+
+## Seguridad
+
+- Código envuelto en `undo_push` → reversible
+- Timeout de 2s en búsquedas de documentación
+- Las funciones prohibidas (`os`, `sys`, `subprocess`) se filtran vía AST

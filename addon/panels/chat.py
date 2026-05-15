@@ -151,16 +151,7 @@ class PN_PT_Chat(Panel):
             row.operator("aimcp.refresh", text="Refresh Models", icon='FILE_REFRESH')
             L.separator()
 
-        # ── AKB Commands ──
-        box = L.box()
-        row = box.row(align=True)
-        row.label(text="AKB Cmd:", icon='BOOKMARKS')
-        row = box.row(align=True)
-        for key in _AKB_COMMANDS:
-            op = row.operator("blendermcp.insert_command", text=key, emboss=True)
-            op.command = key
-
-        # ── Row 1: Status ──
+        # ── Status + Actions ──
         conn = c.aimcp_connection_status or "Listo"
         icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'CHECKBOX_DEHLT'
         row = L.row(align=True)
@@ -169,14 +160,9 @@ class PN_PT_Chat(Panel):
             row.label(text="Working...", icon='SORTTIME')
         else:
             row.label(text=conn[:28], icon=icon)
-        row.operator("blendermcp.start_embedded", text="", icon='SYSTEM')
         row.operator("blendermcp.open_web", text="", icon='URL')
 
-        # ── Row 2: Actions ──
         row = L.row(align=True)
-        row.operator("aimcp.capture", text="Vision", icon='CAMERA_DATA')
-        row.operator("aimcp.export", text="Export", icon='EXPORT')
-        row.operator("blendermcp.open_web", text="Web", icon='URL')
         row.operator("blendermcp.copy_chat", text="Copy", icon='COPYDOWN')
         row.operator("blendermcp.export_log", text="Log", icon='TEXT')
 

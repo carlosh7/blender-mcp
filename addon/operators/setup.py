@@ -99,23 +99,11 @@ class BLENDERMCP_OT_HealthCheck(Operator):
         return {'FINISHED'}
 
 
-class BLENDERMCP_OT_SetHyper3DFreeTrial(Operator):
-    bl_idname = "blendermcp.set_hyper3d_free_trial"
-    bl_label = "Set Free Trial API Key"
-
-    def execute(self, context):
-        context.scene.blendermcp_hyper3d_api_key = "k9TcfFoEhNd9cCPP2guHAHHHkctZHIRhZDywZ1euGUXwihbYLpOjQhofby80NJez"
-        context.scene.blendermcp_hyper3d_mode = 'MAIN_SITE'
-        self.report({'INFO'}, "Hyper3D Free Trial key set")
-        return {'FINISHED'}
-
-
 SETUP_OPERATORS = [
     BLENDERMCP_OT_InstallDeps,
     BLENDERMCP_OT_CopyConfig,
     BLENDERMCP_OT_OpenLogs,
     BLENDERMCP_OT_HealthCheck,
-    BLENDERMCP_OT_SetHyper3DFreeTrial,
 ]
 
 
