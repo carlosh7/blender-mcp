@@ -11,7 +11,6 @@ from bpy.props import StringProperty, CollectionProperty, BoolProperty, IntPrope
 from bpy.types import Panel, UIList, PropertyGroup, Operator
 
 from .. import _axsock as bsock
-from ..handlers import scene as scene_handler
 
 
 class ChatMsg(PropertyGroup):
