@@ -7,135 +7,111 @@ from bpy.props import (
     BoolProperty, StringProperty, IntProperty, FloatProperty,
     EnumProperty, PointerProperty, CollectionProperty,
 )
-from bpy.types import PropertyGroup
+from bpy.types import PropertyGroup, UIList
+from .chat_types import ChatMsg, ModelItem
 
+# ─── Chat Classes ───
+
+class ChatData(PropertyGroup):
+    msgs: CollectionProperty(type=ChatMsg)
+    count: IntProperty(default=0)
+    def add(self, r, t, is_update=False, scene=None):
+        if is_update:
+            while len(self.msgs) > 0 and self.msgs[-1].role == r and not self.msgs[-1].is_new:
+                self.msgs.remove(len(self.msgs)-1)
+        m = self.msgs.add()
+        m.role = r; m.text = t; m.is_new = True
+        self.count = len(self.msgs)
+
+class MCP_UL_Chat(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if not item: return
+        row = layout.row(align=True)
+        tag = "U" if item.role == "user" else "AI"
+        row.label(text=f"[{tag}] {item.text}")
+
+# ─── Model Classes ───
+
+class ModelsData(PropertyGroup):
+    items: CollectionProperty(type=ModelItem)
+    count: IntProperty(default=0)
+    
+    def add(self, mid, name, prov):
+        m = self.items.add()
+        m.model_id = mid
+        m.model_name = name
+        m.provider = prov
+        self.count = len(self.items)
+        
+    def clear_all(self):
+        self.items.clear()
+        self.count = 0
 
 def register_properties():
     """Register all shared properties onto bpy.types.Scene."""
     Scene = bpy.types.Scene
 
-    # ─── Integration Toggles (Fase 1) ───
-    Scene.blendermcp_port = IntProperty(
-        name="MCP Port", default=9876, min=1024, max=65535,
-        description="Port for the Blender MCP socket server",
-    )
+    # 1. DATA CONTAINERS
+    Scene.aimcp_chat = PointerProperty(type=ChatData)
+    Scene.aimcp_models = PointerProperty(type=ModelsData)
+
+    # 2. CHAT UI STATE
+    Scene.aimcp_input = StringProperty(name="Input", default="")
+    Scene.aimcp_connected = BoolProperty(name="Connected", default=False)
+    Scene.aimcp_ai_state = StringProperty(default="disconnected")
+    Scene.aimcp_status = StringProperty(name="Status", default="Ready")
+    Scene.aimcp_waiting = BoolProperty(default=False)
+    Scene.aimcp_spinner_idx = IntProperty(default=0)
+    Scene.aimcp_connection_status = StringProperty(default="")
+    Scene.aimcp_chat_index = IntProperty(default=0)
+    Scene.aimcp_model = StringProperty(name="Selected Model", default="")
+    Scene.aimcp_pending_msg_id = StringProperty(default="")
+
+    # 3. CONFIG & API PROPERTIES (LAS QUE FALTABAN)
+    Scene.aimcp_show_opencode_go = BoolProperty(name="OpenCode.go", default=True)
+    Scene.aimcp_api_opencode_go = StringProperty(name="API Key", subtype='PASSWORD')
+    
+    Scene.aimcp_show_openrouter = BoolProperty(name="OpenRouter", default=False)
+    Scene.aimcp_api_openrouter = StringProperty(name="API Key", subtype='PASSWORD')
+    
+    Scene.aimcp_show_deepseek = BoolProperty(name="DeepSeek", default=False)
+    Scene.aimcp_api_deepseek = StringProperty(name="API Key", subtype='PASSWORD')
+    
+    Scene.aimcp_show_groq = BoolProperty(name="Groq", default=False)
+    Scene.aimcp_api_groq = StringProperty(name="API Key", subtype='PASSWORD')
+
+    Scene.aimcp_provider = StringProperty(name="Provider", default="opencode-go")
+
+    # 4. INTEGRATION TOGGLES
+    Scene.blendermcp_port = IntProperty(name="MCP Port", default=9876)
     Scene.blendermcp_server_running = BoolProperty(default=False)
-
-    # Poly Haven
-    Scene.blendermcp_use_polyhaven = BoolProperty(
-        name="Use Poly Haven", default=False,
-        description="Enable Poly Haven HDRI/texture/model downloads",
-    )
-
-    # Sketchfab
-    Scene.blendermcp_use_sketchfab = BoolProperty(
-        name="Use Sketchfab", default=False,
-        description="Enable Sketchfab model search and download",
-    )
-    Scene.blendermcp_sketchfab_api_key = StringProperty(
-        name="Sketchfab API Key", default="", subtype='PASSWORD',
-    )
-
-    # Hyper3D Rodin
-    Scene.blendermcp_use_hyper3d = BoolProperty(
-        name="Use Hyper3D Rodin", default=False,
-        description="Enable AI 3D model generation via Hyper3D Rodin",
-    )
-    Scene.blendermcp_hyper3d_mode = EnumProperty(
-        name="Rodin Mode", default='MAIN_SITE',
-        items=[
-            ('MAIN_SITE', "Main Site", "Use hyper3d.ai (free trial or private key)"),
-            ('FAL_AI', "FAL AI", "Use fal.ai (private key required)"),
-        ],
-    )
-    Scene.blendermcp_hyper3d_api_key = StringProperty(
-        name="Rodin API Key", default="", subtype='PASSWORD',
-    )
-
-    # Hunyuan3D
-    Scene.blendermcp_use_hunyuan3d = BoolProperty(
-        name="Use Hunyuan3D", default=False,
-        description="Enable Tencent Hunyuan 3D model generation",
-    )
-    Scene.blendermcp_hunyuan3d_mode = EnumProperty(
-        name="Hunyuan3D Mode", default='OFFICIAL_API',
-        items=[
-            ('OFFICIAL_API', "Official API", "Use Tencent Cloud API"),
-            ('LOCAL_API', "Local API", "Use local Hunyuan3D API server"),
-        ],
-    )
-    Scene.blendermcp_hunyuan3d_secret_id = StringProperty(
-        name="SecretId", default="", subtype='PASSWORD',
-    )
-    Scene.blendermcp_hunyuan3d_secret_key = StringProperty(
-        name="SecretKey", default="", subtype='PASSWORD',
-    )
-    Scene.blendermcp_hunyuan3d_api_url = StringProperty(
-        name="API URL", default="http://localhost:8080",
-    )
-    Scene.blendermcp_hunyuan3d_octree_resolution = IntProperty(
-        name="Octree Resolution", default=256, min=128, max=512,
-    )
-    Scene.blendermcp_hunyuan3d_num_inference_steps = IntProperty(
-        name="Inference Steps", default=50, min=10, max=200,
-    )
-    Scene.blendermcp_hunyuan3d_guidance_scale = FloatProperty(
-        name="Guidance Scale", default=5.0, min=1.0, max=20.0,
-    )
-    Scene.blendermcp_hunyuan3d_texture = BoolProperty(
-        name="Generate Texture", default=True,
-    )
-
-    # AmbientCG
-    Scene.blendermcp_use_ambientcg = BoolProperty(
-        name="Use AmbientCG", default=False,
-        description="Enable AmbientCG PBR material downloads",
-    )
-
-    # ─── Provider selector (Config panel) ───
-    Scene.aimcp_provider = StringProperty(
-        name="Provider", default="opencode-go",
-        description="Current LLM provider ID",
-    )
-
-    # ─── Connection status (verificación al seleccionar modelo) ───
-    Scene.aimcp_connection_status = StringProperty(
-        name="Connection Status", default="",
-        description="Estado de la conexión con el LLM (✅ conectado / 🔴 error)",
-    )
-
-    # ─── Agent Mode (Fase 4) ───
+    Scene.blendermcp_use_polyhaven = BoolProperty(name="Use Poly Haven", default=True)
+    Scene.blendermcp_use_sketchfab = BoolProperty(name="Use Sketchfab", default=False)
+    Scene.blendermcp_sketchfab_api_key = StringProperty(name="Sketchfab API Key", subtype='PASSWORD')
+    Scene.blendermcp_use_hyper3d = BoolProperty(name="Use Hyper3D Rodin", default=False)
+    Scene.blendermcp_hyper3d_api_key = StringProperty(name="Rodin API Key", subtype='PASSWORD')
+    Scene.blendermcp_use_hunyuan3d = BoolProperty(name="Use Hunyuan3D", default=False)
+    Scene.blendermcp_use_ambientcg = BoolProperty(name="Use AmbientCG", default=True)
+    
     Scene.blendermcp_agent_mode = EnumProperty(
         name="Agent Mode", default='AUTO',
-        items=[
-            ('AUTO', "Auto", "Use proxy if external MCP client connected, else autonomous"),
-            ('PROXY', "Proxy", "Only use external MCP client (Claude/Cursor)"),
-            ('AUTONOMOUS', "Autonomous", "Always use built-in agent (no external client needed)"),
-        ],
-        description="AI agent operation mode",
+        items=[('AUTO', "Auto", ""), ('PROXY', "Proxy", ""), ('AUTONOMOUS', "Autonomous", "")]
     )
 
-
 def unregister_properties():
-    """Clean up all registered properties."""
-    attrs = [
-        "blendermcp_port", "blendermcp_server_running",
-        "blendermcp_use_polyhaven",
-        "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
-        "blendermcp_use_hyper3d", "blendermcp_hyper3d_mode", "blendermcp_hyper3d_api_key",
-        "blendermcp_use_hunyuan3d", "blendermcp_hunyuan3d_mode",
-        "blendermcp_hunyuan3d_secret_id", "blendermcp_hunyuan3d_secret_key",
-        "blendermcp_hunyuan3d_api_url", "blendermcp_hunyuan3d_octree_resolution",
-        "blendermcp_hunyuan3d_num_inference_steps", "blendermcp_hunyuan3d_guidance_scale",
-        "blendermcp_hunyuan3d_texture",
-        "blendermcp_use_ambientcg",
-        "aimcp_provider",
-        "blendermcp_agent_mode",
-        "aimcp_connection_status",
+    Scene = bpy.types.Scene
+    props = [
+        "aimcp_chat", "aimcp_models", "aimcp_input", "aimcp_connected", 
+        "aimcp_ai_state", "aimcp_status", "aimcp_waiting", "aimcp_spinner_idx",
+        "aimcp_connection_status", "aimcp_chat_index", "aimcp_model",
+        "aimcp_show_opencode_go", "aimcp_api_opencode_go",
+        "aimcp_show_openrouter", "aimcp_api_openrouter",
+        "aimcp_show_deepseek", "aimcp_api_deepseek",
+        "aimcp_show_groq", "aimcp_api_groq",
+        "aimcp_provider", "blendermcp_port", "blendermcp_server_running",
+        "blendermcp_use_polyhaven", "blendermcp_use_sketchfab", "blendermcp_sketchfab_api_key",
+        "blendermcp_use_hyper3d", "blendermcp_hyper3d_api_key",
+        "blendermcp_use_hunyuan3d", "blendermcp_use_ambientcg", "blendermcp_agent_mode"
     ]
-    for a in attrs:
-        if hasattr(bpy.types.Scene, a):
-            try:
-                delattr(bpy.types.Scene, a)
-            except:
-                pass
+    for p in props:
+        if hasattr(Scene, p): delattr(Scene, p)

@@ -1,8 +1,8 @@
 schema_version = "1.0.0"
 id = "axiom_engine"
 name = "AXIOM Precision Engine"
-tagline = "AI-powered Blender control via MCP"
-version = "0.8.71"
+tagline = "Industrial-grade AI assembly pipeline for Blender"
+version = "0.8.98"
 type = "add-on"
 maintainer = "CarlosH"
 license = ["MIT"]

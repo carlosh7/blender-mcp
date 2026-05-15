@@ -10,20 +10,6 @@ bl_info = {
     "category": "3D View",
 }
 
-# ─── Import helpers: fallback relativo → absoluto ───
-def _import_addon(name):
-    try:
-        return importlib.import_module(f".{name}", __package__)
-    except (ImportError, ValueError):
-        return importlib.import_module(f"addon.{name}")
-
-def _import_server(name):
-    try:
-        return importlib.import_module(f".{name}", __package__)
-    except (ImportError, ValueError):
-        return __import__(name)
-
-# ─── Auditoría de puertos ───
 def _check_port(port):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -54,13 +40,13 @@ def register():
         print("[AXIOM] ❌ FALLO CRÍTICO: No se pudieron validar las dependencias.")
         return
 
-    bsock = _import_addon("_axsock")
-    _props = _import_addon("properties")
-    _prefs = _import_addon("preferences")
+    from .addon import _axsock as bsock
+    from .addon import properties as _props
+    from .addon import preferences as _prefs
     
     # 1. LANZAMIENTO DE SERVICIOS
     bsock.start_socket_server()
-    _start_servers(__package__)
+    _start_servers(__package__) # Pasar el contexto del paquete
 
     # Pausa técnica para permitir el binding
     time.sleep(1.0)
@@ -76,39 +62,26 @@ def register():
         print(f"[AXIOM] {'✅' if s_9879 else '❌'} PORT 9879 (MCP): {'OPERATIVO' if s_9879 else 'DESCONECTADO'}")
 
         # 3. VALIDACIÓN RNA
-        chat_types = _import_addon("chat_types")
-        props = _import_addon("properties")
-        panels_chat = _import_addon("panels.chat")
-        panels_config = _import_addon("panels.config")
-        panels_integrations = _import_addon("panels.integrations")
+        from .addon.chat_types import ChatMsg, ModelItem
+        from .addon.properties import ChatData, ModelsData, MCP_UL_Chat
+        from .addon.panels.chat import BLENDERMCP_OT_OpenWeb
+        from .addon.panels import chat, config, integrations
         
-        classes = [
-            chat_types.ChatMsg, chat_types.ModelItem,
-            panels_chat.PN_PT_Chat, panels_config.PN_PT_Config,
-            props.ChatData, props.ModelsData, props.MCP_UL_Chat,
-            panels_chat.BLENDERMCP_OT_OpenWeb,
-        ]
-        for p in panels_integrations.PANELS: classes.append(p)
+        classes = [ChatMsg, ModelItem, chat.PN_PT_Chat, config.PN_PT_Config, ChatData, ModelsData, MCP_UL_Chat, BLENDERMCP_OT_OpenWeb]
+        for p in integrations.PANELS: classes.append(p)
         for cls in classes:
             try: bpy.utils.register_class(cls)
             except: pass
 
         # 4. OPERADORES
-        ops_connect = _import_addon("operators.connect")
-        ops_chat = _import_addon("operators.chat")
-        ops_capture = _import_addon("operators.capture")
-        ops_export = _import_addon("operators.export")
-        ops_setup = _import_addon("operators.setup")
-        ops_embedded = _import_addon("operators.embedded")
-        ops_model = _import_addon("operators.model_ops")
-        
-        ops_connect.register_connect_operators()
-        ops_chat.register_chat_operators()
-        ops_capture.register_capture_operators()
-        ops_export.register_export_operators()
-        ops_setup.register_setup_operators()
-        ops_embedded.register_embedded_operators()
-        ops_model.register_model_operators()
+        from .addon.operators import connect, chat as chat_ops, capture, export, setup, embedded, model_ops
+        connect.register_connect_operators()
+        chat_ops.register_chat_operators()
+        capture.register_capture_operators()
+        export.register_export_operators()
+        setup.register_setup_operators()
+        embedded.register_embedded_operators()
+        model_ops.register_model_operators()
         _props.register_properties()
         _prefs.register_preferences()
         
@@ -131,8 +104,9 @@ def register():
 
 def _start_servers(pkg_name):
     try:
-        bridge_mod = _import_server("http_bridge")
-        mcp_mod = _import_server("mcp_server")
+        # USAR IMPORTLIB CON EL NOMBRE DEL PAQUETE PARA EVITAR ERRORES DE CONTEXTO
+        bridge_mod = importlib.import_module(".http_bridge", pkg_name)
+        mcp_mod = importlib.import_module(".mcp_server", pkg_name)
         
         def run_mcp():
             try:
@@ -152,13 +126,14 @@ def _start_servers(pkg_name):
         print(f"[AXIOM] ❌ ERROR DE INICIALIZACIÓN DE SERVIDORES: {e}")
 
 def unregister():
-    bsock = _import_addon("_axsock")
+    from .addon import _axsock as bsock
     try: bsock.stop_socket_server()
     except: pass
-    _props = _import_addon("properties")
+    from .addon import properties as _props
     try: _props.unregister_properties()
     except: pass
     try:
-        bridge_mod = _import_server("http_bridge")
+        # Intentar detener el puente usando import dinámico
+        bridge_mod = importlib.import_module(".http_bridge", __package__)
         bridge_mod.stop_http_server()
     except: pass
