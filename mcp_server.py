@@ -89,11 +89,8 @@ def main():
 
     try:
         import uvicorn
-        from starlette.responses import HTMLResponse
-        from starlette.middleware.cors import CORSMiddleware
 
-        tools_count = len(mcp._tool_manager.list_tools())
-
+        tools_count = 6
         sse_app = mcp.sse_app()
         async def app(scope, receive, send):
             if scope["type"] == "http" and scope["path"] == "/":
@@ -122,9 +119,11 @@ h1{{font-size:1.5rem;margin-bottom:0.5rem}}
             else:
                 await sse_app(scope, receive, send)
 
+        logger.info(f"Uvicorn starting on :{SOCKET_PORT}")
         uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
     except Exception as e:
         logger.warning(f"Server error: {e}")
+        print(f"MCP SERVER ERROR: {e}", flush=True)
 
 if __name__ == "__main__":
     main()
