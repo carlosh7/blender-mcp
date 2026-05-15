@@ -22,44 +22,26 @@ class BlenderSocketServer:
         self.running = False
         self.sock = None
         self.thread = None
-        self.listening = False
-        self.last_error = None
 
     def start(self):
         if self.running:
             return
         self.running = True
         try:
-            # Intentar cerrar cualquier socket previo si existe
-            if self.sock:
-                try: self.sock.close()
-                except: pass
-            
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # SO_REUSEADDR + SO_REUSEPORT (si está disponible) para liberar el puerto rápido
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            except: pass
-            
             self.sock.bind((self.host, self.port))
-            self.sock.listen(5)
-            self.listening = True
-            self.last_error = None
+            self.sock.listen(1)
             self.sock.settimeout(1.0)
             self.thread = threading.Thread(target=self._loop, daemon=True)
             self.thread.start()
             print(f"[BLENDER SOCKET] Server on port {self.port}")
         except Exception as e:
-            self.running = False
-            self.listening = False
-            self.last_error = str(e)
             print(f"[BLENDER SOCKET] Failed: {e}")
             self.stop()
 
     def stop(self):
         self.running = False
-        self.listening = False
         if self.sock:
             try: self.sock.close()
             except: pass
@@ -165,33 +147,28 @@ class BlenderSocketServer:
             filepath = os.path.join(temp_dir, f"axiom_vision_{int(time.time())}.png")
         
         try:
-            # Buscar una ventana y pantalla válidas (Blender 4.2+ requiere contexto explícito)
-            window = bpy.context.window if bpy.context.window else bpy.context.window_manager.windows[0]
-            screen = window.screen
-            area = next((a for a in screen.areas if a.type == 'VIEW_3D'), None)
-            
+            # Buscar el área de 3D Viewport
+            area = next((a for a in bpy.context.screen.areas if a.type == 'VIEW_3D'), None)
             if not area:
-                return {"error": "No se encontró un viewport 3D activo en la ventana principal"}
+                return {"error": "No se encontró un viewport 3D activo"}
             
-            # Forzar el renderizado de la captura con el contexto completo
-            with bpy.context.temp_override(window=window, screen=screen, area=area):
+            # Forzar el renderizado de la captura en el área correcta
+            with bpy.context.temp_override(area=area):
                 bpy.ops.screen.screenshot_area(filepath=filepath)
             
-            # Cargar y redimensionar
-            if os.path.exists(filepath):
-                img = bpy.data.images.load(filepath)
-                if max(img.size) > max_size:
-                    scale = max_size / max(img.size)
-                    img.scale(int(img.size[0] * scale), int(img.size[1] * scale))
-                    img.save()
-                
-                return {
-                    "success": True, 
-                    "filepath": filepath, 
-                    "width": img.size[0], 
-                    "height": img.size[1]
-                }
-            return {"error": "Falló la creación del archivo de captura"}
+            # Cargar y redimensionar para ahorrar ancho de banda si es necesario
+            img = bpy.data.images.load(filepath)
+            if max(img.size) > max_size:
+                scale = max_size / max(img.size)
+                img.scale(int(img.size[0] * scale), int(img.size[1] * scale))
+                img.save()
+            
+            return {
+                "success": True, 
+                "filepath": filepath, 
+                "width": img.size[0], 
+                "height": img.size[1]
+            }
         except Exception as e:
             return {"error": str(e)}
 
@@ -264,15 +241,6 @@ class BlenderSocketServer:
         except Exception as e:
             return {"error": str(e)}
 
-    def cmd_snap_and_parent(self, obj_move="", obj_target="", anchor_move="", anchor_target=""):
-        try:
-            from . import assembly
-            o_move = bpy.data.objects.get(obj_move)
-            o_target = bpy.data.objects.get(obj_target)
-            return assembly.AssemblyEngine.snap_and_parent(o_move, o_target, anchor_move, anchor_target)
-        except Exception as e:
-            return {"error": str(e)}
-
     def cmd_apply_symmetry(self, obj_name="", axes=["X", "Y"]):
         try:
             from . import assembly
@@ -310,45 +278,16 @@ class BlenderSocketServer:
         return {"pong": True, "time": mcp_last_ping}
 
     def cmd_execute_code(self, code=""):
-        # Intentar obtener un contexto lo más real posible
-        win = bpy.context.window if bpy.context.window else (bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None)
-        ns = {
-            "bpy": bpy, 
-            "C": bpy.context, 
-            "D": bpy.data, 
-            "ops": bpy.ops,
-            "window": win,
-            "screen": win.screen if win else None,
-        }
-        
-        import signal
-        def handler(signum, frame):
-            raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 2.0 segundos de límite.")
-
-        # AXIOM v2.0 Atomic Transaction Start
-        bpy.ops.ed.undo_push(message="Axiom Precision Task")
-        
+        ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
         buf = io.StringIO()
         with redirect_stdout(buf):
-            # Configurar alarma de 2 segundos
-            signal.signal(signal.SIGALRM, handler)
-            signal.alarm(2)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, ns)
-            except TimeoutError as e:
-                bpy.ops.ed.undo()
-                return {"output": f"❌ {e} (Escena revertida)"}
             except SyntaxError as e:
-                bpy.ops.ed.undo()
-                return {"output": f"❌ Axiom SyntaxError: {e} (Escena revertida)"}
+                return {"output": f"❌ SyntaxError: {e}"}
             except Exception as e:
-                bpy.ops.ed.undo()
-                return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
-            finally:
-                # Desactivar alarma
-                signal.alarm(0)
-        
+                return {"output": f"❌ Error: {str(e)[:200]}"}
         return {"output": buf.getvalue()}
 
     def cmd_chat_send(self, message="", model=""):

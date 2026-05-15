@@ -1,4 +1,4 @@
-# blender-mcp v0.8.74 — Extension for Blender 4.2+
+# blender-mcp v0.8.71 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -128,7 +128,72 @@ def save_history(chat):
             f.write(json.dumps(full_msgs, indent=2))
     except: pass
 
+# ─── Chat ───
+class ChatMsg(PropertyGroup):
+    role: StringProperty()
+    text: StringProperty()
+    is_new: BoolProperty(default=False)
+
+class ChatData(PropertyGroup):
+    msgs: CollectionProperty(type=ChatMsg)
+    count: IntProperty(default=0)
+    def add(self, r, t, is_update=False, scene=None):
+        # Detectamos si el usuario ya estaba al final para decidir si le seguimos (Smart Scroll)
+        was_at_bottom = False
+        if scene:
+            was_at_bottom = (scene.aimcp_chat_index >= len(self.msgs) - 1)
+
+        if is_update:
+            while len(self.msgs) > 0 and self.msgs[-1].role == r and not self.msgs[-1].is_new:
+                self.msgs.remove(len(self.msgs)-1)
+            if len(self.msgs) > 0 and self.msgs[-1].role == r and self.msgs[-1].is_new:
+                self.msgs.remove(len(self.msgs)-1)
+
+        lines = wrap_text(t)
+        for i, l_txt in enumerate(lines):
+            m = self.msgs.add()
+            m.role = r; m.text = l_txt
+            m.is_new = (i == 0)
+            
+        self.count = len(self.msgs)
+        # Scroll inteligente: bajamos si ya estábamos al final o si es un mensaje nuevo tuyo
+        if scene and (was_at_bottom or r == 'user' or (not is_update and r == 'assistant')):
+            scene.aimcp_chat_index = self.count - 1
+        save_history(self)
+
+    def clear_all(self):
+        # Limpiamos TODAS las escenas para evitar resurrecciones del archivo
+        for s in bpy.data.scenes:
+            while s.aimcp_chat.msgs:
+                s.aimcp_chat.msgs.remove(0)
+            s.aimcp_chat.count = 0
+        txt_block = bpy.data.texts.get("aimcp_chat_history")
+        if txt_block:
+            bpy.data.texts.remove(txt_block)
+
+# --- Chat Drawing ---
+
+class MCP_UL_Chat(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if not item: return
+        row = layout.row(align=True)
+        if item.is_new:
+            tag = "Usted" if item.role == "user" else "IA" if item.role == "assistant" else "Pensando" if item.role == "status" else "Sys"
+            row.label(text=f"[{tag}] {item.text}")
+        else:
+            row.label(text=f"      {item.text}")
+
 # ─── Model ───
+class ModelItem(PropertyGroup):
+    model_id: StringProperty(); model_name: StringProperty(); provider: StringProperty()
+
+class ModelsData(PropertyGroup):
+    items: CollectionProperty(type=ModelItem); count: IntProperty(default=0)
+    def add(self, mid, name, prov):
+        m = self.items.add(); m.model_id = mid; m.model_name = name; m.provider = prov; self.count = len(self.items)
+    def clear_all(self):
+        while self.items: self.items.remove(0); self.count = 0
+
 PROVIDER_ORDER = ["google", "anthropic", "deepseek", "opencode-go", "openrouter"]
 PROVIDER_LABELS = {
     "google": "Google Gemini", 
@@ -142,7 +207,6 @@ PROVIDER_LABELS = {
 from .panels import chat as _chat_panel, config as _config_panel, integrations as _integrations
 
 # ─── Register (modular) ───
-from .properties import ChatMsg, ChatData, MCP_UL_Chat, ModelItem, ModelsData
 from . import properties as _props
 from . import preferences as _prefs
 from .operators import connect as _conn_ops
