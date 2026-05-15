@@ -43,7 +43,7 @@ class ChatData(PropertyGroup):
             scene.aimcp_chat_index = self.count - 1
 
     @staticmethod
-    def _wrap(text, max_chars=90):
+    def _wrap(text, max_chars=45):
         lines = []
         for p in text.split("\n"):
             if not p:
@@ -74,14 +74,13 @@ class MCP_UL_Chat(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if not item:
             return
-        row = layout.row(align=True)
+        col = layout.column(align=True)
         if item.is_new:
             tag = "Usted" if item.role == "user" else "IA" if item.role == "assistant" else "Sys"
             if item.role == "status":
                 tag = "⏳"
-            row.label(text=f"[{tag}] {item.text}")
-        else:
-            row.label(text=f"   {item.text}")
+            col.label(text=f"[{tag}]")
+        col.label(text=item.text)
 
 
 class BLENDERMCP_OT_OpenWeb(Operator):
