@@ -599,7 +599,7 @@ def _handle_command(mid, text):
 
     if cmd == "!akb_list":
         try:
-            from ..akb import list_categories
+            from .akb import list_categories
             cats = list_categories()
             msg = "📋 **AKB Blueprints:**\n"
             for c in cats:
@@ -612,7 +612,7 @@ def _handle_command(mid, text):
 
     if cmd == "!akb_specs" and args:
         try:
-            from ..akb import get_specs
+            from .akb import get_specs
             results = get_specs(" ".join(args))
             if results:
                 msg = f"🔍 **{len(results)} resultados para '{' '.join(args)}':**\n"
@@ -644,7 +644,7 @@ def _handle_command(mid, text):
         
         def feed():
             try:
-                from ..akb_fetcher import feed_from_polyhaven
+                from .akb_fetcher import feed_from_polyhaven
                 result = feed_from_polyhaven(category, keywords)
                 total = result.get("feeded", 0)
                 msg = f"✅ **Alimentación completada:** {total} nuevos blueprints en {category}"
@@ -664,7 +664,7 @@ def _handle_command(mid, text):
         
         def feed_all():
             try:
-                from ..akb_fetcher import feed_from_polyhaven
+                from .akb_fetcher import feed_from_polyhaven
                 cats = {"av": ["truss", "speaker", "microphone", "camera", "monitor"],
                          "furniture": ["table", "chair", "desk", "shelf", "cabinet"],
                          "vehicles": ["car", "truck", "bicycle"],
