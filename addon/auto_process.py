@@ -731,13 +731,12 @@ def _try_auto_start_client():
 def _respond(mid, text, is_status=False, is_update=False):
     def update():
         for s in bpy.data.scenes:
-            if is_status and not is_update:
+            if is_status:
                 for i, m in enumerate(s.aimcp_chat.msgs):
-                    if m.role == "status" and m.text.endswith("..."):
+                    if m.role == "status":
                         s.aimcp_chat.msgs.remove(i)
                         break
-            if is_status:
-                s.aimcp_chat.add("status", text, scene=s, is_update=is_update)
+                s.aimcp_chat.add("status", text, scene=s)
             else:
                 s.aimcp_chat.add("assistant", text, scene=s)
                 with bsock._chat_lock:
