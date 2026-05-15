@@ -36,12 +36,12 @@ from blender_mcp.tools import (
     polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
     shader_nodes, animation, geometry_nodes, render,
     io, uv_texture, batch, rigging, scene_utils, printing,
-    analysis, docs, viewport, ui, connection, expert, av_tools, assembly,
+    analysis, docs, viewport, ui, connection, expert, av_tools, assembly, akb,
 )
-_mods = [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
-         shader_nodes, animation, geometry_nodes, render,
-         io, uv_texture, batch, rigging, scene_utils, printing,
-         analysis, docs, viewport, ui, connection, expert, av_tools, assembly]
+for mod in [polyhaven, sketchfab, hyper3d, hunyuan, ambientcg,
+             shader_nodes, animation, geometry_nodes, render,
+             io, uv_texture, batch, rigging, scene_utils, printing,
+             analysis, docs, viewport, ui, connection, expert, av_tools, assembly, akb]
 
 for mod in _mods:
     mod.register_tools(mcp)

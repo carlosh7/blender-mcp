@@ -1,0 +1,11 @@
+{
+  "name": "LED Wall Cabinet 500x500",
+  "source": "expert_standard",
+  "mass_kg": 7.5,
+  "material": "Aluminum frame",
+  "dimensions": [0.5, 0.075, 0.5],
+  "functional_points": [
+    {"type": "connector", "name": "PowerCon", "pos": [0.25, -0.0375, 0]},
+    {"type": "connector", "name": "EtherCon", "pos": [-0.25, -0.0375, 0]}
+  ]
+}

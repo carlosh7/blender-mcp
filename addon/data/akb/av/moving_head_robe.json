@@ -1,0 +1,11 @@
+{
+  "name": "Robe BMFL Spot",
+  "source": "expert_standard",
+  "mass_kg": 36,
+  "material": "Metal housing",
+  "watts": 1200,
+  "dimensions": [0.813, 0.483, 0.335],
+  "functional_points": [
+    {"type": "mount", "name": "Clamp", "pos": [0, 0, 0.1675], "std": "CLAMP_OMEGA"}
+  ]
+}

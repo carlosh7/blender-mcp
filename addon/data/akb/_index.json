@@ -1,0 +1,5 @@
+[
+  {"name": "truss_f34", "category": "av", "display_name": "Global Truss F34 2m", "dimensions": [0.29, 2.0, 0.29], "source": "expert_standard"},
+  {"name": "led_panel_500", "category": "av", "display_name": "LED Wall Cabinet 500x500", "dimensions": [0.5, 0.075, 0.5], "source": "expert_standard"},
+  {"name": "moving_head_robe", "category": "av", "display_name": "Robe BMFL Spot", "dimensions": [0.813, 0.483, 0.335], "source": "expert_standard"}
+]

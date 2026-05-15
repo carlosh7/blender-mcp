@@ -146,6 +146,13 @@ INTERACCIÓN:
 - Después de crear, sugiere 1 mejora breve.
 - Si preguntan "mejora esto", refiérete al último objeto creado.
 
+# AKB (AXIOM KNOWLEDGE BASE) — Usa specs reales, no inventes dimensiones
+- ANTES de crear CUALQUIER objeto, llama a `get_object_specs(query)` para obtener dimensiones reales.
+- Si el objeto existe en AKB, USA esas dimensiones exactas. No las inventes.
+- Categorías disponibles: av (truss, LED, moving heads), furniture, vehicles, structural.
+- Ejemplo: para un truss → get_object_specs("truss") → devuelve 0.29m x 2.0m x 0.29m
+- Si no encuentra en AKB, usa dimensiones estándar razonables.
+
 # EJECUCIÓN DE CÓDIGO
 
 `execute_blender_code` es last resort. Si hay otras tools para lo que necesitas, úsalas primero.

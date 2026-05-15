@@ -1,0 +1,12 @@
+{
+  "name": "Global Truss F34 2m",
+  "source": "expert_standard",
+  "mass_kg": 6.5,
+  "material": "Aluminum 6082-T6",
+  "ior": 1.44,
+  "dimensions": [0.29, 2.0, 0.29],
+  "functional_points": [
+    {"type": "connector", "name": "Conical_1", "pos": [0.145, 1.0, 0.145], "std": "F34_CONICAL"},
+    {"type": "connector", "name": "Conical_2", "pos": [-0.145, -1.0, -0.145], "std": "F34_CONICAL"}
+  ]
+}
