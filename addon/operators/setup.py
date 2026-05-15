@@ -107,7 +107,7 @@ class BLENDERMCP_OT_StartMCP(Operator):
         def _run():
             try:
                 import uvicorn
-                import mcp_server
+                from .. import mcp_server
                 app = mcp_server.mcp.sse_app()
                 uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
             except Exception as e:

@@ -1,4 +1,4 @@
-# blender-mcp v0.8.118 — Extension for Blender 4.2+
+# blender-mcp v0.8.119 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -174,13 +174,18 @@ def register():
 
     # ⚡ MCP server (SSE :9879) for opencode/Claude/Cursor
     def _start_mcp():
+        _axsock.mcp_status = "starting..."
+        _axsock.mcp_error = ""
         try:
             import uvicorn
-            import mcp_server
+            from . import mcp_server
             app = mcp_server.mcp.sse_app()
+            _axsock.mcp_status = "running"
             uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
-        except Exception:
-            pass
+        except Exception as e:
+            _axsock.mcp_status = "error"
+            _axsock.mcp_error = str(e)
+            print(f"[blender-mcp] ⚠️  MCP server: {e}")
     threading.Thread(target=_start_mcp, daemon=True).start()
     print("[blender-mcp] ✅ MCP server starting on :9879")
 

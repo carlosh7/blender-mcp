@@ -15,14 +15,17 @@ def _docs_installed():
     return os.path.exists(api_dir) and len(os.listdir(api_dir)) > 10
 
 def _check_mcp():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
-        s.connect(('127.0.0.1', 9879))
-        s.close()
-        return True
-    except:
-        return False
+    for _ in range(3):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect(('127.0.0.1', 9879))
+            s.close()
+            return True
+        except:
+            import time
+            time.sleep(0.5)
+    return False
 
 
 class PN_PT_Config(Panel):
