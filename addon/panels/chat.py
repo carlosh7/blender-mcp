@@ -144,9 +144,6 @@ class PN_PT_Chat(Panel):
         box = L.box()
         row = box.row(align=True)
         row.label(text="AKB Commands:", icon='BOOKMARKS')
-        for cmd_id, cmd_text, cmd_desc in _AKB_COMMANDS_LIST:
-            op = row.operator("blendermcp.insert_command", text="", icon='ADD')
-            op.command = cmd_text
         row = box.row(align=True)
         for cmd_id, cmd_text, cmd_desc in _AKB_COMMANDS_LIST:
             op = row.operator("blendermcp.insert_command", text=cmd_text, emboss=True)
