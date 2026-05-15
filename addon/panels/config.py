@@ -120,7 +120,7 @@ class PN_PT_Config(Panel):
                 row = box.row(align=True)
                 row.label(text=status, icon='INFO')
             row = box.row(align=True)
-            row.operator("aimcp.download_docs", text="Descargar RST Docs", icon='DOWNLOAD')
+            row.operator("aimcp.download_docs", text="Descargar RST Docs", icon='IMPORT')
             row = box.row(align=True)
             row.label(text="15 MB — descarga única", icon='INFO')
 
