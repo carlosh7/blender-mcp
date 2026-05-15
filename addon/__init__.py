@@ -1,4 +1,4 @@
-# blender-mcp v0.8.98 — Extension for Blender 4.2+
+# blender-mcp v0.8.99 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -187,7 +187,14 @@ def register():
     except Exception as e:
         print(f"[blender-mcp] ⚠️  Socket server: {e}")
 
-    # 1. Module-level registrations
+    # 1. Register RNA classes FIRST (needed by PointerProperty)
+    for cls in classes:
+        try:
+            bpy.utils.register_class(cls)
+        except:
+            pass
+
+    # 2. Module-level registrations (properties depends on RNA classes)
     for fn in [_props.register_properties, _prefs.register_preferences,
                _conn_ops.register_connect_operators, _chat_ops.register_chat_operators,
                _capture_ops.register_capture_operators, _export_ops.register_export_operators,
@@ -210,12 +217,6 @@ def register():
         except:
             pass
 
-    # 2. Core classes
-    for cls in classes:
-        try:
-            bpy.utils.register_class(cls)
-        except:
-            pass
 
     Scene = bpy.types.Scene
     _scene_props = {
@@ -245,7 +246,6 @@ def register():
         except:
             pass
 
-    # ─── Status ticker (temprano: antes de cualquier timer que pueda fallar) ───
     try:
         from .operators.model_ops import _status_ticker
         bpy.app.timers.register(_status_ticker, first_interval=0.2)
