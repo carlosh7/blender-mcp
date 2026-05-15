@@ -1,4 +1,4 @@
-# blender-mcp v0.8.122 — Extension for Blender 4.2+
+# blender-mcp v0.8.123 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -177,7 +177,39 @@ def register():
         _axsock.mcp_status = "starting..."
         _axsock.mcp_error = ""
         try:
-            import subprocess, sys, os, tempfile
+            import subprocess, sys, os, tempfile, socket, signal
+
+            # Matar proceso MCP previo si existe
+            if _axsock._mcp_process:
+                try:
+                    _axsock._mcp_process.terminate()
+                    _axsock._mcp_process.wait(timeout=3)
+                except:
+                    try:
+                        os.kill(_axsock._mcp_process.pid, signal.SIGKILL)
+                    except:
+                        pass
+                _axsock._mcp_process = None
+
+            # Verificar si el puerto está libre
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(2)
+            port_busy = sock.connect_ex(('127.0.0.1', 9879)) == 0
+            sock.close()
+
+            if port_busy:
+                _axsock.mcp_status = "error"
+                _axsock.mcp_error = "Port 9879 in use"
+                print("[blender-mcp] ⚠️  Port 9879 already in use, killing old process...")
+                try:
+                    result = subprocess.run(
+                        ["fuser", "-k", "9879/tcp"],
+                        capture_output=True, timeout=5
+                    )
+                    print(f"[blender-mcp] fuser: {result.stdout.decode()}")
+                except:
+                    pass
+
             ext_root = os.path.dirname(os.path.abspath(__file__))
             mcp_script = os.path.join(ext_root, "mcp_server.py")
             mcp_log = os.path.join(tempfile.gettempdir(), "blender_mcp_server.log")
@@ -193,7 +225,6 @@ def register():
             else:
                 _axsock.mcp_status = "error"
                 _axsock.mcp_error = "mcp_server.py not found"
-                print(f"[blender-mcp] ⚠️  mcp_server.py not found at {mcp_script}")
         except Exception as e:
             _axsock.mcp_status = "error"
             _axsock.mcp_error = str(e)
@@ -416,6 +447,18 @@ def _auto_verify_model(model_id, scene_name):
 
 
 def unregister():
+    # Matar MCP subprocess
+    if bsock._mcp_process:
+        try:
+            bsock._mcp_process.terminate()
+            bsock._mcp_process.wait(timeout=3)
+        except:
+            try:
+                import os, signal
+                os.kill(bsock._mcp_process.pid, signal.SIGKILL)
+            except:
+                pass
+        bsock._mcp_process = None
     try:
         from .operators.embedded import auto_stop
         auto_stop()
