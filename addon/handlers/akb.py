@@ -30,9 +30,9 @@ class AKBHandler(BaseHandler):
     @staticmethod
     def cmd_feed_category(category="av", keywords=""):
         try:
-            from ..akb_fetcher import feed_from_sketchfab
+            from ..akb_fetcher import feed_from_polyhaven
             kw_list = [k.strip() for k in keywords.split(",")] if keywords else None
-            result = feed_from_sketchfab(category, kw_list)
+            result = feed_from_polyhaven(category, kw_list)
             return result
         except Exception as e:
             return {"error": str(e)}
