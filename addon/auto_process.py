@@ -696,7 +696,8 @@ def _process_with_client(mid, text):
                 print(f"[AUTO] Ejecutando {len(code_blocks)} bloque(s) de código en main thread...")
                 errors = _exec_code_main(code_blocks)
 
-            if not errors:
+            real_errors = [e for e in errors if not e.startswith("__")]
+            if not real_errors:
                 break
 
             if retry == 0:
