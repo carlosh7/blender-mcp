@@ -1,4 +1,4 @@
-# blender-mcp v0.8.121 — Extension for Blender 4.2+
+# blender-mcp v0.8.122 — Extension for Blender 4.2+
 # Config via blender_manifest.toml
 import bpy, os, json, time, mathutils, sys, threading, subprocess, importlib, traceback
 from pathlib import Path
@@ -177,18 +177,19 @@ def register():
         _axsock.mcp_status = "starting..."
         _axsock.mcp_error = ""
         try:
-            import subprocess, sys, os
+            import subprocess, sys, os, tempfile
             ext_root = os.path.dirname(os.path.abspath(__file__))
             mcp_script = os.path.join(ext_root, "mcp_server.py")
+            mcp_log = os.path.join(tempfile.gettempdir(), "blender_mcp_server.log")
             if os.path.exists(mcp_script):
                 _axsock._mcp_process = subprocess.Popen(
                     [sys.executable, mcp_script],
                     cwd=ext_root,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stdout=open(mcp_log, 'w'),
+                    stderr=subprocess.STDOUT,
                 )
                 _axsock.mcp_status = "running"
-                print(f"[blender-mcp] ✅ MCP server PID {_axsock._mcp_process.pid}")
+                print(f"[blender-mcp] ✅ MCP server PID {_axsock._mcp_process.pid}, log: {mcp_log}")
             else:
                 _axsock.mcp_status = "error"
                 _axsock.mcp_error = "mcp_server.py not found"

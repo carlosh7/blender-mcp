@@ -103,21 +103,22 @@ class BLENDERMCP_OT_StartMCP(Operator):
     bl_label = "Start MCP Server"
 
     def execute(self, context):
-        import subprocess, sys, os, threading
+        import subprocess, sys, os, threading, tempfile
         from .. import _axsock as bsock
         def _run():
             try:
                 ext_root = os.path.dirname(os.path.abspath(__file__))
                 ext_root = os.path.dirname(ext_root)
                 mcp_script = os.path.join(ext_root, "mcp_server.py")
+                mcp_log = os.path.join(tempfile.gettempdir(), "blender_mcp_server.log")
                 if os.path.exists(mcp_script):
                     bsock._mcp_process = subprocess.Popen(
                         [sys.executable, mcp_script],
                         cwd=ext_root,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
+                        stdout=open(mcp_log, 'w'),
+                        stderr=subprocess.STDOUT,
                     )
-                    print(f"[blender-mcp] ✅ MCP server PID {bsock._mcp_process.pid}")
+                    print(f"[blender-mcp] ✅ MCP server PID {bsock._mcp_process.pid}, log: {mcp_log}")
                 else:
                     print(f"[blender-mcp] ⚠️  mcp_server.py not found")
             except Exception as e:
