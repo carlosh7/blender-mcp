@@ -576,7 +576,141 @@ def _capture_screenshot_b64():
         return None
 
 
+# ─── Comandos directos (sin LLM) ───
+_AKB_COMMANDS = {
+    "!akb_help": "Muestra esta ayuda.\n  !akb_list - Lista categorías y blueprints\n  !feed_category <cat>, <kw1>, <kw2>... - Busca y descarga modelos\n  !feed_all - Puebla todas las categorías\n  !akb_specs <query> - Busca specs en AKB",
+    "!akb_list": None,
+    "!feed_category": None,
+    "!feed_all": None,
+    "!akb_specs": None,
+    "!akb_clean": "Limpia todos los objetos de prueba de la escena.",
+}
+
+
+def _handle_command(mid, text):
+    parts = text.strip().split()
+    cmd = parts[0].lower()
+    args = parts[1:]
+
+    if cmd == "!akb_help":
+        _respond(mid, _AKB_COMMANDS["!akb_help"])
+        _cleanup(mid)
+        return True
+
+    if cmd == "!akb_list":
+        try:
+            from ..akb import list_categories
+            cats = list_categories()
+            msg = "📋 **AKB Blueprints:**\n"
+            for c in cats:
+                msg += f"\n📁 {c['category']} ({c['count']} objetos)"
+            _respond(mid, msg)
+        except Exception as e:
+            _respond(mid, f"❌ Error: {e}")
+        _cleanup(mid)
+        return True
+
+    if cmd == "!akb_specs" and args:
+        try:
+            from ..akb import get_specs
+            results = get_specs(" ".join(args))
+            if results:
+                msg = f"🔍 **{len(results)} resultados para '{' '.join(args)}':**\n"
+                for bp in results[:5]:
+                    meta = bp.get("metadata", {})
+                    geo = bp.get("geometry", {})
+                    dims = geo.get("dimensions", "?")
+                    src = meta.get("source", "?")
+                    name = meta.get("name", "?")
+                    msg += f"\n- {name}: {dims} [{src}]"
+            else:
+                msg = f"❌ No se encontraron blueprints para '{' '.join(args)}'"
+            _respond(mid, msg)
+        except Exception as e:
+            _respond(mid, f"❌ Error: {e}")
+        _cleanup(mid)
+        return True
+
+    if cmd == "!feed_category":
+        if not args:
+            _respond(mid, "⚠️ Uso: !feed_category <categoria>, <keyword1>, <keyword2>...\nEj: !feed_category av, truss, speaker, camera")
+            _cleanup(mid)
+            return True
+        full = " ".join(args)
+        parts = [p.strip() for p in full.split(",")]
+        category = parts[0]
+        keywords = parts[1:] if len(parts) > 1 else [category]
+        _respond(mid, f"⏳ Alimentando {category} con {keywords}...", is_status=True)
+        
+        def feed():
+            try:
+                from ..akb_fetcher import feed_from_polyhaven
+                result = feed_from_polyhaven(category, keywords)
+                total = result.get("feeded", 0)
+                msg = f"✅ **Alimentación completada:** {total} nuevos blueprints en {category}"
+                if result.get("items"):
+                    for item in result["items"]:
+                        dims = item.get("dimensions", "?")
+                        msg += f"\n- {item['name']}: {dims}"
+                _respond(mid, msg)
+            except Exception as e:
+                _respond(mid, f"❌ Error alimentando AKB: {e}")
+            _cleanup(mid)
+        threading.Thread(target=feed, daemon=True).start()
+        return True
+
+    if cmd == "!feed_all":
+        _respond(mid, "⏳ Alimentando todas las categorías... (puede tomar varios minutos)", is_status=True)
+        
+        def feed_all():
+            try:
+                from ..akb_fetcher import feed_from_polyhaven
+                cats = {"av": ["truss", "speaker", "microphone", "camera", "monitor"],
+                         "furniture": ["table", "chair", "desk", "shelf", "cabinet"],
+                         "vehicles": ["car", "truck", "bicycle"],
+                         "structural": ["door", "window", "beam"]}
+                total = 0
+                msg = "✅ **Alimentación global completada:**\n"
+                for cat, kws in cats.items():
+                    r = feed_from_polyhaven(cat, kws)
+                    n = r.get("feeded", 0)
+                    total += n
+                    msg += f"\n- {cat}: {n} blueprints"
+                    for item in r.get("items", []):
+                        dims = item.get("dimensions", "?")
+                        msg += f"\n  • {item['name']}: {dims}"
+                msg += f"\n\n**Total: {total} nuevos blueprints**"
+                _respond(mid, msg)
+            except Exception as e:
+                _respond(mid, f"❌ Error: {e}")
+            _cleanup(mid)
+        threading.Thread(target=feed_all, daemon=True).start()
+        return True
+
+    if cmd == "!akb_clean":
+        _respond(mid, "🧹 Limpiando objetos de prueba...", is_status=True)
+        try:
+            import bpy
+            count = 0
+            for obj in list(bpy.data.objects):
+                if obj.name not in ("Cube", "Camera", "Light", "tx"):
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    count += 1
+            _respond(mid, f"✅ Escena limpia. {count} objetos eliminados.")
+        except Exception as e:
+            _respond(mid, f"❌ Error: {e}")
+        _cleanup(mid)
+        return True
+
+    return False
+
+
 def _process_with_client(mid, text):
+    # Check for direct commands first
+    if text.strip().startswith("!"):
+        if _handle_command(mid, text):
+            return
+
     scene = bpy.context.scene
     model = getattr(scene, "aimcp_model", "")
     provider = _detect_provider(model) if model else "opencode-go"
