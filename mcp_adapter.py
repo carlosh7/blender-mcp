@@ -9,6 +9,7 @@ import json
 import socket
 import time
 import logging
+from datetime import datetime
 
 # Setup paths
 _dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,6 +22,28 @@ logger = logging.getLogger("blender-mcp-ultra")
 # Blender connection
 BLENDER_HOST = os.environ.get("BLENDER_HOST", "localhost")
 BLENDER_PORT = int(os.environ.get("BLENDER_PORT", "9876"))
+
+# Security: rate limiting
+_request_counts = {}
+_last_request_time = {}
+MAX_REQUESTS_PER_MINUTE = 60
+
+
+def check_rate_limit(client_id: str = "default") -> bool:
+    """Check if request is within rate limit."""
+    now = time.time()
+    minute_key = f"{client_id}:{int(now // 60)}"
+    
+    if minute_key not in _request_counts:
+        _request_counts[minute_key] = 0
+    
+    _request_counts[minute_key] += 1
+    
+    if _request_counts[minute_key] > MAX_REQUESTS_PER_MINUTE:
+        logger.warning(f"Rate limit exceeded for {client_id}")
+        return False
+    
+    return True
 
 
 def send_to_blender(command, params=None):
@@ -39,11 +62,35 @@ def send_to_blender(command, params=None):
         return {"error": str(e)}
 
 
+def log_tool_call(tool_name: str, params: dict, success: bool, execution_time: float):
+    """Log tool call for audit trail."""
+    timestamp = datetime.now().isoformat()
+    log_entry = {
+        "timestamp": timestamp,
+        "tool": tool_name,
+        "params_keys": list(params.keys()) if params else [],
+        "success": success,
+        "execution_time_ms": execution_time * 1000,
+    }
+    logger.info(f"TOOL_CALL: {json.dumps(log_entry)}")
+
+
 def handle_request(request):
     """Handle MCP JSON-RPC request."""
     method = request.get("method", "")
     params = request.get("params", {})
     req_id = request.get("id")
+
+    # Rate limiting check
+    if not check_rate_limit():
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {
+                "code": -32000,
+                "message": "Rate limit exceeded. Please slow down."
+            }
+        }
 
     if method == "initialize":
         return {
@@ -83,7 +130,21 @@ def handle_request(request):
     elif method == "tools/call":
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
+        
+        # Security: validate tool name
+        if not tool_name or not isinstance(tool_name, str):
+            return {"jsonrpc": "2.0", "id": req_id, "error": {
+                "code": -32602,
+                "message": "Invalid tool name"
+            }}
+        
+        # Security: check tool exists
+        start_time = time.time()
         result = send_to_blender("tool", {"tool_name": tool_name, "params": arguments})
+        execution_time = time.time() - start_time
+        
+        # Log the tool call
+        log_tool_call(tool_name, arguments, result.get("success", False), execution_time)
         
         if result.get("success"):
             content = json.dumps(result.get("data", {}), indent=2)

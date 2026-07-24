@@ -1,9 +1,10 @@
 """
-blender-mcp-ultra — AST Validator
-Validates Python code against a whitelist of allowed AST patterns.
+blender-mcp-ultra — AST Validator (Enterprise Grade)
+Validates Python code against a comprehensive whitelist of allowed AST patterns.
 Blocks dangerous operations that could harm the system.
 """
 import ast
+import re
 from typing import Set, List, Optional
 from dataclasses import dataclass
 
@@ -43,6 +44,12 @@ class ASTValidator:
         
         # Memory/internals
         'memoryview', 'bytearray',
+        
+        # Type manipulation
+        'type', 'super',
+        
+        # Representation
+        'repr', 'id', 'hash',
     }
     
     # Dangerous module names
@@ -68,6 +75,21 @@ class ASTValidator:
         
         # Debugging
         'pdb', 'profile', 'cProfile', 'trace',
+        
+        # File system
+        'pathlib', 'glob', 'fnmatch',
+        
+        # Data processing (potential DoS)
+        'csv', 'json', 'xml', 'html',
+        
+        # Compression (potential bomb)
+        'zipfile', 'tarfile', 'gzip', 'bz2', 'lzma',
+        
+        # Hashing (potential collision)
+        'hashlib', 'hmac',
+        
+        # Crypto (potential key theft)
+        'crypto', 'ssl',
     }
     
     # Dangerous function/method names
@@ -84,12 +106,51 @@ class ASTValidator:
         
         # Process
         'kill', 'terminate', 'wait',
+        
+        # Code execution
+        'eval', 'exec', 'compile',
     }
     
     # Dangerous AST node types
     BLOCKED_NODE_TYPES: Set[type] = {
         ast.Delete,  # del statement
     }
+    
+    # Dangerous string patterns (regex)
+    DANGEROUS_PATTERNS: List[re.Pattern] = [
+        re.compile(r'__import__', re.IGNORECASE),
+        re.compile(r'exec\s*\(', re.IGNORECASE),
+        re.compile(r'eval\s*\(', re.IGNORECASE),
+        re.compile(r'compile\s*\(', re.IGNORECASE),
+        re.compile(r'open\s*\(', re.IGNORECASE),
+        re.compile(r'os\.', re.IGNORECASE),
+        re.compile(r'sys\.', re.IGNORECASE),
+        re.compile(r'subprocess\.', re.IGNORECASE),
+        re.compile(r'import\s+os', re.IGNORECASE),
+        re.compile(r'import\s+sys', re.IGNORECASE),
+        re.compile(r'import\s+subprocess', re.IGNORECASE),
+        re.compile(r'import\s+shutil', re.IGNORECASE),
+        re.compile(r'import\s+socket', re.IGNORECASE),
+        re.compile(r'import\s+http', re.IGNORECASE),
+        re.compile(r'import\s+urllib', re.IGNORECASE),
+        re.compile(r'import\s+requests', re.IGNORECASE),
+        re.compile(r'import\s+multiprocessing', re.IGNORECASE),
+        re.compile(r'import\s+threading', re.IGNORECASE),
+        re.compile(r'import\s+ctypes', re.IGNORECASE),
+        re.compile(r'import\s+pickle', re.IGNORECASE),
+        re.compile(r'import\s+shelve', re.IGNORECASE),
+        re.compile(r'import\s+marshal', re.IGNORECASE),
+        re.compile(r'import\s+cffi', re.IGNORECASE),
+        re.compile(r'import\s+pdb', re.IGNORECASE),
+        re.compile(r'import\s+profile', re.IGNORECASE),
+        re.compile(r'import\s+trace', re.IGNORECASE),
+        re.compile(r'import\s+pathlib', re.IGNORECASE),
+        re.compile(r'import\s+glob', re.IGNORECASE),
+        re.compile(r'import\s+fnmatch', re.IGNORECASE),
+        re.compile(r'import\s+hashlib', re.IGNORECASE),
+        re.compile(r'import\s+ssl', re.IGNORECASE),
+        re.compile(r'import\s+crypto', re.IGNORECASE),
+    ]
     
     def __init__(self, custom_blocked: Optional[Set[str]] = None):
         """
@@ -118,6 +179,12 @@ class ASTValidator:
         errors = []
         warnings = []
         
+        # First check string patterns (fast check)
+        for pattern in self.DANGEROUS_PATTERNS:
+            if pattern.search(code):
+                errors.append(f"Dangerous pattern detected: {pattern.pattern}")
+        
+        # Then check AST
         try:
             tree = ast.parse(code)
         except SyntaxError as e:

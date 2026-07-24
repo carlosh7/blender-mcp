@@ -74,11 +74,12 @@ class TestObjectCreation:
     def test_create_cube(self):
         result = send_command("tool", {
             "tool_name": "object.create",
-            "params": {"type": "MESH", "name": "TestCube", "location": [0, 0, 0]}
+            "params": {"type": "MESH", "name": "IntegrationCube", "location": [0, 0, 0]}
         })
         assert result is not None
         assert result.get("success") is True
-        assert result.get("data", {}).get("name") == "TestCube"
+        # Blender may auto-rename if name exists
+        assert "IntegrationCube" in result.get("data", {}).get("name", "")
     
     @skip_without_blender
     def test_create_sphere(self):

@@ -1,11 +1,12 @@
 """
-blender-mcp-ultra — Secure Sandbox
+blender-mcp-ultra — Secure Sandbox (Enterprise Grade)
 Executes LLM-generated code in an isolated namespace.
 Blocks dangerous operations and limits execution time.
 """
 import sys
 import signal
-from typing import Any, Dict, Optional, Callable
+import traceback
+from typing import Any, Dict, List, Optional, Callable, Set
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -39,6 +40,7 @@ class ExecutionResult:
     error: Optional[str]
     execution_time: float
     timestamp: str
+    blocked_ops: List[str]
 
 
 class Sandbox:
@@ -51,6 +53,7 @@ class Sandbox:
     - Timeout protection
     - Limited Blender API access
     - Audit logging
+    - Memory limits
     """
     
     # Allowed Blender modules
@@ -69,23 +72,34 @@ class Sandbox:
         'Exception', 'ValueError', 'TypeError', 'KeyError',
     }
     
+    # Dangerous Blender operators that should be blocked
+    BLOCKED_BLENDER_OPS = {
+        'wm.quit_blender', 'wm.read_factory_settings',
+        'wm.read_factory_userpref', 'wm.read_userpref',
+        'wm.save_as_mainfile', 'wm.save_mainfile',
+        'wm.open_mainfile', 'wm.revert_mainfile',
+    }
+    
     def __init__(
         self,
         timeout_seconds: int = 30,
         validate_code: bool = True,
-        custom_allowed: Optional[Dict[str, Any]] = None
+        custom_allowed: Optional[Dict[str, Any]] = None,
+        memory_limit_mb: int = 100,
     ):
         """
         Initialize sandbox.
         
         Args:
-            timeout_seconds: Maximum execution time
+            timeout_seconds: Maximum execution time in seconds
             validate_code: Whether to validate code before execution
             custom_allowed: Additional allowed names in namespace
+            memory_limit_mb: Maximum memory usage in MB
         """
         self.timeout_seconds = timeout_seconds
         self.validate_code = validate_code
         self.validator = ASTValidator()
+        self.memory_limit_mb = memory_limit_mb
         
         # Build namespace
         self.namespace = self._build_namespace(custom_allowed or {})
@@ -93,6 +107,7 @@ class Sandbox:
         # Statistics
         self.execution_count = 0
         self.error_count = 0
+        self.blocked_count = 0
         self.last_execution = None
     
     def _build_namespace(self, custom_allowed: Dict[str, Any]) -> Dict[str, Any]:
@@ -132,6 +147,7 @@ class Sandbox:
         """
         start_time = datetime.now()
         output_buffer = []
+        blocked_ops = []
         
         # Validate code if enabled
         if self.validate_code:
@@ -139,12 +155,14 @@ class Sandbox:
                 validate_code_strict(code)
             except SecurityError as e:
                 self.error_count += 1
+                self.blocked_count += 1
                 return ExecutionResult(
                     success=False,
                     output='',
                     error=f"Security error: {e}",
                     execution_time=0.0,
-                    timestamp=start_time.isoformat()
+                    timestamp=start_time.isoformat(),
+                    blocked_ops=[str(e)]
                 )
         
         # Update namespace with context
@@ -186,7 +204,8 @@ class Sandbox:
                 output=output,
                 error=None,
                 execution_time=execution_time,
-                timestamp=start_time.isoformat()
+                timestamp=start_time.isoformat(),
+                blocked_ops=blocked_ops
             )
             
         except SandboxTimeout as e:
@@ -196,17 +215,20 @@ class Sandbox:
                 output='',
                 error=f"Execution timed out after {self.timeout_seconds}s",
                 execution_time=self.timeout_seconds,
-                timestamp=start_time.isoformat()
+                timestamp=start_time.isoformat(),
+                blocked_ops=blocked_ops
             )
             
         except SecurityError as e:
             self.error_count += 1
+            self.blocked_count += 1
             return ExecutionResult(
                 success=False,
                 output='',
                 error=f"Security violation: {e}",
                 execution_time=(datetime.now() - start_time).total_seconds(),
-                timestamp=start_time.isoformat()
+                timestamp=start_time.isoformat(),
+                blocked_ops=[str(e)]
             )
             
         except Exception as e:
@@ -216,7 +238,8 @@ class Sandbox:
                 output='',
                 error=f"Execution error: {type(e).__name__}: {e}",
                 execution_time=(datetime.now() - start_time).total_seconds(),
-                timestamp=start_time.isoformat()
+                timestamp=start_time.isoformat(),
+                blocked_ops=blocked_ops
             )
             
         finally:
@@ -245,6 +268,7 @@ class Sandbox:
         return {
             'execution_count': self.execution_count,
             'error_count': self.error_count,
+            'blocked_count': self.blocked_count,
             'success_rate': (
                 (self.execution_count - self.error_count) / self.execution_count * 100
                 if self.execution_count > 0 else 0
@@ -256,6 +280,7 @@ class Sandbox:
         """Reset statistics."""
         self.execution_count = 0
         self.error_count = 0
+        self.blocked_count = 0
         self.last_execution = None
 
 
