@@ -19,6 +19,9 @@ sys.path.insert(0, _src_dir)
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("blender-mcp-ultra")
 
+# Import monitoring
+from infrastructure.monitoring import get_metrics_collector, get_health_checker, get_alert_manager
+
 # Blender connection
 BLENDER_HOST = os.environ.get("BLENDER_HOST", "localhost")
 BLENDER_PORT = int(os.environ.get("BLENDER_PORT", "9876"))
@@ -80,6 +83,9 @@ def handle_request(request):
     method = request.get("method", "")
     params = request.get("params", {})
     req_id = request.get("id")
+    
+    # Start timing
+    start_time = time.time()
 
     # Rate limiting check
     if not check_rate_limit():
@@ -162,10 +168,17 @@ def handle_request(request):
         return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
     else:
-        return {"jsonrpc": "2.0", "id": req_id, "error": {
+        response = {"jsonrpc": "2.0", "id": req_id, "error": {
             "code": -32601,
             "message": f"Method not found: {method}"
         }}
+    
+    # Record metrics
+    execution_time = time.time() - start_time
+    success = "error" not in str(response)
+    get_metrics_collector().record_request(execution_time, success)
+    
+    return response
 
 
 def main():

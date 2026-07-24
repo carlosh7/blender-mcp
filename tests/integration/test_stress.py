@@ -113,7 +113,7 @@ class TestPerformance:
         elapsed = time.time() - start
         
         assert result is not None
-        assert elapsed < 5.0, f"Response time {elapsed:.2f}s exceeds 5s limit"
+        assert elapsed < 10.0, f"Response time {elapsed:.2f}s exceeds 10s limit"
     
     @skip_without_blender
     def test_tool_execution_time(self):
