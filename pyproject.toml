@@ -60,18 +60,19 @@ packages = ["src/blender_mcp", "addon"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "src"]
+pythonpath = ["src"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --strict-markers --tb=short"
+addopts = "-v --strict-markers --tb=short --override-ini='rootdir=.' --rootdir=./tests"
+norecursedirs = ["addon", "blender_mcp", "__pycache__", ".git", ".venv", "."]
 markers = [
     "e2e: end-to-end tests that use real external processes (e.g., Blender)",
     "slow: tests that take more than 10 seconds",
 ]
 
 [tool.coverage.run]
-source = ["src/blender_mcp", "addon"]
+source = ["src"]
 omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.ruff]

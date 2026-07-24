@@ -1,8 +1,8 @@
 schema_version = "1.0.0"
-id = "axiom_engine"
-name = "AXIOM Precision Engine"
-tagline = "Industrial-grade AI assembly pipeline for Blender"
-version = "0.8.125"
+id = "blender_mcp_ultra"
+name = "blender-mcp-ultra"
+tagline = "The most complete MCP server for Blender — 118+ tools, enterprise security"
+version = "1.0.0"
 type = "add-on"
 maintainer = "CarlosH"
 license = ["MIT"]
