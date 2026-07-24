@@ -1,6 +1,6 @@
 """
 blender-mcp-ultra — Cache Infrastructure
-LRU cache and tool cache.
+LRU cache and tool cache for performance optimization.
 """
 import time
 import threading
@@ -31,7 +31,7 @@ class LRUCache:
                 else:
                     # Expired
                     del self._cache[key]
-                    del self._ttl[key]
+                    self._ttl.pop(key, None)
             self._misses += 1
             return None
     

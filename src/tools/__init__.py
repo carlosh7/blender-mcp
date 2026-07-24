@@ -11,6 +11,7 @@ from core.entities import Tool, ToolResult, ToolCategory, ToolPermission
 from core.interfaces import IToolRegistry, IBlenderAPI
 from infrastructure.security import validate_code_strict
 from infrastructure.logging import get_logger
+from infrastructure.cache import get_tool_cache
 
 
 class ToolRegistry(IToolRegistry):
@@ -22,20 +23,23 @@ class ToolRegistry(IToolRegistry):
     - Permission-based execution
     - Automatic validation
     - Execution logging
+    - Tool result caching
     """
     
-    def __init__(self, blender_api: Optional[IBlenderAPI] = None):
+    def __init__(self, blender_api: Optional[IBlenderAPI] = None, use_cache: bool = True):
         """
         Initialize tool registry.
         
         Args:
             blender_api: Blender API instance
+            use_cache: Whether to cache tool results
         """
         self.blender_api = blender_api
         self._tools: Dict[str, Tool] = {}
         self._handlers: Dict[str, Callable] = {}
         self._loaded_categories: set = set()
         self._logger = get_logger()
+        self._cache = get_tool_cache() if use_cache else None
     
     def register_tool(self, tool: Tool, handler: Callable) -> None:
         """Register a tool."""
@@ -78,6 +82,12 @@ class ToolRegistry(IToolRegistry):
                 error=f"Handler not found for tool: {tool_name}"
             )
         
+        # Check cache first
+        if self._cache:
+            cached_result = self._cache.get_result(tool_name, params)
+            if cached_result is not None:
+                return cached_result
+        
         start_time = time.time()
         
         try:
@@ -97,12 +107,18 @@ class ToolRegistry(IToolRegistry):
                 execution_time=execution_time
             )
             
-            return ToolResult(
+            tool_result = ToolResult(
                 success=True,
                 data=result,
                 execution_time=execution_time,
                 timestamp=datetime.now().isoformat()
             )
+            
+            # Cache result
+            if self._cache:
+                self._cache.set_result(tool_name, params, tool_result)
+            
+            return tool_result
             
         except Exception as e:
             execution_time = time.time() - start_time
@@ -176,11 +192,16 @@ class ToolRegistry(IToolRegistry):
             cat = tool.category.value
             categories[cat] = categories.get(cat, 0) + 1
         
-        return {
+        stats = {
             'total_tools': len(self._tools),
             'loaded_categories': len(self._loaded_categories),
             'tools_by_category': categories,
         }
+        
+        if self._cache:
+            stats['cache'] = self._cache.stats()
+        
+        return stats
 
 
 # Singleton instance
