@@ -163,14 +163,14 @@ class ASTValidator:
         # Check function calls
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
-                if node.func.id in self.BLOCKED_NAMES:
+                if node.func.id in self.blocked_names:
                     errors.append(f"Blocked function call: {node.func.id}")
                 if node.func.id in self.BLOCKED_BUILTINS:
                     errors.append(f"Blocked builtin call: {node.func.id}")
         
         # Check name references
         if isinstance(node, ast.Name):
-            if node.id in self.BLOCKED_NAMES:
+            if node.id in self.blocked_names:
                 warnings.append(f"Potentially dangerous name: {node.id}")
         
         # Check attribute access
