@@ -143,16 +143,38 @@ def handle_request(request):
     elif method == "tools/list":
         result = send_to_blender("list_tools")
         tools = []
+        type_map = {
+            "str": "string",
+            "string": "string",
+            "int": "integer",
+            "integer": "integer",
+            "float": "number",
+            "number": "number",
+            "bool": "boolean",
+            "boolean": "boolean",
+            "list": "array",
+            "tuple": "array",
+            "array": "array",
+            "dict": "object",
+            "object": "object",
+        }
         for tool in result.get("tools", []):
+            properties = {}
+            for k, v in tool.get("parameters", {}).items():
+                raw_type = v.get("type")
+                prop = {"description": v.get("description", "")}
+                if raw_type in type_map:
+                    prop["type"] = type_map[raw_type]
+                elif raw_type and raw_type != "any":
+                    prop["type"] = "string"
+                properties[k] = prop
+
             tools.append({
                 "name": tool["name"],
                 "description": tool.get("description", ""),
                 "inputSchema": {
                     "type": "object",
-                    "properties": {
-                        k: {"type": v.get("type", "string"), "description": v.get("description", "")}
-                        for k, v in tool.get("parameters", {}).items()
-                    },
+                    "properties": properties,
                     "required": [k for k, v in tool.get("parameters", {}).items() if v.get("required")]
                 }
             })

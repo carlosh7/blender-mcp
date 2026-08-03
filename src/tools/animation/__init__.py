@@ -44,7 +44,7 @@ TOOLS = [
             "object_name": {"type": "str", "required": True, "description": "Object name"},
             "property": {"type": "str", "required": True, "description": "Property name"},
             "frame": {"type": "int", "required": True, "description": "Frame number"},
-            "value": {"type": "any", "required": True, "description": "Keyframe value"},
+            "value": {"required": True, "description": "Keyframe value"},
         },
         examples=[
             "animation.set_keyframe(object_name='Cube', property='location', frame=1, value=(0,0,0))",

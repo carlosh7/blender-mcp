@@ -14,7 +14,7 @@ TOOLS = [
           "to_socket": {"type": "str", "required": True}}),
     Tool("shader.set_node_value", ToolCategory.SHADER_NODES, "Set a node input value", ToolPermission.WRITE,
          {"material_name": {"type": "str", "required": True}, "node_name": {"type": "str", "required": True},
-          "input_name": {"type": "str", "required": True}, "value": {"type": "any", "required": True}}),
+          "input_name": {"type": "str", "required": True}, "value": {"required": True}}),
     Tool("shader.delete_node", ToolCategory.SHADER_NODES, "Delete a shader node", ToolPermission.WRITE,
          {"material_name": {"type": "str", "required": True}, "node_name": {"type": "str", "required": True}}),
     Tool("shader.list_nodes", ToolCategory.SHADER_NODES, "List all nodes in material", ToolPermission.READ_ONLY,
