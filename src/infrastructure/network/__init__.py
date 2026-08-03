@@ -4,6 +4,7 @@ Socket server/client and connection pool.
 """
 import json
 import socket
+import ssl
 import threading
 import time
 from typing import Any, Callable, Dict, Optional
@@ -16,6 +17,9 @@ class ConnectionConfig:
     port: int = 9876
     timeout: float = 30.0
     max_retries: int = 3
+    use_tls: bool = False
+    certfile: Optional[str] = None
+    keyfile: Optional[str] = None
 
 
 class ConnectionPool:
@@ -63,8 +67,18 @@ class BlenderConnection:
     
     def connect(self) -> bool:
         try:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.settimeout(self.config.timeout)
+            raw_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            raw_socket.settimeout(self.config.timeout)
+            
+            # Apply TLS if configured
+            if self.config.use_tls:
+                context = ssl.create_default_context()
+                if self.config.certfile:
+                    context.load_cert_chain(self.config.certfile, self.config.keyfile)
+                self._socket = context.wrap_socket(raw_socket, server_hostname=self.config.host)
+            else:
+                self._socket = raw_socket
+            
             self._socket.connect((self.config.host, self.config.port))
             return True
         except Exception:
@@ -117,9 +131,13 @@ class BlenderConnection:
 class SocketServer:
     """TCP socket server."""
     
-    def __init__(self, host: str = "localhost", port: int = 9876):
+    def __init__(self, host: str = "localhost", port: int = 9876, use_tls: bool = False,
+                 certfile: str = None, keyfile: str = None):
         self.host = host
         self.port = port
+        self.use_tls = use_tls
+        self.certfile = certfile
+        self.keyfile = keyfile
         self._server_socket = None
         self._running = False
         self._handlers: Dict[str, Callable] = {}
@@ -132,6 +150,13 @@ class SocketServer:
         try:
             self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            
+            # Apply TLS if configured
+            if self.use_tls and self.certfile:
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                context.load_cert_chain(self.certfile, self.keyfile)
+                self._server_socket = context.wrap_socket(self._server_socket, server_side=True)
+            
             self._server_socket.bind((self.host, self.port))
             self._server_socket.listen(5)
             self._server_socket.settimeout(1.0)

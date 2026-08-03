@@ -19,8 +19,9 @@ sys.path.insert(0, _src_dir)
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("blender-mcp-ultra")
 
-# Import monitoring
+# Import security modules
 from infrastructure.monitoring import get_metrics_collector, get_health_checker, get_alert_manager
+from infrastructure.security.auth import get_authenticator
 
 # Blender connection
 BLENDER_HOST = os.environ.get("BLENDER_HOST", "localhost")
@@ -30,6 +31,10 @@ BLENDER_PORT = int(os.environ.get("BLENDER_PORT", "9876"))
 _request_counts = {}
 _last_request_time = {}
 MAX_REQUESTS_PER_MINUTE = 60
+
+# Authentication
+_auth_enabled = os.environ.get("MCP_AUTH_ENABLED", "false").lower() == "true"
+_default_token = None
 
 
 def check_rate_limit(client_id: str = "default") -> bool:
@@ -97,6 +102,26 @@ def handle_request(request):
                 "message": "Rate limit exceeded. Please slow down."
             }
         }
+    
+    # Authentication check (if enabled)
+    if _auth_enabled and method not in ["initialize", "notifications/initialized", "ping"]:
+        token = params.get("token") or request.get("token")
+        if not token:
+            # Generate default token for first use
+            global _default_token
+            if _default_token is None:
+                _default_token = get_authenticator().generate_token("default", ["read", "write"])
+            token = _default_token
+        
+        if not get_authenticator().validate_token(token):
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {
+                    "code": -32001,
+                    "message": "Authentication required. Provide valid token."
+                }
+            }
 
     if method == "initialize":
         return {
