@@ -1,0 +1,203 @@
+# Troubleshooting Guide — blender-mcp-ultra
+
+Common issues and solutions.
+
+## Quick Diagnostics
+
+Run this to check your setup:
+
+```bash
+# Check Python version
+python3 --version
+
+# Check Blender
+blender --version
+
+# Check MCP server
+python3 /path/to/blender-mcp/mcp_adapter.py < /dev/null 2>&1 | head -5
+
+# Check port
+ss -tlnp | grep 9876
+```
+
+---
+
+## Common Issues
+
+### 1. "Connection refused" or "Cannot connect to Blender"
+
+**Symptoms:**
+- MCP server can't connect to Blender
+- Tools return connection errors
+
+**Solutions:**
+1. Verify Blender is running with MCP server:
+   ```bash
+   blender --background --python start_server.py
+   ```
+
+2. Check port 9876 is listening:
+   ```bash
+   ss -tlnp | grep 9876
+   ```
+
+3. Check firewall settings:
+   ```bash
+   sudo ufw allow 9876/tcp
+   ```
+
+### 2. "No module named 'bpy'" 
+
+**Symptoms:**
+- Import errors when running tests
+- Tools fail to load
+
+**Solutions:**
+1. This is expected in test mode - bpy is only available inside Blender
+2. Run integration tests with Blender running
+3. Unit tests should skip bpy-dependent tests
+
+### 3. "active_object" errors in background mode
+
+**Symptoms:**
+- `'Context' object has no attribute 'active_object'`
+- Export operations fail
+
+**Solutions:**
+1. Use `blender_helpers.py` functions
+2. Some operations require GUI mode
+3. Use `bpy.data` directly instead of `bpy.ops`
+
+### 4. "Rate limit exceeded"
+
+**Symptoms:**
+- Requests are being rejected
+- Too many rapid requests
+
+**Solutions:**
+1. Add delays between requests
+2. Increase `MAX_REQUESTS_PER_MINUTE` in mcp_adapter.py
+3. Use connection pooling
+
+### 5. "Authentication required"
+
+**Symptoms:**
+- Requests return auth errors
+- Token validation fails
+
+**Solutions:**
+1. Generate a token: `python3 -c "from infrastructure.security.auth import generate_token; print(generate_token('user1'))"`
+2. Pass token in requests
+3. Disable auth: `MCP_AUTH_ENABLED=false`
+
+### 6. "Tool not found"
+
+**Symptoms:**
+- Specific tools return "Tool not found"
+- Other tools work fine
+
+**Solutions:**
+1. Check tool name spelling
+2. Verify tool is in correct category
+3. Check tool is registered in HANDLERS dict
+
+### 7. "Export needs GUI"
+
+**Symptoms:**
+- glTF/OBJ/STL export fails
+- "Export needs GUI (background mode)"
+
+**Solutions:**
+1. This is a Blender limitation in background mode
+2. Use `io.save_file()` to save .blend file
+3. Export manually from Blender GUI
+
+### 8. Docker build fails
+
+**Symptoms:**
+- Docker build errors
+- Missing dependencies
+
+**Solutions:**
+1. Ensure Docker is installed and running
+2. Check Dockerfile syntax
+3. Build with `--no-cache` if needed
+
+---
+
+## Performance Issues
+
+### Slow Response Times
+
+**Symptoms:**
+- Tools take >5 seconds to respond
+- UI feels laggy
+
+**Solutions:**
+1. Check Blender scene complexity
+2. Reduce object count
+3. Use LOD (Level of Detail)
+4. Enable LRU cache
+
+### High Memory Usage
+
+**Symptoms:**
+- Blender crashes
+- System becomes slow
+
+**Solutions:**
+1. Reduce texture sizes
+2. Simplify geometry
+3. Use instancing for repeated objects
+4. Bake simulations
+
+---
+
+## Compatibility Issues
+
+### Blender Version Mismatch
+
+**Symptoms:**
+- Tools work in one version but not another
+- API errors
+
+**Solutions:**
+1. Check `blender_manifest.toml` for version requirements
+2. Use Blender 5.2 LTS for best compatibility
+3. Test with multiple versions
+
+### Python Version Issues
+
+**Symptoms:**
+- Import errors
+- Syntax errors
+
+**Solutions:**
+1. Use Python 3.10 or higher
+2. Check `pyproject.toml` for version requirements
+3. Use virtual environment
+
+---
+
+## Getting Help
+
+1. Check this troubleshooting guide
+2. Review the [API Reference](api/REFERENCE.md)
+3. Check GitHub Issues
+4. Run diagnostic script:
+   ```bash
+   python3 -c "
+   import socket, json
+   sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+   sock.settimeout(2)
+   try:
+       sock.connect(('localhost', 9876))
+       sock.sendall(json.dumps({'command': 'ping'}).encode())
+       resp = sock.recv(4096)
+       print('MCP Server: OK')
+       print(json.loads(resp.decode()))
+   except:
+       print('MCP Server: NOT RUNNING')
+   sock.close()
+   "
+   ```
