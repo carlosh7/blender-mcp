@@ -298,4 +298,10 @@ def list_procedural_types():
         "house": "Casa procedural",
         "vehicle": "Vehículo procedural",
         "robot": "Robot procedural",
+        "furniture": "Mueble procedural",
+        "bridge": "Puente procedural",
+        "tower": "Torre procedural",
+        "rock": "Roca procedural",
+        "flower": "Flor procedural",
+        "gear": "Engranaje procedural",
     }
