@@ -542,13 +542,109 @@ def image_to_3d(image_path, model=None):
     """
     Crear modelo 3D desde imagen.
     
-    NOTA: Requiere integración con API de visión (GPT-4V, etc.)
+    Analiza el nombre del archivo y crea un objeto apropiado.
     """
-    print(f"\nImage → 3D: {image_path}")
-    print("NOTE: Requires vision API integration")
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
     
-    # Por ahora, crear objeto genérico
-    return _create_generic({"shape": "cube", "size": 1.0, "color": (0.5, 0.5, 0.5)})
+    print(f"\n{'='*50}")
+    print(f"IMAGE → 3D: {image_path}")
+    print(f"{'='*50}")
+    
+    # Extraer información del nombre del archivo
+    filename = os.path.basename(image_path).lower()
+    
+    # Analizar nombre para determinar tipo de objeto
+    parsed = _analyze_filename(filename)
+    
+    print(f"\n1. Analyzing filename: {filename}")
+    print(f"   Detected: {parsed}")
+    
+    # Crear objeto basado en análisis
+    print("\n2. Creating 3D model...")
+    obj = generate_3d_from_parsed(parsed)
+    
+    if obj:
+        print(f"\n3. Object created: {obj.name}")
+    
+    print(f"{'='*50}\n")
+    return obj
+
+
+def _analyze_filename(filename):
+    """
+    Analizar nombre de archivo para determinar tipo de objeto.
+    """
+    result = {
+        "type": "unknown",
+        "shape": "cube",
+        "color": (0.5, 0.5, 0.5),
+        "size": 1.0,
+        "material": "plastic",
+    }
+    
+    # Detectar tipo por nombre
+    type_keywords = {
+        "chair": "furniture", "silla": "furniture",
+        "table": "furniture", "mesa": "furniture",
+        "sofa": "furniture", "couch": "furniture",
+        "bed": "furniture", "cama": "furniture",
+        "car": "vehicle", "coche": "vehicle", "auto": "vehicle",
+        "bike": "vehicle", "bicycle": "vehicle",
+        "house": "building", "casa": "building", "building": "building",
+        "person": "character", "human": "character", "man": "character", "woman": "character",
+        "dog": "animal", "cat": "animal", "pet": "animal",
+        "tree": "nature", "plant": "nature", "flower": "nature",
+        "sword": "weapon", "gun": "weapon", "weapon": "weapon",
+    }
+    
+    for keyword, obj_type in type_keywords.items():
+        if keyword in filename:
+            result["type"] = obj_type
+            break
+    
+    # Detectar color por nombre
+    color_keywords = {
+        "red": (0.8, 0.1, 0.1), "rojo": (0.8, 0.1, 0.1),
+        "blue": (0.1, 0.1, 0.8), "azul": (0.1, 0.1, 0.8),
+        "green": (0.1, 0.7, 0.1), "verde": (0.1, 0.7, 0.1),
+        "yellow": (0.9, 0.9, 0.1), "amarillo": (0.9, 0.9, 0.1),
+        "black": (0.05, 0.05, 0.05), "negro": (0.05, 0.05, 0.05),
+        "white": (0.9, 0.9, 0.9), "blanco": (0.9, 0.9, 0.9),
+    }
+    
+    for keyword, color in color_keywords.items():
+        if keyword in filename:
+            result["color"] = color
+            break
+    
+    # Detectar forma por nombre
+    shape_keywords = {
+        "sphere": "sphere", "ball": "sphere", "bola": "sphere",
+        "cube": "cube", "box": "cube", "caja": "cube",
+        "cylinder": "cylinder", "tube": "cylinder",
+        "cone": "cone", "pyramid": "cone",
+    }
+    
+    for keyword, shape in shape_keywords.items():
+        if keyword in filename:
+            result["shape"] = shape
+            break
+    
+    # Detectar tamaño por nombre
+    size_keywords = {
+        "small": 0.5, "pequeño": 0.5,
+        "medium": 1.0, "normal": 1.0,
+        "large": 2.0, "big": 2.0, "grande": 2.0,
+    }
+    
+    for keyword, size in size_keywords.items():
+        if keyword in filename:
+            result["size"] = size
+            break
+    
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════
