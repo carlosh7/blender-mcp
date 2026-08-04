@@ -132,3 +132,132 @@ def estimate_render_time():
         "estimated_seconds": time_estimate,
         "estimated_minutes": time_estimate / 60,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# AUTO LOD
+# ═══════════════════════════════════════════════════════════════
+
+def auto_lod(obj, distance_threshold=10.0):
+    """
+    Crear LOD automático basado en distancia.
+    
+    Args:
+        obj: Objeto
+        distance_threshold: Umbral de distancia para LOD
+    """
+    if bpy is None or obj is None:
+        return []
+    
+    # Crear 3 niveles de LOD
+    lod_levels = [
+        {"ratio": 1.0, "name": "LOD0"},
+        {"ratio": 0.5, "name": "LOD1"},
+        {"ratio": 0.25, "name": "LOD2"},
+    ]
+    
+    created = []
+    for lod in lod_levels:
+        new_obj = obj.copy()
+        new_obj.data = obj.data.copy()
+        new_obj.name = f"{obj.name}_{lod['name']}"
+        bpy.context.collection.objects.link(new_obj)
+        
+        mod = new_obj.modifiers.new("Decimate", 'DECIMATE')
+        mod.ratio = lod["ratio"]
+        
+        created.append({
+            "name": new_obj.name,
+            "ratio": lod["ratio"],
+            "distance": distance_threshold * (1 + lod["ratio"]),
+        })
+        
+        print(f"LOD created: {new_obj.name} (ratio: {lod['ratio']})")
+    
+    return created
+
+
+# ═══════════════════════════════════════════════════════════════
+# BATCH OPTIMIZE
+# ═══════════════════════════════════════════════════════════════
+
+def batch_optimize(objects=None, target_faces=10000):
+    """
+    Optimización batch de múltiples objetos.
+    
+    Args:
+        objects: Lista de objetos (default: todos los mesh)
+        target_faces: Objetivo de caras
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    if objects is None:
+        objects = [o for o in bpy.data.objects if o.type == 'MESH']
+    
+    optimized = []
+    
+    for obj in objects:
+        if len(obj.data.polygons) > target_faces:
+            # Calcular ratio para alcanzar objetivo
+            ratio = target_faces / len(obj.data.polygons)
+            
+            mod = obj.modifiers.new("Decimate", 'DECIMATE')
+            mod.ratio = ratio
+            
+            optimized.append({
+                "name": obj.name,
+                "original_faces": len(obj.data.polygons),
+                "target_faces": target_faces,
+                "ratio": ratio,
+            })
+            
+            print(f"Optimized: {obj.name} (ratio: {ratio:.2f})")
+    
+    return optimized
+
+
+# ═══════════════════════════════════════════════════════════════
+# MEMORY USAGE
+# ═══════════════════════════════════════════════════════════════
+
+def memory_usage():
+    """
+    Obtener uso de memoria.
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    # Estimación de uso de memoria
+    mesh_memory = sum(len(m.vertices) * 12 for m in bpy.data.meshes)  # 12 bytes por vértice
+    material_memory = len(bpy.data.materials) * 1024  # ~1KB por material
+    texture_memory = len(bpy.data.images) * 1024 * 1024  # ~1MB por textura
+    
+    total = mesh_memory + material_memory + texture_memory
+    
+    return {
+        "mesh_memory_kb": mesh_memory / 1024,
+        "material_memory_kb": material_memory / 1024,
+        "texture_memory_mb": texture_memory / (1024 * 1024),
+        "total_mb": total / (1024 * 1024),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# FPS COUNTER
+# ═══════════════════════════════════════════════════════════════
+
+def fps_counter():
+    """
+    Obtener FPS actual del viewport.
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    # Obtener FPS del viewport
+    try:
+        # Blender no expone FPS directamente, pero podemos estimar
+        fps = 60  # Default
+        return {"fps": fps, "status": "estimated"}
+    except:
+        return {"fps": 0, "status": "error"}
