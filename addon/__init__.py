@@ -1,6 +1,7 @@
 """
 blender-mcp-ultra — Blender 4.0+ Addon
 Socket server on :9876 for MCP protocol communication.
+Professional UI panel with modeling, texturing, rigging, animation, characters, perception, export.
 Self-contained — no external src/ dependencies.
 """
 import bpy
@@ -17,9 +18,9 @@ bl_info = {
     "name": "blender-mcp-ultra",
     "blender": (4, 0, 0),
     "category": "System",
-    "version": (1, 0, 0),
+    "version": (2, 0, 0),
     "author": "CarlosH",
-    "description": "MCP server for Blender — socket on :9876",
+    "description": "Professional MCP server for Blender — modeling, texturing, rigging, animation, characters, perception, export",
 }
 
 _port = 9876
@@ -88,12 +89,24 @@ class MCPUltraPanel(Panel):
         row.operator("mcp_ultra.stop_server", text="Stop Server", icon='PAUSE')
 
 
+# Import and register UI panel
+try:
+    from .ui import mcp_panel
+    ui_classes = mcp_panel.classes
+    ui_register = mcp_panel.register
+    ui_unregister = mcp_panel.unregister
+except ImportError:
+    ui_classes = ()
+    ui_register = None
+    ui_unregister = None
+
+
 classes = (
     MCPUltraProperties,
     MCPUltraStartServer,
     MCPUltraStopServer,
     MCPUltraPanel,
-)
+) + ui_classes
 
 
 def register():
@@ -101,14 +114,21 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.mcp_ultra = bpy.props.PointerProperty(type=MCPUltraProperties)
 
+    if ui_register:
+        ui_register()
+
     try:
         from . import _axsock
         _axsock.start_socket_server()
+        print("[blender-mcp-ultra] Socket server started on :9876")
     except Exception as e:
         print(f"[blender-mcp-ultra] Auto-start error: {e}")
 
 
 def unregister():
+    if ui_unregister:
+        ui_unregister()
+    
     try:
         from . import _axsock
         _axsock.stop_socket_server()
