@@ -114,7 +114,7 @@ def inflate_region(obj, center, radius, strength=0.2):
     print(f"Región inflada: radio {radius}")
 
 
-def create crease(obj, edge_loop, depth=0.1):
+def create_crease(obj, edge_loop, depth=0.1):
     """
     Crear pliegue (crease) en un borde.
     """
@@ -351,6 +351,151 @@ def list_sculpt_primitives():
         "cube": "Cubo (objetos rectangulares)",
         "cylinder": "Cilindro (brazos, piernas)",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# ADVANCED SCULPTING
+# ═══════════════════════════════════════════════════════════════
+
+def sculpt_face(head_obj):
+    """
+    Sculpt una cara completa en una cabeza.
+    
+    Args:
+        head_obj: Objeto cabeza (esfera)
+    """
+    if bpy is None or head_obj is None:
+        return None
+    
+    # Crear nariz
+    nose = add_nose(head_obj)
+    
+    # Crear ojos
+    eyes = add_eyes(head_obj)
+    
+    # Crear boca
+    mouth = add_mouth(head_obj)
+    
+    # Suavizar toda la cara
+    smooth整个人(head_obj, iterations=3)
+    
+    print(f"Cara sculpted: nariz + ojos + boca")
+    return {"nose": nose, "eyes": eyes, "mouth": mouth}
+
+
+def sculpt_body(torso_obj):
+    """
+    Sculpt un cuerpo completo.
+    
+    Args:
+        torso_obj: Objeto torso
+    """
+    if bpy is None or torso_obj is None:
+        return None
+    
+    # Crear extremidades
+    left_arm = create_limbs("L", "arm")
+    right_arm = create_limbs("R", "arm")
+    left_leg = create_limbs("L", "leg")
+    right_leg = create_limbs("R", "leg")
+    
+    # Suavizar torso
+    smooth整个人(torso_obj, iterations=3)
+    
+    print(f"Cuerpo sculpted: torso + 4 extremidades")
+    return {
+        "torso": torso_obj,
+        "left_arm": left_arm,
+        "right_arm": right_arm,
+        "left_leg": left_leg,
+        "right_leg": right_leg,
+    }
+
+
+def extrude_region(obj, face_index, distance=0.1):
+    """
+    Extruir una cara de la malla.
+    
+    Args:
+        obj: Objeto mesh
+        face_index: Índice de la cara a extruir
+        distance: Distancia de extrusión
+    """
+    if bpy is None or obj.type != 'MESH':
+        return
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    bm = bmesh.from_edit_mesh(obj.data)
+    if face_index < len(bm.faces):
+        bm.faces[face_index].select = True
+        bmesh.update_edit_mesh(obj.data)
+    
+    bpy.ops.mesh.extrude_region_move(TRANSFORM_translate=(0, 0, distance))
+    
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Face extruded: index={face_index}, distance={distance}")
+
+
+def bevel_edge(obj, edge_index, width=0.05, segments=2):
+    """
+    Aplicar bevel a un borde.
+    
+    Args:
+        obj: Objeto mesh
+        edge_index: Índice del borde
+        width: Ancho del bevel
+        segments: Número de segmentos
+    """
+    if bpy is None or obj.type != 'MESH':
+        return
+    
+    # Agregar modifier bevel
+    mod = obj.modifiers.new("Bevel", 'BEVEL')
+    mod.width = width
+    mod.segments = segments
+    mod.limit_method = 'ANGLE'
+    mod.angle_limit = math.radians(30)
+    
+    print(f"Bevel applied: width={width}, segments={segments}")
+
+
+def create_subdivision(obj, levels=2):
+    """
+    Crear subdivisión surface.
+    
+    Args:
+        obj: Objeto mesh
+        levels: Niveles de subdivisión
+    """
+    if bpy is None or obj.type != 'MESH':
+        return
+    
+    mod = obj.modifiers.new("Subdivision", 'SUBSURF')
+    mod.levels = levels
+    mod.render_levels = levels
+    
+    print(f"Subdivision: {levels} levels")
+
+
+def decimate_mesh(obj, ratio=0.5):
+    """
+    Decimar malla (reducir polígonos).
+    
+    Args:
+        obj: Objeto mesh
+        ratio: Ratio de decimación (0-1)
+    """
+    if bpy is None or obj.type != 'MESH':
+        return
+    
+    mod = obj.modifiers.new("Decimate", 'DECIMATE')
+    mod.ratio = ratio
+    
+    print(f"Decimate: ratio={ratio}")
+
 
 
 def get_sculpt_info(obj):
