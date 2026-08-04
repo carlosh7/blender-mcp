@@ -300,28 +300,37 @@ class BlenderSocketServer:
         def handler(signum, frame):
             raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 10.0 segundos de límite.")
 
-        # AXIOM v2.0 Atomic Transaction Start
-        bpy.ops.ed.undo_push(message="Axiom Precision Task")
+        # Only push undo for non-batch operations (avoid stack overflow)
+        _is_batch = "for " in code or "while " in code
+        if not _is_batch:
+            try:
+                bpy.ops.ed.undo_push(message="Axiom Precision Task")
+            except:
+                pass
         
         buf = io.StringIO()
         with redirect_stdout(buf):
-            # Configurar alarma de 2 segundos
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(10)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, ns)
             except TimeoutError as e:
-                bpy.ops.ed.undo()
+                if not _is_batch:
+                    try: bpy.ops.ed.undo()
+                    except: pass
                 return {"output": f"❌ {e} (Escena revertida)"}
             except SyntaxError as e:
-                bpy.ops.ed.undo()
+                if not _is_batch:
+                    try: bpy.ops.ed.undo()
+                    except: pass
                 return {"output": f"❌ Axiom SyntaxError: {e} (Escena revertida)"}
             except Exception as e:
-                bpy.ops.ed.undo()
+                if not _is_batch:
+                    try: bpy.ops.ed.undo()
+                    except: pass
                 return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
             finally:
-                # Desactivar alarma
                 signal.alarm(0)
         
         return {"output": buf.getvalue()}
@@ -448,11 +457,137 @@ class BlenderSocketServer:
             return {"status": "error", "message": "filepath required"}
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            # Select all objects and export
             bpy.ops.object.select_all(action='SELECT')
             bpy.ops.export_scene.gltf(filepath=filepath, export_format='GLB')
             size = os.path.getsize(filepath)
             return {"status": "success", "filepath": filepath, "size": size}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: State, Validation, Collections
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_save_project(self, name=None):
+        """Save Blender project with name."""
+        try:
+            from . import state_manager
+            if name:
+                filepath = state_manager.save_project(name)
+            else:
+                filepath = state_manager.auto_save()
+            return {"status": "success", "filepath": filepath}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_get_file_status(self):
+        """Get file save status."""
+        try:
+            from . import state_manager
+            return state_manager.get_file_status()
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_backup(self, label=None):
+        """Create backup of current file."""
+        try:
+            from . import state_manager
+            filepath = state_manager.create_backup(label)
+            return {"status": "success", "filepath": filepath}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_validate_scene(self, collection=None):
+        """Validate all objects in scene."""
+        try:
+            from . import validator
+            result = validator.full_validation(collection)
+            return result
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_validate_object(self, name):
+        """Validate a specific object."""
+        try:
+            from . import validator
+            result = validator.validate_object(name)
+            measurements = validator.measure_object(name)
+            return {"validation": result, "measurements": measurements}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_collection(self, name):
+        """Create a collection."""
+        try:
+            from . import creation_rules
+            col = creation_rules.create_collection(name)
+            return {"status": "success", "collection": col.name}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_object(self, object_type, position=(0,0,0), collection=None, material=None):
+        """Create a standard object with all rules applied."""
+        try:
+            from . import creation_rules, state_manager
+            result = creation_rules.create_object(object_type, position, collection, material)
+            # Register created objects
+            for obj in result.values():
+                state_manager.register_object(obj.name)
+            state_manager.log_action("create_object", {
+                "type": object_type,
+                "position": position,
+                "objects": list(result.keys()),
+            })
+            return {"status": "success", "objects": list(result.keys())}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_get_scene_summary(self):
+        """Get detailed scene summary with collections."""
+        try:
+            from . import creation_rules
+            hierarchy = creation_rules.get_collection_hierarchy()
+            total = len(bpy.data.objects)
+            materials = len(bpy.data.materials)
+            return {
+                "total_objects": total,
+                "total_materials": materials,
+                "collections": hierarchy,
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_get_state(self):
+        """Get agent state."""
+        try:
+            from . import state_manager
+            return state_manager.get_state()
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_check_loop(self, action_name):
+        """Check if action is in loop."""
+        try:
+            from . import state_manager
+            return state_manager.check_loop(action_name)
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_list_backups(self):
+        """List available backups."""
+        try:
+            from . import state_manager
+            backups = state_manager.list_backups()
+            return {"backups": [b.name for b in backups]}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_init_state(self, project_name=None):
+        """Initialize agent state."""
+        try:
+            from . import state_manager
+            state_manager.init_state(project_name)
+            return {"status": "success"}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
