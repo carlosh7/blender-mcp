@@ -318,4 +318,184 @@ def list_asset_formats():
         ".fbx": "FilmBox",
         ".obj": "Wavefront OBJ",
         ".stl": "STL (3D Print)",
+        ".usd": "Universal Scene Description",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# DOWNLOAD ASSETS
+# ═══════════════════════════════════════════════════════════════
+
+def download_polyhaven_asset(asset_id, asset_type="textures", save_dir="/tmp/assets"):
+    """
+    Descargar asset desde PolyHaven.
+    
+    Args:
+        asset_id: ID del asset
+        asset_type: 'hdris', 'textures', 'models'
+        save_dir: Directorio de guardado
+    
+    Returns:
+        Ruta del archivo descargado
+    """
+    try:
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Obtener info del asset
+        url = f"https://api.polyhaven.com/files/{asset_id}"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read())
+            
+            # Descargar archivo principal
+            files = data.get("hdri", data.get("diff", data.get("normal", {})))
+            if files:
+                file_url = list(files.values())[0] if isinstance(files, dict) else files
+                filepath = os.path.join(save_dir, f"{asset_id}.exr")
+                
+                urllib.request.urlretrieve(file_url, filepath)
+                print(f"Downloaded: {filepath}")
+                return filepath
+    
+    return None
+
+
+def download_ambientcg_asset(asset_id, asset_type="materials", save_dir="/tmp/assets"):
+    """
+    Descargar asset desde AmbientCG.
+    """
+    try:
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Obtener info del asset
+        url = f"https://ambientcg.com/api/v2/?type={asset_type}&asset_id={asset_id}"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.loads(response.read())
+            
+            # Descargar archivo
+            download_url = data.get("download_url")
+            if download_url:
+                filepath = os.path.join(save_dir, f"{asset_id}.zip")
+                urllib.request.urlretrieve(download_url, filepath)
+                print(f"Downloaded: {filepath}")
+                return filepath
+    
+    return None
+
+
+def get_asset_info(asset_id, source="polyhaven"):
+    """
+    Obtener información de un asset.
+    
+    Args:
+        asset_id: ID del asset
+        source: 'polyhaven', 'ambientcg'
+    
+    Returns:
+        dict con información del asset
+    """
+    try:
+        if source == "polyhaven":
+            url = f"https://api.polyhaven.com/assets/{asset_id}"
+        elif source == "ambientcg":
+            url = f"https://ambientcg.com/api/v2/?asset_id={asset_id}"
+        else:
+            return {"error": f"Unknown source: {source}"}
+        
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read())
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def batch_import_assets(asset_list, save_dir="/tmp/assets"):
+    """
+    Importar múltiples assets.
+    
+    Args:
+        asset_list: Lista de dicts [{id, source, type}, ...]
+        save_dir: Directorio de guardado
+    
+    Returns:
+        Lista de assets importados
+    """
+    imported = []
+    
+    for asset in asset_list:
+        asset_id = asset.get("id")
+        source = asset.get("source", "polyhaven")
+        
+        if source == "polyhaven":
+            filepath = download_polyhaven_asset(asset_id, save_dir=save_dir)
+        elif source == "ambientcg":
+            filepath = download_ambientcg_asset(asset_id, save_dir=save_dir)
+        else:
+            filepath = None
+        
+        if filepath:
+            imported.append({
+                "id": asset_id,
+                "source": source,
+                "filepath": filepath,
+            })
+    
+    print(f"Batch import: {len(imported)} assets imported")
+    return imported
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI TEXTURE GENERATION
+# ═══════════════════════════════════════════════════════════════
+
+def create_ai_texture(description, style="realistic"):
+    """
+    Generar textura con IA.
+    
+    Args:
+        description: Descripción de la textura
+        style: Estilo (realistic, cartoon, stylized)
+    
+    Returns:
+        Material con textura generada
+    """
+    if bpy is None:
+        return None
+    
+    # Por ahora, crear textura procedural basada en descripción
+    mat = bpy.data.materials.new(f"AI_{description[:20]}")
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for n in nodes:
+        nodes.remove(n)
+    
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (600, 0)
+    
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    
+    # Analizar descripción para color
+    desc_lower = description.lower()
+    if "red" in desc_lower or "rojo" in desc_lower:
+        bsdf.inputs["Base Color"].default_value = (0.8, 0.1, 0.1, 1)
+    elif "blue" in desc_lower or "azul" in desc_lower:
+        bsdf.inputs["Base Color"].default_value = (0.1, 0.1, 0.8, 1)
+    elif "green" in desc_lower or "verde" in desc_lower:
+        bsdf.inputs["Base Color"].default_value = (0.1, 0.7, 0.1, 1)
+    else:
+        bsdf.inputs["Base Color"].default_value = (0.5, 0.5, 0.5, 1)
+    
+    # Agregar textura procedural
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.location = (0, 100)
+    noise.inputs["Scale"].default_value = 10
+    
+    links.new(noise.outputs["Fac"], bsdf.inputs["Roughness"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    
+    print(f"AI texture created: {description}")
+    return mat
