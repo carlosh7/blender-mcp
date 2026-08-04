@@ -542,7 +542,7 @@ def image_to_3d(image_path, model=None):
     """
     Crear modelo 3D desde imagen.
     
-    Analiza el nombre del archivo y crea un objeto apropiado.
+    Analiza el nombre del archivo Y el contenido con IA.
     """
     if bpy is None:
         print("ERROR: bpy not available (run inside Blender)")
@@ -552,21 +552,71 @@ def image_to_3d(image_path, model=None):
     print(f"IMAGE → 3D: {image_path}")
     print(f"{'='*50}")
     
-    # Extraer información del nombre del archivo
+    # Paso 1: Analizar nombre del archivo
     filename = os.path.basename(image_path).lower()
-    
-    # Analizar nombre para determinar tipo de objeto
     parsed = _analyze_filename(filename)
     
     print(f"\n1. Analyzing filename: {filename}")
-    print(f"   Detected: {parsed}")
+    print(f"   From filename: {parsed}")
     
-    # Crear objeto basado en análisis
+    # Paso 2: Analizar con IA si hay descripción
+    if model:
+        try:
+            prompt = f"Describe esta imagen: {filename}. ¿Qué objetos hay? ¿Qué colores? Responde en JSON."
+            response = query_llm(prompt, model)
+            if response:
+                # Intentar parsear respuesta
+                try:
+                    ai_parsed = json.loads(response)
+                    parsed.update(ai_parsed)
+                    print(f"   From AI: {ai_parsed}")
+                except:
+                    print(f"   AI response: {response[:100]}")
+        except:
+            pass
+    
+    # Paso 3: Crear objeto
     print("\n2. Creating 3D model...")
     obj = generate_3d_from_parsed(parsed)
     
     if obj:
         print(f"\n3. Object created: {obj.name}")
+        print(f"   Type: {parsed.get('type', 'unknown')}")
+        print(f"   Color: {parsed.get('color', 'unknown')}")
+    
+    print(f"{'='*50}\n")
+    return obj
+
+
+def analyze_image_with_ai(image_path):
+    """
+    Analizar imagen con IA para obtener descripción.
+    
+    Args:
+        image_path: Ruta de la imagen
+    
+    Returns:
+        dict con análisis de la imagen
+    """
+    filename = os.path.basename(image_path).lower()
+    
+    # Análisis básico por nombre
+    parsed = _analyze_filename(filename)
+    
+    # Intentar análisis con IA
+    try:
+        prompt = f"Analiza la imagen '{filename}' y describe: ¿Qué objetos hay? ¿Qué colores? ¿Qué estilos? Responde en JSON."
+        response = query_llm(prompt)
+        if response:
+            try:
+                ai_analysis = json.loads(response)
+                parsed["ai_analysis"] = ai_analysis
+            except:
+                parsed["ai_analysis"] = response[:200]
+    except:
+        pass
+    
+    return parsed
     
     print(f"{'='*50}\n")
     return obj
