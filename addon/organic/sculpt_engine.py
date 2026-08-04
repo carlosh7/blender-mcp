@@ -491,6 +491,202 @@ def randomize_mesh_local(obj, factor=0.1):
 
 
 # ═══════════════════════════════════════════════════════════════
+# ADVANCED SCULPT TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+def symmetrize_mesh(obj, direction='NEGATIVE_X'):
+    """
+    Simetrizar malla.
+    
+    Args:
+        obj: Objeto mesh
+        direction: 'POSITIVE_X', 'NEGATIVE_X', etc.
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.symmetrize(direction=direction)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh symmetrized: {direction}")
+    return True
+
+
+def remesh_mesh(obj, mode='VOXEL', voxel_size=0.1):
+    """
+    Remesh malla.
+    
+    Args:
+        obj: Objeto mesh
+        mode: 'VOXEL', 'SMOOTH', 'BLOCKS'
+        voxel_size: Tamaño del voxel
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    mod = obj.modifiers.new("Remesh", 'REMESH')
+    if mode == 'VOXEL':
+        mod.mode = 'VOXEL'
+        mod.voxel_size = voxel_size
+    elif mode == 'SMOOTH':
+        mod.mode = 'SMOOTH'
+        mod.octree_depth = 4
+    elif mode == 'BLOCKS':
+        mod.mode = 'BLOCKS'
+    
+    print(f"Remesh applied: {mode}")
+    return True
+
+
+def mask_mesh(obj, vertex_group=None):
+    """
+    Aplicar máscara a malla.
+    
+    Args:
+        obj: Objeto mesh
+        vertex_group: Grupo de vértices para máscara (opcional)
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    # Crear vertex group para máscara
+    if vertex_group is None:
+        vertex_group = obj.vertex_groups.new(name="Mask")
+    
+    # Seleccionar todos los vértices
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.object.vertex_group_assign()
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Mask applied: {vertex_group.name}")
+    return True
+
+
+def applyBoolean_operation(obj1, obj2, operation='DIFFERENCE'):
+    """
+    Aplicar operación booleana.
+    
+    Args:
+        obj1: Objeto base
+        obj2: Objeto operador
+        operation: 'UNION', 'DIFFERENCE', 'INTERSECT'
+    """
+    if bpy is None or obj1 is None or obj2 is None:
+        return False
+    
+    mod = obj1.modifiers.new("Boolean", 'BOOLEAN')
+    mod.operation = operation
+    mod.object = obj2
+    
+    print(f"Boolean: {obj1.name} {operation} {obj2.name}")
+    return True
+
+
+def applyMirror(obj, axis='X'):
+    """
+    Aplicar mirror.
+    
+    Args:
+        obj: Objeto
+        axis: 'X', 'Y', 'Z'
+    """
+    if bpy is None or obj is None:
+        return False
+    
+    mod = obj.modifiers.new("Mirror", 'MIRROR')
+    mod.use_x = axis == 'X'
+    mod.use_y = axis == 'Y'
+    mod.use_z = axis == 'Z'
+    
+    print(f"Mirror applied: {axis}")
+    return True
+
+
+def applyArray(obj, count=2, offset=(1, 0, 0)):
+    """
+    Aplicar array.
+    
+    Args:
+        obj: Objeto
+        count: Número de copias
+        offset: Desplazamiento
+    """
+    if bpy is None or obj is None:
+        return False
+    
+    mod = obj.modifiers.new("Array", 'ARRAY')
+    mod.count = count
+    mod.use_relative_offset = False
+    mod.use_constant_offset = True
+    mod.constant_offset_displace = offset
+    
+    print(f"Array applied: {count} copies")
+    return True
+
+
+def applySubdivision(obj, levels=2):
+    """
+    Aplicar subdivision surface.
+    
+    Args:
+        obj: Objeto
+        levels: Niveles de subdivisión
+    """
+    if bpy is None or obj is None:
+        return False
+    
+    mod = obj.modifiers.new("Subdivision", 'SUBSURF')
+    mod.levels = levels
+    mod.render_levels = levels
+    
+    print(f"Subdivision applied: {levels} levels")
+    return True
+
+
+def applyBevel(obj, width=0.05, segments=2):
+    """
+    Aplicar bevel.
+    
+    Args:
+        obj: Objeto
+        width: Ancho del bevel
+        segments: Segmentos
+    """
+    if bpy is None or obj is None:
+        return False
+    
+    mod = obj.modifiers.new("Bevel", 'BEVEL')
+    mod.width = width
+    mod.segments = segments
+    mod.limit_method = 'ANGLE'
+    mod.angle_limit = math.radians(30)
+    
+    print(f"Bevel applied: width={width}")
+    return True
+
+
+def applyDecimate(obj, ratio=0.5):
+    """
+    Aplicar decimate.
+    
+    Args:
+        obj: Objeto
+        ratio: Ratio de decimación
+    """
+    if bpy is None or obj is None:
+        return False
+    
+    mod = obj.modifiers.new("Decimate", 'DECIMATE')
+    mod.ratio = ratio
+    
+    print(f"Decimate applied: ratio={ratio}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
 # ADVANCED SCULPTING
 # ═══════════════════════════════════════════════════════════════
 
