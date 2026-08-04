@@ -928,3 +928,163 @@ def spin_mesh(obj, steps=12, angle=360):
     
     print(f"Mesh spun: {steps} steps, {angle} degrees")
     return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# SCULPT PRESETS
+# ═══════════════════════════════════════════════════════════════
+
+SCULPT_PRESETS = {
+    "smooth": {"description": "Suavizar", "strength": 0.5},
+    "flatten": {"description": "Aplanar", "strength": 0.5},
+    "inflate": {"description": "Inflar", "strength": 0.3},
+    "deflate": {"description": "Desinflar", "strength": 0.3},
+    "grab": {"description": "Agarrar", "strength": 0.8},
+    "pinch": {"description": "Pellizcar", "strength": 0.5},
+    "crease": {"description": "Pliegue", "strength": 0.6},
+    "scrape": {"description": "Raspar", "strength": 0.4},
+    "fill": {"description": "Rellenar", "strength": 0.5},
+    "draw": {"description": "Dibujar", "strength": 0.5},
+}
+
+
+def apply_sculpt_preset(obj, preset_name):
+    """
+    Aplicar preset de sculpting.
+    
+    Args:
+        obj: Objeto
+        preset_name: Nombre del preset
+    """
+    if bpy is None or obj is None:
+        return False
+    
+    if preset_name not in SCULPT_PRESETS:
+        print(f"Preset no encontrado: {preset_name}")
+        return False
+    
+    preset = SCULPT_PRESETS[preset_name]
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    
+    # Aplicar operación según preset
+    if preset_name == "smooth":
+        bpy.ops.mesh.smooth(factor=preset["strength"])
+    elif preset_name == "flatten":
+        bpy.ops.mesh.flatten(factor=preset["strength"])
+    elif preset_name == "inflate":
+        bpy.ops.mesh.inflate(factor=preset["strength"])
+    elif preset_name == "pinch":
+        bpy.ops.mesh.pinch(factor=preset["strength"])
+    elif preset_name == "grab":
+        bpy.ops.mesh.grab(offset=(0, 0, 0.1))
+    elif preset_name == "randomize":
+        bpy.ops.mesh.randomize(factor=preset["strength"])
+    
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Sculpt preset applied: {preset_name}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# SYMMETRIZE
+# ═══════════════════════════════════════════════════════════════
+
+def symmetrize_mesh(obj, direction='NEGATIVE_X'):
+    """
+    Simetrizar malla.
+    
+    Args:
+        obj: Objeto
+        direction: 'POSITIVE_X', 'NEGATIVE_X', etc.
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.symmetrize(direction=direction)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Mesh symmetrized: {direction}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# REMESH
+# ═══════════════════════════════════════════════════════════════
+
+def remesh_mesh(obj, mode='VOXEL', voxel_size=0.1):
+    """
+    Remesh malla.
+    
+    Args:
+        obj: Objeto
+        mode: 'VOXEL', 'SMOOTH', 'BLOCKS'
+        voxel_size: Tamaño del voxel
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    mod = obj.modifiers.new("Remesh", 'REMESH')
+    
+    if mode == 'VOXEL':
+        mod.mode = 'VOXEL'
+        mod.voxel_size = voxel_size
+    elif mode == 'SMOOTH':
+        mod.mode = 'SMOOTH'
+        mod.octree_depth = 4
+    elif mode == 'BLOCKS':
+        mod.mode = 'BLOCKS'
+    
+    print(f"Remesh applied: {mode}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# DECIMATE
+# ═══════════════════════════════════════════════════════════════
+
+def decimate_mesh(obj, ratio=0.5):
+    """
+    Decimar malla (reducir polígonos).
+    
+    Args:
+        obj: Objeto
+        ratio: Ratio de decimación (0-1)
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    mod = obj.modifiers.new("Decimate", 'DECIMATE')
+    mod.ratio = ratio
+    
+    print(f"Decimate applied: ratio={ratio}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# UTILIDADES
+# ═══════════════════════════════════════════════════════════════
+
+def list_sculpt_presets():
+    """Listar presets de sculpting"""
+    return {k: v["description"] for k, v in SCULPT_PRESETS.items()}
+
+
+def get_sculpt_info(obj):
+    """Obtener información de sculpting"""
+    if obj is None or obj.type != 'MESH':
+        return {"error": "No es un mesh"}
+    
+    return {
+        "name": obj.name,
+        "vertices": len(obj.data.vertices),
+        "faces": len(obj.data.polygons),
+        "has_smooth": any(p.use_smooth for p in obj.data.polygons),
+        "modifiers": [m.type for m in obj.modifiers],
+    }
