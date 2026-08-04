@@ -509,3 +509,91 @@ def get_sculpt_info(obj):
         "faces": len(obj.data.polygons),
         "mode": obj.mode if hasattr(obj, 'mode') else 'OBJECT',
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# SCULPT MODE TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+def enter_sculpt_mode(obj):
+    """Entrar en modo sculpt"""
+    if bpy is None or obj is None:
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode='SCULPT')
+    print(f"Sculpt mode: {obj.name}")
+    return True
+
+
+def exit_sculpt_mode():
+    """Salir de modo sculpt"""
+    if bpy is None:
+        return False
+    
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print("Exited sculpt mode")
+    return True
+
+
+def smooth_mesh(obj, iterations=5):
+    """Suavizar malla completa"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.smooth(iterations=iterations)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Mesh smoothed: {iterations} iterations")
+    return True
+
+
+def flatten_mesh(obj, strength=0.5):
+    """Aplanar malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.flatten(factor=strength)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Mesh flattened: strength={strength}")
+    return True
+
+
+def randomize_mesh(obj, factor=0.1):
+    """Randomizar vértices de la malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.randomize(factor=factor)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Mesh randomized: factor={factor}")
+    return True
+
+
+def spin_mesh(obj, steps=12, angle=360):
+    """Rotar malla (spin)"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.spin(steps=steps, angle=math.radians(angle))
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Mesh spun: {steps} steps, {angle} degrees")
+    return True
+        "mode": obj.mode if hasattr(obj, 'mode') else 'OBJECT',
+    }
