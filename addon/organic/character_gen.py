@@ -110,84 +110,186 @@ def create_character(character_type, params=None):
 
 
 def _create_humanoid(height, proportions, params):
-    """Crear personaje humanoid"""
-    color = params.get("color", (0.8, 0.6, 0.5))  # Piel
-    cloth_color = params.get("cloth_color", (0.2, 0.2, 0.5))  # Ropa
+    """Crear personaje humanoid REALISTA con ropa, pelo, cara"""
+    color = params.get("color", (0.8, 0.6, 0.5))
+    cloth_color = params.get("cloth_color", (0.2, 0.2, 0.5))
+    hair_color = params.get("hair_color", (0.2, 0.15, 0.1))
     
-    # Material piel
+    # Materiales
     skin_mat = bpy.data.materials.new("Skin")
     skin_mat.use_nodes = True
     skin_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*color, 1)
     skin_mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.7
     
-    # Material ropa
     cloth_mat = bpy.data.materials.new("Cloth")
     cloth_mat.use_nodes = True
     cloth_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*cloth_color, 1)
     cloth_mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.8
     
-    # Crear partes del cuerpo
+    hair_mat = bpy.data.materials.new("Hair")
+    hair_mat.use_nodes = True
+    hair_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*hair_color, 1)
+    hair_mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
+    
+    eye_mat = bpy.data.materials.new("Eye")
+    eye_mat.use_nodes = True
+    eye_mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.1, 0.1, 0.1, 1)
+    eye_mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.0
+    
     parts = {}
     
-    # Torso
-    torso_h = height * proportions["torso_ratio"]
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height * 0.5))
+    # === CUERPO ===
+    # Torso (con forma más realista)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height * 0.55))
     torso = bpy.context.active_object
     torso.name = "Torso"
-    torso.scale = (0.2, 0.15, torso_h / 2)
+    torso.scale = (0.18, 0.12, height * 0.25)
     bpy.ops.object.transform_apply(rotation=False, scale=True)
-    torso.data.materials.append(skin_mat)
+    torso.data.materials.append(cloth_mat)
     parts["torso"] = torso
     
-    # Cabeza
-    head_h = height * proportions["head_ratio"]
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=head_h / 2, location=(0, 0, height * 0.85))
+    # Cadera
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height * 0.35))
+    hips = bpy.context.active_object
+    hips.name = "Hips"
+    hips.scale = (0.20, 0.13, height * 0.10)
+    bpy.ops.object.transform_apply(rotation=False, scale=True)
+    hips.data.materials.append(cloth_mat)
+    parts["hips"] = hips
+    
+    # Cabeza (más realista)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=height * 0.08, location=(0, 0, height * 0.88))
     head = bpy.context.active_object
     head.name = "Head"
+    head.scale = (1, 1.1, 1)
+    bpy.ops.object.transform_apply(rotation=False, scale=True)
     head.data.materials.append(skin_mat)
     parts["head"] = head
     
-    # Brazos
+    # Cuello
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.04, depth=0.08, location=(0, 0, height * 0.78))
+    neck = bpy.context.active_object
+    neck.name = "Neck"
+    neck.data.materials.append(skin_mat)
+    parts["neck"] = neck
+    
+    # === CARA ===
+    # Ojos
     for side in ["L", "R"]:
-        x_sign = 1 if side == "L" else -1
+        x = 0.03 if side == "L" else -0.03
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.012, location=(x, -0.06, height * 0.90))
+        eye = bpy.context.active_object
+        eye.name = f"Eye_{side}"
+        eye.data.materials.append(eye_mat)
+        parts[f"eye_{side}"] = eye
+    
+    # Nariz
+    bpy.ops.mesh.primitive_cone_add(radius1=0.015, radius2=0, depth=0.03, vertices=8, location=(0, -0.07, height * 0.87))
+    nose = bpy.context.active_object
+    nose.name = "Nose"
+    nose.rotation_euler = (math.radians(90), 0, 0)
+    nose.data.materials.append(skin_mat)
+    parts["nose"] = nose
+    
+    # Boca
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, -0.07, height * 0.84))
+    mouth = bpy.context.active_object
+    mouth.name = "Mouth"
+    mouth.scale = (0.025, 0.005, 0.005)
+    bpy.ops.object.transform_apply(rotation=False, scale=True)
+    mouth.data.materials.append(skin_mat)
+    parts["mouth"] = mouth
+    
+    # === PELO ===
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=height * 0.085, location=(0, 0.01, height * 0.92))
+    hair = bpy.context.active_object
+    hair.name = "Hair"
+    hair.scale = (1.05, 1.15, 1.1)
+    bpy.ops.object.transform_apply(rotation=False, scale=True)
+    hair.data.materials.append(hair_mat)
+    parts["hair"] = hair
+    
+    # === BRAZOS ===
+    for side in ["L", "R"]:
+        x = 0.22 if side == "L" else -0.22
+        
+        # Hombro
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.04, location=(x, 0, height * 0.72))
+        shoulder = bpy.context.active_object
+        shoulder.name = f"Shoulder_{side}"
+        shoulder.data.materials.append(skin_mat)
+        parts[f"shoulder_{side}"] = shoulder
         
         # Brazo superior
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.04, depth=0.35, 
-                                           location=(x_sign * 0.25, 0, height * 0.7))
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.035, depth=0.25, location=(x, 0, height * 0.60))
         upper = bpy.context.active_object
         upper.name = f"UpperArm_{side}"
         upper.data.materials.append(skin_mat)
         parts[f"upper_arm_{side}"] = upper
         
+        # Codo
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.03, location=(x, 0, height * 0.48))
+        elbow = bpy.context.active_object
+        elbow.name = f"Elbow_{side}"
+        elbow.data.materials.append(skin_mat)
+        parts[f"elbow_{side}"] = elbow
+        
         # Brazo inferior
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.035, depth=0.3,
-                                           location=(x_sign * 0.35, 0, height * 0.5))
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=0.22, location=(x, 0, height * 0.36))
         lower = bpy.context.active_object
         lower.name = f"LowerArm_{side}"
         lower.data.materials.append(skin_mat)
         parts[f"lower_arm_{side}"] = lower
+        
+        # Mano
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.025, location=(x, 0, height * 0.24))
+        hand = bpy.context.active_object
+        hand.name = f"Hand_{side}"
+        hand.scale = (0.8, 1.2, 0.6)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        hand.data.materials.append(skin_mat)
+        parts[f"hand_{side}"] = hand
     
-    # Piernas
+    # === PIERNAS ===
     for side in ["L", "R"]:
-        x_sign = 1 if side == "L" else -1
+        x = 0.08 if side == "L" else -0.08
         
-        # Pierna superior
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.05, depth=0.4,
-                                           location=(x_sign * 0.1, 0, height * 0.25))
-        upper = bpy.context.active_object
-        upper.name = f"UpperLeg_{side}"
-        upper.data.materials.append(cloth_mat)
-        parts[f"upper_leg_{side}"] = upper
+        # Muslo
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.055, depth=0.35, location=(x, 0, height * 0.22))
+        thigh = bpy.context.active_object
+        thigh.name = f"Thigh_{side}"
+        thigh.data.materials.append(cloth_mat)
+        parts[f"thigh_{side}"] = thigh
         
-        # Pierna inferior
-        bpy.ops.mesh.primitive_cylinder_add(radius=0.04, depth=0.35,
-                                           location=(x_sign * 0.1, 0, -0.05))
-        lower = bpy.context.active_object
-        lower.name = f"LowerLeg_{side}"
-        lower.data.materials.append(skin_mat)
-        parts[f"lower_leg_{side}"] = lower
+        # Rodilla
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.04, location=(x, 0, height * 0.05))
+        knee = bpy.context.active_object
+        knee.name = f"Knee_{side}"
+        knee.data.materials.append(skin_mat)
+        parts[f"knee_{side}"] = knee
+        
+        # Pantorrilla
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.04, depth=0.30, location=(x, 0, -0.10))
+        calf = bpy.context.active_object
+        calf.name = f"Calf_{side}"
+        calf.data.materials.append(skin_mat)
+        parts[f"calf_{side}"] = calf
+        
+        # Pie
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0.03, -0.25))
+        foot = bpy.context.active_object
+        foot.name = f"Foot_{side}"
+        foot.scale = (0.04, 0.07, 0.02)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        foot.data.materials.append(cloth_mat)
+        parts[f"foot_{side}"] = foot
     
-    print(f"Personaje humanoid creado: {len(parts)} partes, altura {height}m")
+    print(f"Personaje REALISTA creado: {len(parts)} partes, altura {height}m")
+    print(f"  - Cuerpo: torso, cadera, cuello")
+    print(f"  - Cara: ojos, nariz, boca")
+    print(f"  - Pelo: esfera estilizada")
+    print(f"  - Brazos: hombro, brazo superior, codo, brazo inferior, mano")
+    print(f"  - Piernas: muslo, rodilla, pantorrilla, pie")
     return parts
 
 
