@@ -206,8 +206,7 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.mcp_ultra = bpy.props.PointerProperty(type=MCPUltraProperties)
 
-    if ui_register:
-        ui_register()
+    # NO llamar ui_register() - las clases ya están en classes tuple
 
     try:
         from . import _axsock
@@ -218,8 +217,7 @@ def register():
 
 
 def unregister():
-    if ui_unregister:
-        ui_unregister()
+    # NO llamar ui_unregister() - las clases ya están en classes tuple
     
     try:
         from . import _axsock
