@@ -249,6 +249,9 @@ class ValidationGate:
             "texturing": self.validate_texturing,
             "rigging": self.validate_rigging,
             "animation": self.validate_animation,
+            "physics": self.validate_physics,
+            "sculpting": self.validate_sculpting,
+            "procedural": self.validate_procedural,
             "export": self.validate_export,
         }
     
@@ -332,6 +335,49 @@ class ValidationGate:
             "valid": len(issues) == 0,
             "issues": issues,
             "message": "Exportación válida" if not issues else f"{len(issues)} problemas"
+        }
+    
+    def validate_physics(self, data):
+        """Validar física"""
+        issues = []
+        
+        for obj in data.get("objects", []):
+            if hasattr(obj, 'rigid_body') and obj.rigid_body:
+                if obj.rigid_body.mass <= 0:
+                    issues.append(f"{obj.name}: masa inválida")
+        
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "message": "Física válida" if not issues else f"{len(issues)} problemas"
+        }
+    
+    def validate_sculpting(self, data):
+        """Validar sculpting"""
+        issues = []
+        
+        for obj in data.get("objects", []):
+            if obj.type == 'MESH' and len(obj.data.vertices) < 100:
+                issues.append(f"{obj.name}: pocos vértices para sculpting")
+        
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "message": "Sculpting válido" if not issues else f"{len(issues)} problemas"
+        }
+    
+    def validate_procedural(self, data):
+        """Validar procedural generation"""
+        issues = []
+        
+        for obj in data.get("objects", []):
+            if obj.type == 'MESH' and len(obj.data.polygons) > 10000:
+                issues.append(f"{obj.name}: demasiados polígonos")
+        
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "message": "Procedural válido" if not issues else f"{len(issues)} problemas"
         }
 
 
