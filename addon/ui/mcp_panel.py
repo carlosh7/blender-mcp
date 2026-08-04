@@ -157,13 +157,14 @@ class MCP_UL_AIAssistantPanel(Panel):
 
 
 class MCP_UL_PerceptionPanel(Panel):
-    """Panel de percepción"""
+    """Panel de percepción - Analizar y mejorar calidad de la escena"""
     bl_label = "Perception"
     bl_idname = "MCP_UL_PT_perception"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MCP"
     bl_parent_id = "MCPUltra_PT_main"
+    bl_description = "Analyze scene and improve quality automatically"
     
     def draw(self, context):
         layout = self.layout
@@ -172,23 +173,24 @@ class MCP_UL_PerceptionPanel(Panel):
         # Analyze
         box = layout.box()
         box.label(text="Scene Analysis:", icon='VIEWZOOM')
-        box.operator("mcp_ultra.analyze_scene", text="Analyze", icon='PLAY')
+        box.operator("mcp_ultra.analyze_scene", text="Analyze Scene", icon='PLAY')
         
         # Refine
         box = layout.box()
         box.label(text="Quality Refinement:", icon='MOD_SMOOTH')
         box.prop(props, "target_quality", text="Target")
-        box.operator("mcp_ultra.refine_quality", text="Refine", icon='PLAY')
+        box.operator("mcp_ultra.refine_quality", text="Refine Quality", icon='PLAY')
 
 
 class MCP_UL_ReferencesPanel(Panel):
-    """Panel de referencias"""
+    """Panel de referencias - Cargar y comparar con imágenes de referencia"""
     bl_label = "References"
     bl_idname = "MCP_UL_PT_references"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MCP"
     bl_parent_id = "MCPUltra_PT_main"
+    bl_description = "Load reference images and compare with scene"
     
     def draw(self, context):
         layout = self.layout
@@ -197,7 +199,7 @@ class MCP_UL_ReferencesPanel(Panel):
         box = layout.box()
         box.label(text="Reference Images:", icon='IMAGE_DATA')
         box.prop(props, "image_path", text="Path")
-        box.operator("mcp_ultra.load_reference", text="Load", icon='FILE_FOLDER')
+        box.operator("mcp_ultra.load_reference", text="Load Reference", icon='FILE_FOLDER')
 
 
 # ═══════════════════════════════════════════════════════════════
