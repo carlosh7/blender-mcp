@@ -2,7 +2,10 @@
 blender-mcp — Texture Engine
 Motor de texturizado: UV Unwrap, PBR Materials, Procedural Textures.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 import bmesh
 import math
 from mathutils import Vector

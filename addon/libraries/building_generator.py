@@ -3,7 +3,10 @@ blender-mcp — Building Generator
 Generador de edificios y arquitectura procedural.
 Inspirado en building_tools.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 import math
 from mathutils import Vector
 

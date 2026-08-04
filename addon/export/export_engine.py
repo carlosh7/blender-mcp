@@ -2,7 +2,10 @@
 blender-mcp — Export Engine
 Sistema de exportación: Game Engines, Web, Print, Film, LOD.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 import os
 from pathlib import Path
 

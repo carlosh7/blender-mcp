@@ -2,7 +2,10 @@
 blender-mcp — Libraries
 Bibliotecas: Materiales (50+), Animaciones (20+), Escenas (10+).
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 import math
 
 

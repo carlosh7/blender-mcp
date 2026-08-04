@@ -3,7 +3,11 @@ blender-mcp — Reference System
 Sistema de imágenes de referencia para guiar la creación de modelos.
 Inspirado en cc-blender-skill's reference-to-3d workflow.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
+
 import os
 import json
 from pathlib import Path

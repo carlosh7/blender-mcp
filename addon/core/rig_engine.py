@@ -2,7 +2,10 @@
 blender-mcp — Rig Engine
 Motor de rigging: Armature, IK/FK, Constraints, Shape Keys, Auto-rig.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 import math
 from mathutils import Vector, Quaternion
 

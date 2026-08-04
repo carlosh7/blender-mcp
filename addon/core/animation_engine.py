@@ -2,7 +2,10 @@
 blender-mcp — Animation Engine
 Motor de animación: Keyframes, Curves, Walk/Run cycles, Facial, Gestures.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 import math
 from mathutils import Vector, Quaternion
 
