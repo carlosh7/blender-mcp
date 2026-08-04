@@ -356,6 +356,8 @@ def download_polyhaven_asset(asset_id, asset_type="textures", save_dir="/tmp/ass
                 urllib.request.urlretrieve(file_url, filepath)
                 print(f"Downloaded: {filepath}")
                 return filepath
+    except Exception as e:
+        print(f"Download error: {e}")
     
     return None
 
@@ -380,6 +382,8 @@ def download_ambientcg_asset(asset_id, asset_type="materials", save_dir="/tmp/as
                 urllib.request.urlretrieve(download_url, filepath)
                 print(f"Downloaded: {filepath}")
                 return filepath
+    except Exception as e:
+        print(f"Download error: {e}")
     
     return None
 
