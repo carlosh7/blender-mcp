@@ -4,11 +4,50 @@ Motor de modelado con primitivas avanzadas, booleanos, subdivision, etc.
 
 Este módulo proporciona herramientas de modelado que van más allá de las
 primitivas básicas de Blender.
+
+NAMING CONVENTIONS (estilo Blender Studio):
+- GEO-xxx: Geometría (mallas, primitivas)
+- MAT-xxx: Materiales
+- LGT-xxx: Luces
+- CAM-xxx: Cámaras
+- RIG-xxx: Esqueletos
+- ANM-xxx: Animaciones
+- SCR-xxx: Escenas
 """
 import bpy
 import bmesh
 import math
 from mathutils import Vector, Matrix
+
+
+# ═══════════════════════════════════════════════════════════════
+# NAMING CONVENTIONS
+# ═══════════════════════════════════════════════════════════════
+
+NAMING_PREFIXES = {
+    "geometry": "GEO",
+    "material": "MAT",
+    "light": "LGT",
+    "camera": "CAM",
+    "rig": "RIG",
+    "animation": "ANM",
+    "scene": "SCR",
+}
+
+def generate_name(category, description):
+    """
+    Generar nombre con convención de命名.
+    
+    Args:
+        category: Categoría (geometry, material, light, etc.)
+        description: Descripción del objeto
+    
+    Returns:
+        Nombre formateado (ej: "GEO-Cube_Main")
+    """
+    prefix = NAMING_PREFIXES.get(category, "OBJ")
+    clean_desc = description.replace(" ", "_").replace("-", "_")
+    return f"{prefix}-{clean_desc}"
 
 
 # ═══════════════════════════════════════════════════════════════
