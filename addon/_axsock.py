@@ -591,6 +591,107 @@ class BlenderSocketServer:
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: Mesh, Texture, Rig, Animation, Character
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_create_primitive(self, primitive_type="cube", params=None):
+        """Create advanced primitive"""
+        try:
+            from .core import mesh_engine
+            obj = mesh_engine.create_advanced_primitive(primitive_type, params or {})
+            return {"status": "success", "object": obj.name}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_apply_material(self, obj_name, material_type):
+        """Apply PBR material from library"""
+        try:
+            from .core import texture_engine
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            mat = texture_engine.create_pbr_material(f"Mat_{material_type}", material_type)
+            obj.data.materials.append(mat)
+            return {"status": "success", "material": mat.name}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_armature(self, rig_type="humanoid"):
+        """Create armature from template"""
+        try:
+            from .core import rig_engine
+            if rig_type == "humanoid":
+                obj = rig_engine.create_humanoid_rig()
+            elif rig_type == "quadruped":
+                obj = rig_engine.create_quadruped_rig()
+            else:
+                return {"status": "error", "message": f"Unknown rig type: {rig_type}"}
+            return {"status": "success", "object": obj.name}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_animation(self, obj_name, anim_type="idle"):
+        """Create animation on object"""
+        try:
+            from .core import animation_engine
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            
+            if anim_type == "walk":
+                animation_engine.create_walk_cycle(obj)
+            elif anim_type == "run":
+                animation_engine.create_run_cycle(obj)
+            elif anim_type == "idle":
+                animation_engine.create_idle_animation(obj)
+            elif anim_type == "jump":
+                animation_engine.create_jump_animation(obj)
+            elif anim_type == "spin":
+                animation_engine.create_spin_animation(obj)
+            
+            return {"status": "success", "animation": anim_type}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_character(self, character_type="humanoid", params=None):
+        """Create character from template"""
+        try:
+            from .organic import character_gen
+            parts = character_gen.create_character(character_type, params or {})
+            return {"status": "success", "parts": list(parts.keys())}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_analyze_scene(self):
+        """Analyze scene using perception system"""
+        try:
+            from .perception import perception_system
+            result = perception_system.analyze_scene()
+            return result
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_export(self, filepath, target="auto"):
+        """Export scene to specified format"""
+        try:
+            from .export import export_engine
+            result = export_engine.smart_export(filepath, target)
+            return result
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_text_to_3d(self, description):
+        """Create 3D model from text description"""
+        try:
+            from .ai import ai_assistant
+            obj = ai_assistant.text_to_3d(description)
+            if obj:
+                return {"status": "success", "object": obj.name}
+            return {"status": "error", "message": "Could not create object"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
 
 def start_socket_server():
     global _socket_server

@@ -60,24 +60,36 @@ pytest tests/test_e2e_socket.py -v
 
 ```
 blender-mcp/
-├── addon/                  # Addon de Blender (self-contained)
-│   ├── __init__.py         # Registro del addon
-│   ├── _axsock.py          # Socket server TCP :9876
-│   ├── auto_process.py     # Orquestador LLM
-│   ├── client/             # Providers LLM (OpenAI, Claude, Ollama)
-│   ├── operators/          # Operadores Blender
-│   ├── panels/             # UI panels
-│   └── server/             # HTTP server embebido
-├── src/                    # Clean Architecture
-│   ├── core/               # Entidades e interfaces
-│   ├── tools/              # 18 categorías de tools
-│   ├── adapters/           # Adaptadores (LLM, Blender, assets)
-│   ├── infrastructure/     # Cache, logging, security, network
-│   └── presentation/       # CLI, MCP server
-├── tests/                  # Suite de tests
-├── mcp_adapter.py          # Bridge MCP stdio → TCP
-├── mcp_server.py           # MCP server SSE
-└── blender_connection.py   # Conexión compartida
+├── addon/                      # Addon de Blender
+│   ├── __init__.py             # Registro del addon
+│   ├── _axsock.py              # Socket server TCP :9876
+│   ├── core/                   # Motores fundamentales
+│   │   ├── mesh_engine.py      # 17 primitivas + booleanos + subdivision
+│   │   ├── texture_engine.py   # 50+ PBR materials + procedural
+│   │   ├── rig_engine.py       # Armature + IK/FK + auto-rig
+│   │   └── animation_engine.py # Keyframes + walk/run + facial
+│   ├── organic/                # Sistema orgánico
+│   │   └── character_gen.py    # 5 tipos de personajes
+│   ├── physics/                # Simulación física
+│   │   └── physics_engine.py   # Rigid/Soft/Fluid/Particles
+│   ├── ai/                     # Asistente IA
+│   │   └── ai_assistant.py     # Text→3D + Image→3D + Voice
+│   ├── perception/             # Sistema de visión
+│   │   └── perception_system.py # Scanner + Analyzer + Decision
+│   ├── libraries/              # Bibliotecas
+│   │   └── libraries.py        # 50+ materials + 20+ animations
+│   ├── export/                 # Exportación
+│   │   └── export_engine.py    # Unity/Unreal/glTF/STL/LOD
+│   ├── creation_rules.py       # Dimensiones, conexiones, colecciones
+│   ├── state_manager.py        # Persistencia, backup, historial
+│   ├── validator.py            # Validación visual, dimensiones
+│   └── ...                     # Otros módulos existentes
+├── src/                        # Clean Architecture
+│   ├── core/                   # Entidades e interfaces
+│   ├── tools/                  # 19 categorías de tools
+│   ├── adapters/               # Adaptadores
+│   └── infrastructure/         # Cache, logging, security
+└── tests/                      # Suite de tests
 ```
 
 ## 🔌 Puertos
