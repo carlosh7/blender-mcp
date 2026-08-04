@@ -3,7 +3,11 @@ blender-mcp — Quality Refinement System
 Sistema de refinamiento de calidad automático.
 Inspirado en cc-blender-skill's quality-refinement-autoloop.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
+
 import json
 from datetime import datetime
 
