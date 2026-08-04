@@ -16,9 +16,11 @@ class MCPClientOllama(MCPClientBase):
     provider_id = "ollama"
     provider_name = "Ollama (Local)"
     default_model = "llama3.2"
-    api_base = "http://localhost:11434"
+    api_base = ""
 
-    def __init__(self, server_url="http://localhost:45677/sse"):
+    def __init__(self, server_url=None):
+        import os
+        self.api_base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
         super().__init__(server_url)
 
     async def _call_llm(self, model, api_key, messages, stream_callback=None):

@@ -33,7 +33,7 @@ def start():
 
 
 def _server_url():
-    return "http://localhost:45677/sse"
+    return os.environ.get("OPENCODE_SSE_URL", "http://localhost:45677/sse")
 
 
 # ─── Rutas opencode ───

@@ -18,7 +18,8 @@ class MCPClientClaude(MCPClientBase):
     default_model = "claude-sonnet-4-20250514"
     api_base = "https://api.anthropic.com/v1"
 
-    def __init__(self, server_url="http://localhost:45677/sse"):
+    def __init__(self, server_url=None):
+        import os
         super().__init__(server_url)
 
     async def _call_llm(self, model, api_key, messages, stream_callback=None):

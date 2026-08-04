@@ -22,8 +22,9 @@ class MCPClientBase:
     default_model = ""
     api_base = ""
 
-    def __init__(self, server_url="http://localhost:45677/sse"):
-        self.server_url = server_url
+    def __init__(self, server_url=None):
+        import os
+        self.server_url = server_url or os.environ.get("OPENCODE_SSE_URL", "http://localhost:45677/sse")
         self.command_queue = queue.Queue()
         self.response_queue = queue.Queue()
         self.running = False

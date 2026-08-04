@@ -12,21 +12,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-
-def is_blender_available():
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(2)
-        sock.connect(('localhost', 9876))
-        sock.close()
-        return True
-    except:
-        return False
-
-skip_without_blender = pytest.mark.skipif(
-    not is_blender_available(),
-    reason="Blender MCP server not running"
-)
+from helpers import skip_without_blender
 
 
 def send_command(command, params=None):

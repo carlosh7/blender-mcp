@@ -130,7 +130,7 @@ _CHAT_URLS = {
     "openrouter": "https://openrouter.ai/api/v1/chat/completions",
     "google": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     "anthropic": "https://api.anthropic.com/v1/messages",
-    "ollama": "http://localhost:11434/v1/chat/completions",
+    "ollama": os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/v1/chat/completions",
 }
 
 _ANTHROPIC_HEADERS = {
@@ -844,7 +844,7 @@ def _diagnose():
 
     try:
         import urllib.request
-        req = urllib.request.Request("http://localhost:11434/api/version")
+        req = urllib.request.Request(os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/version")
         with urllib.request.urlopen(req, timeout=2):
             lines.append("✅ Ollama detectado (pero no activo) → Integrations → Local AI")
     except:

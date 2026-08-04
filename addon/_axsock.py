@@ -298,7 +298,7 @@ class BlenderSocketServer:
         
         import signal
         def handler(signum, frame):
-            raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 2.0 segundos de límite.")
+            raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 10.0 segundos de límite.")
 
         # AXIOM v2.0 Atomic Transaction Start
         bpy.ops.ed.undo_push(message="Axiom Precision Task")
@@ -307,7 +307,7 @@ class BlenderSocketServer:
         with redirect_stdout(buf):
             # Configurar alarma de 2 segundos
             signal.signal(signal.SIGALRM, handler)
-            signal.alarm(2)
+            signal.alarm(10)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, ns)

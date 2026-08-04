@@ -283,14 +283,42 @@ class TestShaderNodeTools:
 
 class TestGeometryNodeTools:
     """Tests for Geometry Node tools."""
-    
+
     def test_geonodes_tools_import(self):
         from tools.geometry_nodes import TOOLS, HANDLERS
         assert len(TOOLS) > 0
         assert len(HANDLERS) > 0
-    
+
     def test_geonodes_tools_mapping(self):
         from tools.geometry_nodes import TOOLS, HANDLERS
+        for tool in TOOLS:
+            assert tool.name in HANDLERS, f"Handler missing for {tool.name}"
+
+
+class TestGeometryNodesExtendedTools:
+    """Tests for Geometry Nodes Extended tools."""
+
+    def test_geonodes_extended_tools_import(self):
+        from tools.geometry_nodes_extended import TOOLS, HANDLERS
+        assert len(TOOLS) > 0
+        assert len(HANDLERS) > 0
+
+    def test_geonodes_extended_tools_mapping(self):
+        from tools.geometry_nodes_extended import TOOLS, HANDLERS
+        for tool in TOOLS:
+            assert tool.name in HANDLERS, f"Handler missing for {tool.name}"
+
+
+class TestShaderNodesExtendedTools:
+    """Tests for Shader Nodes Extended tools."""
+
+    def test_shader_extended_tools_import(self):
+        from tools.shader_nodes_extended import TOOLS, HANDLERS
+        assert len(TOOLS) > 0
+        assert len(HANDLERS) > 0
+
+    def test_shader_extended_tools_mapping(self):
+        from tools.shader_nodes_extended import TOOLS, HANDLERS
         for tool in TOOLS:
             assert tool.name in HANDLERS, f"Handler missing for {tool.name}"
 

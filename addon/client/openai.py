@@ -18,7 +18,8 @@ class MCPClientOpenAI(MCPClientBase):
     default_model = "gpt-4o-mini"
     api_base = ""
 
-    def __init__(self, api_base="", default_model="", server_url="http://localhost:45677/sse"):
+    def __init__(self, api_base="", default_model="", server_url=None):
+        import os
         super().__init__(server_url)
         if api_base:
             self.api_base = api_base

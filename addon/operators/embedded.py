@@ -22,7 +22,7 @@ _auto_started = False
 def _check_ollama():
     """Check if Ollama is running locally."""
     try:
-        req = urllib.request.Request("http://localhost:11434/api/version", method="GET")
+        req = urllib.request.Request(os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/version", method="GET")
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read())
             return data.get("version", "")

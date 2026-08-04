@@ -5,15 +5,15 @@ Requires Blender running with the addon active.
 """
 import os
 import sys
-import json
-import time
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from helpers import skip_without_blender
 from blender_connection import get_blender, BlenderConnection
 
 
+@skip_without_blender
 @pytest.mark.e2e
 class TestSocketConnection:
     def test_connect(self):

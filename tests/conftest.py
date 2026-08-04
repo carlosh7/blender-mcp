@@ -3,8 +3,9 @@ import sys
 import os
 import pytest
 
-# Add src to path for all tests
+# Add src and tests to path for all tests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.dirname(__file__))
 
 # Check if bpy is available
 try:
@@ -13,7 +14,7 @@ try:
 except ImportError:
     HAS_BPY = False
 
-# Skip marker for tests requiring Blender
+# Skip marker for tests requiring Blender Python API
 skip_without_bpy = pytest.mark.skipif(not HAS_BPY, reason="Blender not available")
 
 # Blender mock for testing without Blender
