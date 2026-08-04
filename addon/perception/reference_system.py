@@ -145,6 +145,16 @@ REFERENCE_TEMPLATES = {
         "camera_position": (5, -5, 5),
         "camera_rotation": (math.radians(45), 0, math.radians(45)),
     },
+    "three_quarter": {
+        "description": "Vista tres cuartos",
+        "camera_position": (5, -3, 4),
+        "camera_rotation": (math.radians(60), 0, math.radians(30)),
+    },
+    "close_up": {
+        "description": "Primer plano",
+        "camera_position": (2, -1, 1),
+        "camera_rotation": (math.radians(75), 0, 0),
+    },
 }
 
 
