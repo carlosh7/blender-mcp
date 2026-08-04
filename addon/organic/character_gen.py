@@ -249,6 +249,18 @@ def _create_humanoid(height, proportions, params):
         bpy.ops.object.transform_apply(rotation=False, scale=True)
         hand.data.materials.append(skin_mat)
         parts[f"hand_{side}"] = hand
+        
+        # Dedos (5 por mano)
+        for finger in range(5):
+            angle = (finger - 2) * 0.15
+            fx = x + math.cos(angle) * 0.02
+            fy = -0.02
+            fz = height * 0.22
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.005, depth=0.03, location=(fx, fy, fz))
+            finger_obj = bpy.context.active_object
+            finger_obj.name = f"Finger_{side}_{finger}"
+            finger_obj.data.materials.append(skin_mat)
+            parts[f"finger_{side}_{finger}"] = finger_obj
     
     # === PIERNAS ===
     for side in ["L", "R"]:
@@ -283,13 +295,36 @@ def _create_humanoid(height, proportions, params):
         bpy.ops.object.transform_apply(rotation=False, scale=True)
         foot.data.materials.append(cloth_mat)
         parts[f"foot_{side}"] = foot
+        
+        # Dedos del pie (5)
+        for toe in range(5):
+            angle = (toe - 2) * 0.1
+            tx = x + math.cos(angle) * 0.01
+            ty = 0.05
+            tz = -0.26
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.004, depth=0.02, location=(tx, ty, tz))
+            toe_obj = bpy.context.active_object
+            toe_obj.name = f"Toe_{side}_{toe}"
+            toe_obj.data.materials.append(skin_mat)
+            parts[f"toe_{side}_{toe}"] = toe_obj
+    
+    # === OREJAS ===
+    for side in ["L", "R"]:
+        x = 0.08 if side == "L" else -0.08
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=0.02, location=(x, 0.02, height * 0.92))
+        ear = bpy.context.active_object
+        ear.name = f"Ear_{side}"
+        ear.scale = (0.6, 1.2, 0.8)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        ear.data.materials.append(skin_mat)
+        parts[f"ear_{side}"] = ear
     
     print(f"Personaje REALISTA creado: {len(parts)} partes, altura {height}m")
     print(f"  - Cuerpo: torso, cadera, cuello")
-    print(f"  - Cara: ojos, nariz, boca")
+    print(f"  - Cara: ojos, nariz, boca, orejas")
     print(f"  - Pelo: esfera estilizada")
-    print(f"  - Brazos: hombro, brazo superior, codo, brazo inferior, mano")
-    print(f"  - Piernas: muslo, rodilla, pantorrilla, pie")
+    print(f"  - Brazos: hombro, brazo, codo, antebrazo, mano, 5 dedos")
+    print(f"  - Piernas: muslo, rodilla, pantorrilla, pie, 5 dedos")
     return parts
 
 
