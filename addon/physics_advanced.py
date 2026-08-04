@@ -216,8 +216,89 @@ def list_physics_presets():
         "cloth_silk": "Seda",
         "cloth_leather": "Cuero",
         "cloth_rubber": "Goma",
+        "cloth_denim": "Mezclilla",
+        "cloth_velvet": "Terciopelo",
         "fluid_liquid": "Líquido",
         "fluid_gas": "Gas",
+        "fluid_honey": "Miel",
         "particle_hair": "Pelo",
         "particle_emitter": "Emisor",
+        "particle_snow": "Nieve",
+        "particle_rain": "Lluvia",
+        "rigid_heavy": "Cuerpo rígido pesado",
+        "rigid_light": "Cuerpo rígido ligero",
+        "rigid_bouncy": "Cuerpo rígido elástico",
+        "soft_rubber": "Goma blanda",
+        "soft_jelly": "Gelatina",
+        "soft_foam": "Espuma",
+        "force_wind": "Viento",
+        "force_vortex": "Vórtice",
+        "force_turbulence": "Turbulencia",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# COLLISION PRESETS
+# ═══════════════════════════════════════════════════════════════
+
+COLLISION_PRESETS = {
+    "ice": {"friction": 0.01, "stickiness": 0.0},
+    "rubber": {"friction": 0.8, "stickiness": 0.5},
+    "wood": {"friction": 0.5, "stickiness": 0.1},
+    "metal": {"friction": 0.3, "stickiness": 0.0},
+    "fabric": {"friction": 0.6, "stickiness": 0.3},
+    "concrete": {"friction": 0.7, "stickiness": 0.2},
+}
+
+
+def add_collision_preset(obj, preset="wood"):
+    """
+    Agregar colisión con preset predefinido.
+    """
+    if bpy is None or obj is None:
+        return None
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    bpy.ops.object.modifier_add(type='COLLISION')
+    
+    mod = obj.modifiers.get("Collision")
+    if mod and preset in COLLISION_PRESETS:
+        params = COLLISION_PRESETS[preset]
+        mod.settings.friction_factor = params["friction"]
+        mod.settings.stickiness = params["stickiness"]
+        print(f"Collision preset: {obj.name} ({preset})")
+        return mod
+    
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# FORCE FIELDS
+# ═══════════════════════════════════════════════════════════════
+
+def add_force_field(obj, field_type='WIND', strength=1.0):
+    """
+    Agregar campo de fuerza.
+    
+    Args:
+        obj: Objeto
+        field_type: 'WIND', 'VORTEX', 'TURBULENCE', 'FORCE'
+        strength: Fuerza del campo
+    """
+    if bpy is None or obj is None:
+        return None
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    bpy.ops.object.effector_add(type=field_type)
+    
+    effector = obj.field
+    if effector:
+        effector.strength = strength
+        print(f"Force field: {obj.name} ({field_type}, strength={strength})")
+        return effector
+    
+    return None
