@@ -8,7 +8,10 @@ try:
 except ImportError:
     bpy = None
 import math
-from mathutils import Vector
+try:
+    from mathutils import Vector
+except ImportError:
+    Vector = None
 
 
 # ═══════════════════════════════════════════════════════════════
