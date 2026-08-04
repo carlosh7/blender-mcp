@@ -404,4 +404,11 @@ def list_animation_presets():
         "sad": "Expresión: tristeza",
         "wave_gesture": "Gesto: saludo",
         "point_gesture": "Gesto: señalar",
+        "dance": "Baile",
+        "punch": "Golpe",
+        "kick": "Patada",
+        "clap": "Aplaudir",
+        "nod": "Asentir con cabeza",
+        "shake_head": "Negar con cabeza",
+        "shrug": "Encogerse de hombros",
     }
