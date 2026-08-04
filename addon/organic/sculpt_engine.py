@@ -3,10 +3,18 @@ blender-mcp — Sculpt Engine
 Motor de sculpting para formas orgánicas.
 Inspirado en MB-Lab y herramientas de sculpting de Blender.
 """
-import bpy
-import bmesh
+try:
+    import bpy
+    import bmesh
+except ImportError:
+    bpy = None
+    bmesh = None
+
 import math
-from mathutils import Vector
+try:
+    from mathutils import Vector
+except ImportError:
+    Vector = None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -351,6 +359,135 @@ def list_sculpt_primitives():
         "cube": "Cubo (objetos rectangulares)",
         "cylinder": "Cilindro (brazos, piernas)",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# SCULPT MODE TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+def enter_sculpt_mode(obj):
+    """Entrar en modo sculpt"""
+    if bpy is None or obj is None:
+        return False
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode='SCULPT')
+    print(f"Sculpt mode: {obj.name}")
+    return True
+
+
+def exit_sculpt_mode():
+    """Salir de modo sculpt"""
+    if bpy is None:
+        return False
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print("Exited sculpt mode")
+    return True
+
+
+def set_sculpt_brush(brush_name, strength=0.5, radius=0.1):
+    """Configurar pincel de sculpting"""
+    if bpy is None:
+        return False
+    brush = bpy.data.brushes.get(brush_name)
+    if brush:
+        bpy.context.tool_settings.sculpt.brush = brush
+        bpy.context.tool_settings.sculpt.strength = strength
+        bpy.context.tool_settings.sculpt.size = radius
+        print(f"Brush set: {brush_name}, strength={strength}")
+        return True
+    return False
+
+
+def smooth_mesh_local(obj, factor=0.5):
+    """Suavizar malla en ubicación específica"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.smooth(factor=factor)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh smoothed: factor={factor}")
+    return True
+
+
+def inflate_mesh_local(obj, factor=0.2):
+    """Inflar malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.inflate(factor=factor)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh inflated: factor={factor}")
+    return True
+
+
+def pinch_mesh_local(obj, factor=0.5):
+    """Pellizcar malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.pinch(factor=factor)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh pinched: factor={factor}")
+    return True
+
+
+def grab_mesh_local(obj, offset=(0, 0, 0.1)):
+    """Agarrar y mover malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.grab(offset=offset)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh grabbed: offset={offset}")
+    return True
+
+
+def smooth整个人(obj, iterations=5):
+    """Suavizar toda la malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.smooth(iterations=iterations)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh smoothed: {iterations} iterations")
+    return True
+
+
+def flatten_mesh_local(obj, factor=0.5):
+    """Aplanar malla"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.flatten(factor=factor)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh flattened: factor={factor}")
+    return True
+
+
+def randomize_mesh_local(obj, factor=0.1):
+    """Randomizar vértices"""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.randomize(factor=factor)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print(f"Mesh randomized: factor={factor}")
+    return True
 
 
 # ═══════════════════════════════════════════════════════════════

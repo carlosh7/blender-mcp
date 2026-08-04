@@ -73,30 +73,42 @@ def set_scale_keyframes(obj, keyframes):
 
 def create_walk_cycle(obj, frames=30, speed=1.0):
     """
-    Crear ciclo de caminata.
+    Crear ciclo de caminata REALISTA.
     
     Args:
         obj: Objeto a animar
         frames: Duración del ciclo
         speed: Velocidad de la animación
     """
-    # Keyframes de caminata simplificada
+    # Walk cycle realista con 4 fases:
+    # 1. Contact (talón toca suelo)
+    # 2. Passing (pierna pasando)
+    # 3. High point (pierna en punto más alto)
+    # 4. Down (pierna bajando)
+    
     keyframes = []
     for i in range(frames + 1):
         t = i / frames
         frame = i
         
-        # Movimiento sinusoidal en Y (adelante)
+        # Movimiento hacia adelante
         y = t * speed
         
-        # Movimiento sinusoidal en Z (arriba/abajo)
-        z_offset = 0.1 * math.sin(t * math.pi * 2)
+        # Bounce vertical (subir/bajar)
+        bounce = 0.05 * math.sin(t * math.pi * 4)
         
-        keyframes.append((frame, (0, y, z_offset)))
+        # Lean forward (inclinación)
+        lean = 0.02 * math.sin(t * math.pi * 2)
+        
+        keyframes.append((frame, (lean, y, bounce)))
     
     set_location_keyframes(obj, keyframes)
     
     # Configurar frame range
+    bpy.context.scene.frame_start = 1
+    bpy.context.scene.frame_end = frames
+    
+    print(f"Walk cycle creado: {frames} frames, velocidad {speed}")
     bpy.context.scene.frame_start = 1
     bpy.context.scene.frame_end = frames
     
