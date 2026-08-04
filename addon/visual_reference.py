@@ -160,3 +160,163 @@ def list_reference_views():
         "top": "Vista superior",
         "perspective": "Vista perspectiva",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# REFERENCE GRID
+# ═══════════════════════════════════════════════════════════════
+
+def create_reference_grid(size=10, spacing=1):
+    """
+    Crear cuadrícula de referencia.
+    
+    Args:
+        size: Tamaño de la cuadrícula
+        spacing: Espaciado entre líneas
+    """
+    if bpy is None:
+        return None
+    
+    # Crear grid
+    bpy.ops.mesh.primitive_grid_add(size=size, location=(0, 0, 0))
+    grid = bpy.context.active_object
+    grid.name = "ReferenceGrid"
+    
+    # Material
+    mat = bpy.data.materials.new("GridMat")
+    mat.use_nodes = True
+    mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.3, 0.3, 0.3, 1)
+    mat.node_tree.nodes["Principled BSDF"].inputs["Alpha"].default_value = 0.5
+    grid.data.materials.append(mat)
+    
+    print(f"Reference grid: {size}m x {size}m")
+    return grid
+
+
+# ═══════════════════════════════════════════════════════════════
+# MEASURE DISTANCE
+# ═══════════════════════════════════════════════════════════════
+
+def measure_distance(obj1_name, obj2_name):
+    """
+    Medir distancia entre dos objetos.
+    
+    Args:
+        obj1_name: Nombre del primer objeto
+        obj2_name: Nombre del segundo objeto
+    
+    Returns:
+        Distancia en metros
+    """
+    if bpy is None:
+        return None
+    
+    obj1 = bpy.data.objects.get(obj1_name)
+    obj2 = bpy.data.objects.get(obj2_name)
+    
+    if not obj1 or not obj2:
+        return None
+    
+    # Calcular centros
+    bb1 = [obj1.matrix_world @ Vector(c) for c in obj1.bound_box]
+    bb2 = [obj2.matrix_world @ Vector(c) for c in obj2.bound_box]
+    
+    center1 = Vector((sum(p[i] for p in bb1) / len(bb1) for i in range(3)))
+    center2 = Vector((sum(p[i] for p in bb2) / len(bb2) for i in range(3)))
+    
+    distance = (center1 - center2).length
+    
+    print(f"Distance: {obj1_name} to {obj2_name} = {distance:.3f}m")
+    return distance
+
+
+# ═══════════════════════════════════════════════════════════════
+# COMPARE DIMENSIONS
+# ═══════════════════════════════════════════════════════════════
+
+def compare_dimensions(obj_name, expected_width, expected_depth, expected_height, tolerance=0.01):
+    """
+    Comparar dimensiones con valores esperados.
+    
+    Args:
+        obj_name: Nombre del objeto
+        expected_width: Ancho esperado
+        expected_depth: Profundidad esperada
+        expected_height: Altura esperada
+        tolerance: Tolerancia (0-1)
+    
+    Returns:
+        dict con comparación
+    """
+    if bpy is None:
+        return None
+    
+    obj = bpy.data.objects.get(obj_name)
+    if not obj:
+        return {"error": f"Object not found: {obj_name}"}
+    
+    # Obtener dimensiones actuales
+    bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+    mins = Vector((min(p[i] for p in bbox) for i in range(3)))
+    maxs = Vector((max(p[i] for p in bbox) for i in range(3)))
+    
+    actual_width = maxs[0] - mins[0]
+    actual_depth = maxs[1] - mins[1]
+    actual_height = maxs[2] - mins[2]
+    
+    # Comparar
+    width_match = abs(actual_width - expected_width) / expected_width < tolerance
+    depth_match = abs(actual_depth - expected_depth) / expected_depth < tolerance
+    height_match = abs(actual_height - expected_height) / expected_height < tolerance
+    
+    return {
+        "matches": width_match and depth_match and height_match,
+        "width": {"actual": actual_width, "expected": expected_width, "match": width_match},
+        "depth": {"actual": actual_depth, "expected": expected_depth, "match": depth_match},
+        "height": {"actual": actual_height, "expected": expected_height, "match": height_match},
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# OVERLAY REFERENCE
+# ═══════════════════════════════════════════════════════════════
+
+def overlay_reference(obj_name, reference_image_path):
+    """
+    Superponer imagen de referencia sobre un objeto.
+    
+    Args:
+        obj_name: Nombre del objeto
+        reference_image_path: Ruta de la imagen
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    obj = bpy.data.objects.get(obj_name)
+    if not obj:
+        return {"error": f"Object not found: {obj_name}"}
+    
+    # Cargar imagen
+    img = bpy.data.images.load(reference_image_path)
+    
+    # Crear plano con imagen
+    bpy.ops.mesh.primitive_plane_add(size=2, location=obj.location)
+    plane = bpy.context.active_object
+    plane.name = f"Overlay_{obj.name}"
+    
+    # Material con imagen
+    mat = bpy.data.materials.new(f"OverlayMat_{obj.name}")
+    mat.use_nodes = True
+    
+    # Image Texture node
+    tex = mat.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    
+    # Connect to base color
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    mat.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    
+    plane.data.materials.append(mat)
+    
+    print(f"Reference overlay created: {obj_name}")
+    return plane
