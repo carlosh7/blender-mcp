@@ -377,4 +377,201 @@ def list_pbr_materials():
         "stone": "Piedra natural",
         "glass": "Vidrio realista",
         "ceramic": "Cerámica",
+        "plastic": "Plástico",
+        "rubber": "Goma",
+        "paper": "Papel",
+        "bamboo": "Bambú",
+        "concrete": "Concreto",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# PLÁSTICO
+# ═══════════════════════════════════════════════════════════════
+
+def create_pbr_plastic(name, color=(0.8, 0.8, 0.8), glossy=0.8):
+    """
+    Crear material plástico.
+    """
+    if bpy is None:
+        return None
+    
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for n in nodes:
+        nodes.remove(n)
+    
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (600, 0)
+    
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    bsdf.inputs["Base Color"].default_value = (*color, 1)
+    bsdf.inputs["Roughness"].default_value = 1.0 - glossy
+    bsdf.inputs["Metallic"].default_value = 0.0
+    
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    
+    print(f"Material plástico creado: {name}")
+    return mat
+
+
+# ═══════════════════════════════════════════════════════════════
+# GOMA
+# ═══════════════════════════════════════════════════════════════
+
+def create_pbr_rubber(name, color=(0.1, 0.1, 0.1)):
+    """
+    Crear material goma.
+    """
+    if bpy is None:
+        return None
+    
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for n in nodes:
+        nodes.remove(n)
+    
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (600, 0)
+    
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    bsdf.inputs["Base Color"].default_value = (*color, 1)
+    bsdf.inputs["Roughness"].default_value = 0.95
+    bsdf.inputs["Metallic"].default_value = 0.0
+    
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    
+    print(f"Material goma creado: {name}")
+    return mat
+
+
+# ═══════════════════════════════════════════════════════════════
+# PAPEL
+# ═══════════════════════════════════════════════════════════════
+
+def create_pbr_paper(name, color=(0.95, 0.93, 0.90)):
+    """
+    Crear material papel.
+    """
+    if bpy is None:
+        return None
+    
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for n in nodes:
+        nodes.remove(n)
+    
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (600, 0)
+    
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    bsdf.inputs["Base Color"].default_value = (*color, 1)
+    bsdf.inputs["Roughness"].default_value = 0.8
+    bsdf.inputs["Metallic"].default_value = 0.0
+    
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    
+    print(f"Material papel creado: {name}")
+    return mat
+
+
+# ═══════════════════════════════════════════════════════════════
+# BAMBÚ
+# ═══════════════════════════════════════════════════════════════
+
+def create_pbr_bamboo(name, color=(0.70, 0.60, 0.35)):
+    """
+    Crear material bambú.
+    """
+    if bpy is None:
+        return None
+    
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for n in nodes:
+        nodes.remove(n)
+    
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (600, 0)
+    
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    bsdf.inputs["Base Color"].default_value = (*color, 1)
+    bsdf.inputs["Roughness"].default_value = 0.65
+    bsdf.inputs["Metallic"].default_value = 0.0
+    
+    # Vetas de bambú
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.location = (0, 100)
+    noise.inputs["Scale"].default_value = 20
+    
+    bump = nodes.new("ShaderNodeBump")
+    bump.location = (0, 0)
+    bump.inputs["Strength"].default_value = 0.2
+    
+    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    
+    print(f"Material bambú creado: {name}")
+    return mat
+
+
+# ═══════════════════════════════════════════════════════════════
+# CONCRETO
+# ═══════════════════════════════════════════════════════════════
+
+def create_pbr_concrete(name, color=(0.5, 0.48, 0.45)):
+    """
+    Crear material concreto.
+    """
+    if bpy is None:
+        return None
+    
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    for n in nodes:
+        nodes.remove(n)
+    
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (600, 0)
+    
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.location = (300, 0)
+    bsdf.inputs["Base Color"].default_value = (*color, 1)
+    bsdf.inputs["Roughness"].default_value = 0.9
+    bsdf.inputs["Metallic"].default_value = 0.0
+    
+    # Musgrave (textura de concreto)
+    musgrave = nodes.new("ShaderNodeTexMusgrave")
+    musgrave.location = (0, 100)
+    musgrave.inputs["Scale"].default_value = 5
+    
+    bump = nodes.new("ShaderNodeBump")
+    bump.location = (0, 0)
+    bump.inputs["Strength"].default_value = 0.3
+    
+    links.new(musgrave.outputs["Fac"], bump.inputs["Height"])
+    links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+    
+    print(f"Material concreto creado: {name}")
+    return mat
