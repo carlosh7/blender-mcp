@@ -68,7 +68,7 @@ def create_advanced_primitive(primitive_type, params=None):
         params: Diccionario con parámetros
     
     Returns:
-        Objeto creado
+        Objeto creado o None si hay error
     """
     if params is None:
         params = {}
@@ -98,9 +98,14 @@ def create_advanced_primitive(primitive_type, params=None):
     
     creator = primitive_map.get(primitive_type)
     if not creator:
-        raise ValueError(f"Primitiva no soportada: {primitive_type}")
+        print(f"ERROR: Primitive not supported: {primitive_type}")
+        return None
     
-    return creator(params)
+    try:
+        return creator(params)
+    except Exception as e:
+        print(f"ERROR creating {primitive_type}: {e}")
+        return None
 
 
 def _create_cube(params):

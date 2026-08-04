@@ -241,6 +241,10 @@ def generate_3d_from_parsed(parsed):
 
 def _create_furniture(parsed):
     """Crear mueble"""
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
+    
     size = parsed.get("size", 1.0)
     color = parsed.get("color", (0.5, 0.3, 0.15))
     
@@ -276,6 +280,10 @@ def _create_furniture(parsed):
 
 def _create_vehicle(parsed):
     """Crear vehículo"""
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
+    
     size = parsed.get("size", 1.5)
     color = parsed.get("color", (0.8, 0.1, 0.1))
     
@@ -313,6 +321,10 @@ def _create_vehicle(parsed):
 
 def _create_character(parsed):
     """Crear personaje"""
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
+    
     size = parsed.get("size", 1.8)
     color = parsed.get("color", (0.8, 0.6, 0.5))
     
@@ -369,6 +381,10 @@ def _create_character(parsed):
 
 def _create_building(parsed):
     """Crear edificio"""
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
+    
     size = parsed.get("size", 5.0)
     color = parsed.get("color", (0.7, 0.68, 0.65))
     
@@ -391,6 +407,10 @@ def _create_building(parsed):
 
 def _create_animal(parsed):
     """Crear animal"""
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
+    
     size = parsed.get("size", 0.5)
     color = parsed.get("color", (0.5, 0.35, 0.2))
     
@@ -441,6 +461,10 @@ def _create_animal(parsed):
 
 def _create_generic(parsed):
     """Crear objeto genérico"""
+    if bpy is None:
+        print("ERROR: bpy not available (run inside Blender)")
+        return None
+    
     shape = parsed.get("shape", "cube")
     size = parsed.get("size", 1.0)
     color = parsed.get("color", (0.5, 0.5, 0.5))
