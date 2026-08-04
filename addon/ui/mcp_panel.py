@@ -130,13 +130,14 @@ class MCP_UL_LoadReference(Operator):
 # ═══════════════════════════════════════════════════════════════
 
 class MCP_UL_AIAssistantPanel(Panel):
-    """Panel de asistente IA"""
+    """Panel de asistente IA - Crear objetos con inteligencia artificial"""
     bl_label = "AI Assistant"
     bl_idname = "MCP_UL_PT_ai"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MCP"
     bl_parent_id = "MCPUltra_PT_main"
+    bl_description = "Create 3D objects using AI from text or images"
     
     def draw(self, context):
         layout = self.layout
@@ -146,13 +147,13 @@ class MCP_UL_AIAssistantPanel(Panel):
         box = layout.box()
         box.label(text="Text to 3D:", icon='OUTLINER_OB_MESH')
         box.prop(props, "text_description", text="Description")
-        box.operator("mcp_ultra.text_to_3d", text="Create", icon='PLAY')
+        box.operator("mcp_ultra.text_to_3d", text="Create from Text", icon='PLAY')
         
         # Image to 3D
         box = layout.box()
         box.label(text="Image to 3D:", icon='IMAGE_DATA')
         box.prop(props, "image_path", text="Image")
-        box.operator("mcp_ultra.image_to_3d", text="Create", icon='PLAY')
+        box.operator("mcp_ultra.image_to_3d", text="Create from Image", icon='PLAY')
 
 
 class MCP_UL_PerceptionPanel(Panel):
