@@ -111,7 +111,7 @@ def execute_voice_command(transcript):
     Ejecutar comando de voz.
     
     Args:
-        transcript: Texto transcrito del audio
+        transcript: Texto transcrito del audio (puede venir de Whisper)
     
     Returns:
         dict con resultado
@@ -160,6 +160,29 @@ def execute_voice_command(transcript):
     
     else:
         return {"error": f"Unknown action: {action}"}
+
+
+def transcribe_audio(audio_path):
+    """
+    Transcribir audio usando Whisper.
+    
+    Args:
+        audio_path: Ruta al archivo de audio
+    
+    Returns:
+        Texto transcrito o None
+    """
+    try:
+        import whisper
+        model = whisper.load_model("base")
+        result = model.transcribe(audio_path)
+        return result["text"]
+    except ImportError:
+        print("Whisper not installed. Install with: pip install openai-whisper")
+        return None
+    except Exception as e:
+        print(f"Error transcribing: {e}")
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════
