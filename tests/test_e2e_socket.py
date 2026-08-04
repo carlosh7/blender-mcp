@@ -9,12 +9,25 @@ import json
 import time
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from blender_connection import get_blender, BlenderConnection
+def _blender_up():
+    import socket as _socket
+    s = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    s.settimeout(0.5)
+    try:
+        s.connect(("localhost", 9876))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+needs_blender = pytest.mark.skipif(not _blender_up(),
+                                   reason="Blender socket (localhost:9876) not reachable")
 
 
 @pytest.mark.e2e
+@needs_blender
 class TestSocketConnection:
     def test_connect(self):
         """Test basic socket connection to Blender."""

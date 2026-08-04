@@ -52,7 +52,7 @@ class MCPClientBase:
             from mcp import ClientSession
             from mcp.client.sse import sse_client
         except ImportError:
-            logger.error("MCP SDK not available for embedded client")
+            logger.error("MCP SDK tidak tersedia untuk client embedded")
             return
 
         async with sse_client(self.server_url) as streams:
@@ -61,7 +61,7 @@ class MCPClientBase:
                 result = await session.initialize()
                 tools_result = await session.list_tools()
                 self._tools = [{"name": t.name, "description": t.description, "schema": t.inputSchema} for t in tools_result.tools]
-                logger.info(f"Connected to embedded MCP, {len(self._tools)} tools available")
+                logger.info(f"Terhubung ke MCP embedded; {len(self._tools)} tool tersedia")
 
                 while self.running:
                     try:

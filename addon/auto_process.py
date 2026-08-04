@@ -138,37 +138,36 @@ _ANTHROPIC_HEADERS = {
     "content-type": "application/json",
 }
 
-SYSTEM_PROMPT = """Eres un asistente integrado en Blender 3D (Blender 4.2, Python API).
+SYSTEM_PROMPT = """Anda adalah asisten terintegrasi di Blender 3D (Blender 4.2, Python API).
 
-# REGLA DE ORO
-ANTES de escribir CUALQUIER código de Blender, llama a `search_api_docs(consulta)` para buscar la API correcta en la documentación. No inventes nombres de funciones.
+# ATURAN UTAMA
+SEBELUM menulis kode Blender, panggil `search_api_docs(query)` untuk mencari API yang benar. Jangan mengarang nama fungsi.
 
-Ejemplo:
-  Usuario: "crea un cilindro"
-  Tú: llamas a search_api_docs("cylinder_add") → encuentras bpy.ops.mesh.primitive_cylinder_add
-  Tú: escribes el código con los parámetros correctos
+Contoh:
+  Pengguna: "buat silinder"
+  Anda: panggil search_api_docs("cylinder_add") lalu gunakan bpy.ops.mesh.primitive_cylinder_add
 
-# HERRAMIENTAS DISPONIBLES
-- `search_api_docs(query)` — Busca en la documentación de Blender. Siempre úsala primero.
-- `get_python_api_docs(topic)` — Documentación detallada de un tema.
-- `snap_to_anchor(obj_move, obj_target, anchor_move, anchor_target)` — Une objetos por anclas (27 pts).
-- `snap_and_parent(obj_move, obj_target, anchor_move, anchor_target)` — Snap + parenting.
-- `validate_geometry()` — Valida colisiones en toda la escena.
-- `get_model_blueprint(obj)` — Blueprint completo de un objeto.
+# ALAT TERSEDIA
+- `search_api_docs(query)` — Cari dokumentasi Blender. Selalu gunakan lebih dulu.
+- `get_python_api_docs(topic)` — Dokumentasi rinci suatu topik.
+- `snap_to_anchor(obj_move, obj_target, anchor_move, anchor_target)` — Satukan objek lewat 27 anchor.
+- `snap_and_parent(obj_move, obj_target, anchor_move, anchor_target)` — Snap dan parenting.
+- `validate_geometry()` — Validasi tabrakan seluruh scene.
+- `get_model_blueprint(obj)` — Blueprint lengkap objek.
 
-# REGLAS DE ENSAMBLAJE
-- NO uses obj.location = (x, y, z). Usa snap_to_anchor o snap_and_parent.
-- Después de ensamblar, llama a validate_geometry().
-- NUNCA borres objetos existentes. Solo crea nuevos.
+# ATURAN PERAKITAN
+- JANGAN gunakan obj.location = (x, y, z). Gunakan snap_to_anchor atau snap_and_parent.
+- Setelah perakitan, panggil validate_geometry().
+- JANGAN hapus objek yang ada. Hanya buat objek baru.
 
-# ORGANIZACIÓN DE ESCENA
-- REVISA la escena primero. Nombres únicos: "Mesa_001", "Mesa_002", etc.
-- Nuevos objetos deben linkearse a una colección.
-- Usa materiales con color siempre.
+# ORGANISASI SCENE
+- Periksa scene lebih dulu. Gunakan nama unik: "Meja_001", "Meja_002", dan seterusnya.
+- Tautkan objek baru ke collection.
+- Selalu gunakan material berwarna.
 
-# FORMATO
-- Código en ```python ... ```.
-- Termina con print("OK")."""
+# FORMAT
+- Tulis kode dalam blok ```python ... ```.
+- Akhiri dengan print("OK")."""
 
 
 # ─── Helpers para código generado ───
@@ -377,9 +376,9 @@ def _exec_code_main(code_blocks):
                 output = buf.getvalue().strip()
                 if output:
                     results.insert(0, "__STDOUT__:" + output)
-                print("[AUTO] Código ejecutado correctamente")
+                print("[AUTO] Kode berhasil dijalankan")
             except Exception as e:
-                err = f"Error: {e}"
+                err = f"Kesalahan: {e}"
                 print(f"[AUTO] {err}")
                 results.append(err)
         if not results:
@@ -414,9 +413,9 @@ def _get_scene_context():
         dims = obj.dimensions
         lines.append(f"- {obj.name} | {obj.type} | ({loc.x:.2f}, {loc.y:.2f}, {loc.z:.2f}) | ({dims.x:.2f}, {dims.y:.2f}, {dims.z:.2f})")
         names.append(obj.name)
-    ctx = "Estado actual de la escena:\n" + "\n".join(lines) if lines else "Escena vacía."
-    ctx += f"\nNombres ocupados: {', '.join(names) if names else '(ninguno)'}"
-    ctx += f"\nSiguiente posición X libre: {_get_next_position():.1f}"
+    ctx = "Kondisi scene saat ini:\n" + "\n".join(lines) if lines else "Scene kosong."
+    ctx += f"\nNama terpakai: {', '.join(names) if names else '(tidak ada)'}"
+    ctx += f"\nPosisi X kosong berikutnya: {_get_next_position():.1f}"
     return ctx
 
 
@@ -502,7 +501,7 @@ def _handle_command(mid, text):
                 msg += f"\n📁 {c['category']} ({c['count']} objetos)"
             _respond(mid, msg)
         except Exception as e:
-            _respond(mid, f"❌ Error: {e}")
+            _respond(mid, f"Kesalahan: {e}")
         _cleanup(mid)
         return True
 
@@ -511,7 +510,7 @@ def _handle_command(mid, text):
             from .akb import get_specs
             results = get_specs(" ".join(args))
             if results:
-                msg = f"🔍 **{len(results)} resultados para '{' '.join(args)}':**\n"
+                msg = f"**{len(results)} hasil untuk '{' '.join(args)}':**\n"
                 for bp in results[:5]:
                     meta = bp.get("metadata", {})
                     geo = bp.get("geometry", {})
@@ -520,10 +519,10 @@ def _handle_command(mid, text):
                     name = meta.get("name", "?")
                     msg += f"\n- {name}: {dims} [{src}]"
             else:
-                msg = f"❌ No se encontraron blueprints para '{' '.join(args)}'"
+                msg = f"Blueprint untuk '{' '.join(args)}' tidak ditemukan"
             _respond(mid, msg)
         except Exception as e:
-            _respond(mid, f"❌ Error: {e}")
+            _respond(mid, f"Kesalahan: {e}")
         _cleanup(mid)
         return True
 
@@ -541,7 +540,7 @@ def _handle_command(mid, text):
         
         if not args:
             cats = ", ".join(_VALID_CATS.keys())
-            _respond(mid, f"⚠️ Uso: !feed_category <categoria>, <keyword1>, <keyword2>...\nCategorías válidas: {cats}\nEj: !feed_category av, truss, speaker")
+            _respond(mid, f"Penggunaan: !feed_category <kategori>, <kata_kunci1>, <kata_kunci2>...\nKategori valid: {cats}\nContoh: !feed_category av, truss, speaker")
             _cleanup(mid)
             return True
         
@@ -550,7 +549,7 @@ def _handle_command(mid, text):
         raw_cat = parts[0]
         category = _resolve_cat(raw_cat)
         if category != raw_cat:
-            _respond(mid, f"🔀 '{raw_cat}' → categoría '{category}'", is_status=True)
+            _respond(mid, f"'{raw_cat}' menjadi kategori '{category}'", is_status=True)
         keywords = parts[1:] if len(parts) > 1 else [category]
         
         # Validate category exists
@@ -559,11 +558,11 @@ def _handle_command(mid, text):
         akb_base = Path(__file__).parent / "data" / "akb"
         if not (akb_base / category).exists():
             cats = ", ".join(_VALID_CATS.keys())
-            _respond(mid, f"❌ Categoría '{category}' no existe. Válidas: {cats}\nEj: !feed_category av, truss, speaker")
+            _respond(mid, f"Kategori '{category}' tidak ada. Pilihan: {cats}\nContoh: !feed_category av, truss, speaker")
             _cleanup(mid)
             return True
         
-        _respond(mid, f"⏳ Buscando {keywords} en {category}...", is_status=True)
+        _respond(mid, f"Mencari {keywords} di {category}...", is_status=True)
         
         def feed():
             try:
@@ -571,21 +570,21 @@ def _handle_command(mid, text):
                 result = feed_from_polyhaven(category, keywords)
                 total = result.get("feeded", 0)
                 if total == 0:
-                    msg = f"⚠️ No se encontraron modelos para {keywords} en Poly Haven.\nPrueba otras palabras clave o verifica la categoría."
+                    msg = f"Model untuk {keywords} tidak ditemukan di Poly Haven.\nCoba kata kunci atau kategori lain."
                 else:
-                    msg = f"✅ **{total} nuevo(s) blueprint(s) en {category}:**"
+                    msg = f"**{total} blueprint baru di {category}:**"
                     for item in result.get("items", []):
                         dims = item.get("dimensions", "?")
                         msg += f"\n- {item['name']}: {dims}"
                 _respond(mid, msg)
             except Exception as e:
-                _respond(mid, f"❌ Error: {e}")
+                _respond(mid, f"Kesalahan: {e}")
             _cleanup(mid)
         threading.Thread(target=feed, daemon=True).start()
         return True
 
     if cmd == "!feed_all":
-        _respond(mid, "⏳ Alimentando todas las categorías... (puede tomar varios minutos)", is_status=True)
+        _respond(mid, "Mengisi semua kategori; proses dapat memakan beberapa menit...", is_status=True)
         
         def feed_all():
             try:
@@ -595,25 +594,25 @@ def _handle_command(mid, text):
                          "vehicles": ["car", "truck", "bicycle"],
                          "structural": ["door", "window", "beam"]}
                 total = 0
-                msg = "✅ **Alimentación global completada:**\n"
+                msg = "**Pengisian global selesai:**\n"
                 for cat, kws in cats.items():
                     r = feed_from_polyhaven(cat, kws)
                     n = r.get("feeded", 0)
                     total += n
-                    msg += f"\n- {cat}: {n} blueprints"
+                    msg += f"\n- {cat}: {n} blueprint"
                     for item in r.get("items", []):
                         dims = item.get("dimensions", "?")
                         msg += f"\n  • {item['name']}: {dims}"
-                msg += f"\n\n**Total: {total} nuevos blueprints**"
+                msg += f"\n\n**Total: {total} blueprint baru**"
                 _respond(mid, msg)
             except Exception as e:
-                _respond(mid, f"❌ Error: {e}")
+                _respond(mid, f"Kesalahan: {e}")
             _cleanup(mid)
         threading.Thread(target=feed_all, daemon=True).start()
         return True
 
     if cmd == "!akb_clean":
-        _respond(mid, "🧹 Limpiando objetos de prueba...", is_status=True)
+        _respond(mid, "Membersihkan objek uji...", is_status=True)
         try:
             import bpy
             count = 0
@@ -621,9 +620,9 @@ def _handle_command(mid, text):
                 if obj.name not in ("Cube", "Camera", "Light", "tx"):
                     bpy.data.objects.remove(obj, do_unlink=True)
                     count += 1
-            _respond(mid, f"✅ Escena limpia. {count} objetos eliminados.")
+            _respond(mid, f"Scene bersih. {count} objek dihapus.")
         except Exception as e:
-            _respond(mid, f"❌ Error: {e}")
+            _respond(mid, f"Kesalahan: {e}")
         _cleanup(mid)
         return True
 
@@ -644,7 +643,7 @@ def _process_with_client(mid, text):
     print(f"[AUTO] api_key={'✅' if api_key else '❌'}")
 
     if not api_key:
-        _respond(mid, "❌ No hay API key para " + provider)
+        _respond(mid, "API key tidak tersedia untuk " + provider)
         _cleanup(mid)
         return
 
@@ -677,10 +676,10 @@ def _process_with_client(mid, text):
                 return
             if retry > 0:
                 if is_timeout_retry:
-                    print(f"[AUTO] Reintento por timeout, prompt simplificado...")
-                    text = f"{text_original}. Genera código CORTO, solo las partes más importantes, máximo 30 líneas."
+                    print("[AUTO] Mencoba ulang setelah timeout dengan prompt sederhana...")
+                    text = f"{text_original}. Buat kode singkat, hanya bagian penting, maksimal 30 baris."
                 else:
-                    print(f"[AUTO] Reintento {retry}/{_RETRY_LIMIT} con feedback de error...")
+                    print(f"[AUTO] Percobaan ulang {retry}/{_RETRY_LIMIT} dengan detail kesalahan...")
                     ctx = _get_scene_context()
                     text = text_original
 
@@ -689,7 +688,7 @@ def _process_with_client(mid, text):
             ctx = _get_scene_context()
             messages.append({"role": "system", "content": ctx})
             if retry > 0 and not is_timeout_retry:
-                messages.append({"role": "system", "content": f"El intento anterior falló. Error: {errors[0]}. Escena actualizada arriba. Corrige el código."})
+                messages.append({"role": "system", "content": f"Percobaan sebelumnya gagal. Kesalahan: {errors[0]}. Scene terbaru tercantum di atas. Perbaiki kode."})
 
             prefs = _get_prefs_context()
             if prefs:
@@ -720,10 +719,10 @@ def _process_with_client(mid, text):
                     content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
             except urllib.error.HTTPError as e:
                 err = e.read().decode()[:200]
-                print(f"[AUTO] HTTP Error {e.code}: {err}")
+                print(f"[AUTO] Kesalahan HTTP {e.code}: {err}")
                 if retry < _RETRY_LIMIT:
                     text_original = text
-                    text = f"Error HTTP {e.code}. Reintenta con código más simple."
+                    text = f"Kesalahan HTTP {e.code}. Coba lagi dengan kode lebih sederhana."
                     continue
                 _respond(mid, f"❌ HTTP {e.code}")
                 _cleanup(mid)
@@ -733,10 +732,10 @@ def _process_with_client(mid, text):
                 if is_timeout and retry < _RETRY_LIMIT:
                     text_original = text
                     is_timeout_retry = True
-                    _respond(mid, "⏳ Simplificando y reintentando...", is_status=True)
+                    _respond(mid, "Menyederhanakan lalu mencoba lagi...", is_status=True)
                     continue
-                print(f"[AUTO] Error: {traceback.format_exc()}")
-                _respond(mid, f"❌ Error: {str(e)[:60]}")
+                print(f"[AUTO] Kesalahan: {traceback.format_exc()}")
+                _respond(mid, f"Kesalahan: {str(e)[:60]}")
                 _cleanup(mid)
                 return
 
@@ -813,7 +812,7 @@ def _respond(mid, text, is_status=False, is_update=False):
 
 
 def _diagnose():
-    lines = ["❌ No hay respuesta del agente. Diagnóstico:"]
+    lines = ["Agent tidak memberikan respons. Diagnosis:"]
     scene = bpy.context.scene
 
     provider = getattr(scene, "aimcp_provider", "?")
@@ -821,9 +820,9 @@ def _diagnose():
     api_key = _get_api_key(provider)
 
     if model and model != "?":
-        lines.append(f"📌 Modelo: {model}")
+        lines.append(f"Model: {model}")
     else:
-        lines.append("📌 Ningún modelo seleccionado → Config → Refresh → selecciona uno")
+        lines.append("Belum ada model terpilih; buka Config, segarkan, lalu pilih model")
 
     if api_key:
         lines.append(f"✅ API key presente para {provider}")

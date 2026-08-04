@@ -2,7 +2,7 @@
 blender-mcp — Blender Socket Connection (shared module)
 Avoids circular imports by providing a single connection entry point.
 """
-import json, socket, os, time, logging
+import json, socket, os, logging
 
 logger = logging.getLogger("blender-mcp")
 
@@ -25,10 +25,10 @@ class BlenderConnection:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(10.0)
             self.sock.connect((self.host, self.port))
-            logger.info(f"Connected to Blender at {self.host}:{self.port}")
+            logger.info(f"Terhubung ke Blender di {self.host}:{self.port}")
             return True
         except Exception as e:
-            logger.error(f"Failed to connect to Blender: {e}")
+            logger.error(f"Gagal terhubung ke Blender: {e}")
             self.sock = None
             return False
 
@@ -36,36 +36,34 @@ class BlenderConnection:
         if self.sock:
             try:
                 self.sock.close()
-            except:
+            except OSError:
                 pass
             self.sock = None
 
     def send_command(self, cmd_type, params=None):
         if not self.sock and not self.connect():
-            raise ConnectionError("No se pudo conectar con Blender")
+            raise ConnectionError("Tidak dapat terhubung ke Blender")
         cmd = {"command": cmd_type, "args": params or {}}
         try:
-            self.sock.sendall(json.dumps(cmd).encode('utf-8'))
+            self.sock.sendall(json.dumps(cmd).encode("utf-8"))
             self.sock.settimeout(30.0 if cmd_type == "ping" else 180.0)
-            buffer = b''
+            buffer = bytearray()
             while True:
                 chunk = self.sock.recv(65536)
                 if not chunk:
-                    self.disconnect()
-                    break
-                buffer += chunk
+                    raise ConnectionError("Blender menutup koneksi tanpa respons")
+                buffer.extend(chunk)
                 try:
-                    resp = json.loads(buffer.decode('utf-8'))
-                    return resp.get("result", {})
+                    response = json.loads(buffer)
                 except json.JSONDecodeError:
                     continue
-            raise Exception("Sin respuesta de Blender")
-        except (socket.error, ConnectionError, BrokenPipeError):
+                if response.get("status") == "error":
+                    raise RuntimeError(response.get("message", "Error dari Blender"))
+                return response.get("result", response)
+        except socket.timeout as exc:
+            raise TimeoutError("Waktu tunggu Blender habis") from exc
+        finally:
             self.disconnect()
-            raise
-        except socket.timeout:
-            self.disconnect()
-            raise Exception("Tiempo de espera agotado con Blender")
 
 
 def get_blender():

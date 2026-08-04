@@ -9,8 +9,26 @@ _BLOCKED_MODULES = {
     "os", "subprocess", "sys", "shutil", "socket", "pathlib",
     "requests", "ctypes", "importlib", "pickle", "marshal",
     "codecs", "builtins", "webbrowser",
+    # Rutas indirectas para recuperar builtins o alcanzar objetos vivos.
+    "gc", "inspect", "operator", "functools", "code", "codeop", "runpy",
+    "types", "atexit", "signal", "threading", "multiprocessing", "http",
+    "urllib", "ftplib", "telnetlib", "smtplib", "tempfile", "glob", "shelve",
 }
-_BLOCKED_CALLS = {"exec", "eval", "compile", "__import__", "open"}
+_BLOCKED_CALLS = {
+    "exec", "eval", "compile", "__import__", "open",
+    # getattr/setattr permiten deletrear atributos prohibidos en tiempo de
+    # ejecución: getattr(bpy, "ap" + "p").
+    "getattr", "setattr", "delattr", "globals", "locals", "vars", "input",
+    "memoryview", "breakpoint",
+}
+# Atributos que dan acceso al grafo de objetos de Python y, desde ahí, a
+# builtins: ().__class__.__bases__[0].__subclasses__().
+_BLOCKED_ATTRS = {
+    "__class__", "__bases__", "__subclasses__", "__mro__", "__globals__",
+    "__builtins__", "__code__", "__closure__", "__dict__", "__getattribute__",
+    "__reduce__", "__reduce_ex__", "__init_subclass__", "__subclasshook__",
+    "driver_namespace",
+}
 
 
 class SecurityVisitor(ast.NodeVisitor):
@@ -49,6 +67,25 @@ class SecurityVisitor(ast.NodeVisitor):
                     lineno=node.lineno, col_offset=node.col_offset,
                     msg=f"Call blocked: '{node.func.attr}()'. Dynamic execution is not allowed."
                 ))
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node):
+        # Corta el paseo por el grafo de objetos (__class__, __subclasses__…),
+        # que devuelve builtins aunque el import esté bloqueado.
+        if node.attr in _BLOCKED_ATTRS:
+            self.errors.append(SecurityError(
+                lineno=node.lineno, col_offset=node.col_offset,
+                msg=f"Attribute blocked: '{node.attr}'. Introspection is not allowed."
+            ))
+        self.generic_visit(node)
+
+    def visit_Name(self, node):
+        # __builtins__ como nombre suelto reabre todo lo anterior.
+        if node.id in _BLOCKED_ATTRS or node.id in _BLOCKED_CALLS:
+            self.errors.append(SecurityError(
+                lineno=node.lineno, col_offset=node.col_offset,
+                msg=f"Name blocked: '{node.id}'. Introspection is not allowed."
+            ))
         self.generic_visit(node)
 
 

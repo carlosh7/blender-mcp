@@ -13,15 +13,15 @@ from .. import _axsock as bsock
 
 class OP_Check(Operator):
     bl_idname = "aimcp.check"
-    bl_label = "Check Connection"
+    bl_label = "Periksa Koneksi"
 
     def execute(self, ctx):
-        ctx.scene.aimcp_status = "Checking..."
+        ctx.scene.aimcp_status = "Memeriksa..."
         if ctx.area:
             ctx.area.tag_redraw()
         connected = bsock._socket_server is not None and bsock._socket_server.running
         ctx.scene.aimcp_connected = connected
-        ctx.scene.aimcp_status = "Connected" if connected else "Socket not running"
+        ctx.scene.aimcp_status = "Terhubung" if connected else "Socket tidak aktif"
         if ctx.area:
             ctx.area.tag_redraw()
         return {'FINISHED'}
@@ -29,7 +29,7 @@ class OP_Check(Operator):
 
 class OP_Disconnect(Operator):
     bl_idname = "aimcp.disconnect"
-    bl_label = "Disconnect"
+    bl_label = "Putuskan Koneksi"
 
     def execute(self, ctx):
         bsock.stop_socket_server()

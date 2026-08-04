@@ -118,8 +118,12 @@ def get_python() -> str:
     return sys.executable
 
 
-def start_detached_process(args: list[str], log_file: str | None = None):
+def start_detached_process(
+    args: list[str], log_file: str | None = None, env: dict[str, str] | None = None
+):
     """Start a detached process (works on Windows, Linux, Mac)."""
+    process_env = os.environ.copy()
+    process_env.update(env or {})
     if SYSTEM == "Windows":
         startupinfo = subprocess.STARTUPINFO()
         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -129,6 +133,7 @@ def start_detached_process(args: list[str], log_file: str | None = None):
             stderr=subprocess.STDOUT,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
             startupinfo=startupinfo,
+            env=process_env,
         )
     else:
         process = subprocess.Popen(
@@ -136,6 +141,7 @@ def start_detached_process(args: list[str], log_file: str | None = None):
             stdout=open(log_file, "w") if log_file else subprocess.DEVNULL,
             stderr=subprocess.STDOUT,
             start_new_session=True,
+            env=process_env,
         )
     return process
 

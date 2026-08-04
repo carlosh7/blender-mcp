@@ -49,7 +49,7 @@ class OP_DownloadDocs(Operator):
                 import shutil
                 shutil.rmtree(api_dir)
 
-            self._status = "Descargando documentación..."
+            self._status = "Mengunduh dokumentasi..."
             self._progress = 0.1
 
             temp_path = os.path.join(tempfile.gettempdir(), "blender_mcp_docs.tar.gz")
@@ -60,7 +60,7 @@ class OP_DownloadDocs(Operator):
 
             urllib.request.urlretrieve(RST_API_URL, temp_path, reporthook=_report)
 
-            self._status = "Extrayendo archivos..."
+            self._status = "Mengekstrak arsip..."
             self._progress = 0.7
 
             with tarfile.open(temp_path, "r:gz") as tar:
@@ -72,18 +72,18 @@ class OP_DownloadDocs(Operator):
             os.unlink(temp_path)
 
             total = len([f for f in os.listdir(api_dir) if f.endswith(".rst")]) if os.path.exists(api_dir) else 0
-            self._status = f"✅ {total} documentos instalados"
+            self._status = f"{total} dokumen terpasang"
             self._progress = 1.0
             self._success = True
 
         except Exception as e:
-            self._status = f"❌ Error: {str(e)[:80]}"
+            self._status = f"Kesalahan: {str(e)[:80]}"
             self._progress = 0.0
             self._success = False
 
     def execute(self, ctx):
         self._progress = 0.01
-        self._status = "Iniciando..."
+        self._status = "Memulai..."
         self._success = False
 
         def _work():

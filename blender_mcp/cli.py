@@ -8,7 +8,6 @@ import sys
 import os
 import time
 import argparse
-from pathlib import Path
 
 
 def main():
@@ -50,48 +49,42 @@ def main():
         from blender_mcp.doctor import run_doctor
         sys.exit(0 if run_doctor() else 1)
 
-    if args.mode == "stdio":
-        os.environ.setdefault("BLENDER_MCP_MODE", "stdio")
-        from mcp_server import main as server_main
-        server_main()
-    elif args.mode == "sse":
-        os.environ.setdefault("BLENDER_MCP_MODE", "sse")
-        os.environ.setdefault("BLENDER_MCP_PORT", str(args.port))
-        from mcp_server import main as server_main
-        server_main()
+    os.environ["BLENDER_MCP_MODE"] = args.mode
+    os.environ["BLENDER_MCP_HOST"] = args.host
+    os.environ["BLENDER_MCP_PORT"] = str(args.port)
+    from blender_mcp.server import main as server_main
+    return server_main()
+
+
+def _pid_file():
+    from blender_mcp.platform import get_config_dir
+
+    return str(get_config_dir() / "server.pid")
 
 
 def _cmd_start():
-    """Start the MCP server as a detached process (cross-platform)."""
-    from blender_mcp.platform import start_detached_process, write_pid_file, get_log_dir
+    """Start the SSE MCP server as a detached process."""
+    from blender_mcp.platform import (
+        get_log_dir,
+        kill_process,
+        read_pid_file,
+        start_detached_process,
+        write_pid_file,
+    )
 
-    root = Path(__file__).parent.parent.parent.resolve()
-    server_script = root / "mcp_server.py"
-    log_dir = get_log_dir()
-    log_file = str(log_dir / "server.log")
-
-    if not server_script.exists():
-        print(f"❌ Server script not found: {server_script}")
-        return 1
-
-    # Check if already running
-    pid_file = str(root / ".mcp_server.pid")
-    from blender_mcp.platform import read_pid_file, kill_process
+    pid_file = _pid_file()
     old_pid = read_pid_file(pid_file)
     if old_pid:
-        try:
-            kill_process(old_pid)
-            time.sleep(0.5)
-        except:
-            pass
+        kill_process(old_pid)
+        time.sleep(0.5)
 
     process = start_detached_process(
-        [sys.executable, str(server_script)],
-        log_file=log_file,
+        [sys.executable, "-m", "blender_mcp.server"],
+        log_file=str(get_log_dir() / "server.log"),
+        env={"BLENDER_MCP_MODE": "sse"},
     )
     write_pid_file(pid_file, process.pid)
-    print(f"✅ blender-mcp server started (PID {process.pid})")
-    print(f"   Log: {log_file}")
+    print(f"blender-mcp server started (PID {process.pid})")
     return 0
 
 
@@ -99,20 +92,18 @@ def _cmd_stop():
     """Stop the background MCP server (cross-platform)."""
     from blender_mcp.platform import read_pid_file, kill_process
 
-    root = Path(__file__).parent.parent.parent.resolve()
-    pid_file = str(root / ".mcp_server.pid")
+    pid_file = _pid_file()
     pid = read_pid_file(pid_file)
 
     if pid:
         try:
             kill_process(pid)
-            print(f"✅ Server stopped (PID {pid})")
-        except Exception as e:
-            print(f"⚠️ Could not stop PID {pid}: {e}")
-        try:
-            os.remove(pid_file)
-        except:
-            pass
+            print(f"Server stopped (PID {pid})")
+        finally:
+            try:
+                os.remove(pid_file)
+            except FileNotFoundError:
+                pass
     else:
         print("ℹ️  No server PID file found")
     return 0

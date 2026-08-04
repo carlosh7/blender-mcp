@@ -1,13 +1,13 @@
 import bpy, os, sys, subprocess, importlib, threading, traceback, time, socket
 
 bl_info = {
-    "name": "AXIOM Precision Engine",
-    "description": "Industrial-grade AI assembly pipeline for Blender",
+    "name": "blender-mcp-ultra",
+    "description": "MCP server lengkap untuk Blender",
     "author": "CarlosH",
-    "version": (0, 8, 98),
-    "blender": (4, 0, 0),
+    "version": (2, 0, 0),
+    "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Axiom",
-    "category": "3D View",
+    "category": "System",
 }
 
 # ─── Import helpers: fallback relativo → absoluto ───
@@ -33,25 +33,25 @@ def _check_port(port):
         return False
 
 def _ensure_deps():
-    print("[AXIOM] 🔍 Validando dependencias de bajo nivel...")
+    print("[AXIOM] Memvalidasi dependensi runtime...")
     required = ["mcp", "fastmcp", "uvicorn", "starlette", "sse-starlette", "requests"]
     for pkg in required:
         import_name = pkg.replace("-", "_")
         if pkg == "fastmcp": import_name = "mcp"
         try: importlib.import_module(import_name)
         except:
-            print(f"[AXIOM] 📦 Instalando dependecia crítica: {pkg}")
+            print(f"[AXIOM] Memasang dependensi wajib: {pkg}")
             cmd = [sys.executable, "-m", "pip", "install", pkg, "--quiet"]
             if os.name != 'nt': cmd.append("--break-system-packages")
             subprocess.check_call(cmd, timeout=60)
     return True
 
 def register():
-    ver = "0.8.125"
-    print(f"\n[AXIOM] 🚀 INICIANDO SECUENCIA DE VERIFICACIÓN TOTAL v{ver}")
+    ver = "2.0.0"
+    print(f"\n[AXIOM] Memulai pemeriksaan sistem v{ver}")
     
     if not _ensure_deps():
-        print("[AXIOM] ❌ FALLO CRÍTICO: No se pudieron validar las dependencias.")
+        print("[AXIOM] Gagal memvalidasi dependensi wajib.")
         return
 
     bsock = _import_addon("_axsock")
@@ -71,9 +71,9 @@ def register():
         s_9877 = _check_port(9877)
         s_9879 = _check_port(9879)
         
-        print(f"[AXIOM] {'✅' if s_9876 else '❌'} PORT 9876 (SOCKET): {'OPERATIVO' if s_9876 else 'DESCONECTADO'}")
-        print(f"[AXIOM] {'✅' if s_9877 else '❌'} PORT 9877 (HTTP): {'OPERATIVO' if s_9877 else 'DESCONECTADO'}")
-        print(f"[AXIOM] {'✅' if s_9879 else '❌'} PORT 9879 (MCP): {'OPERATIVO' if s_9879 else 'DESCONECTADO'}")
+        print(f"[AXIOM] Port 9876 (socket): {'aktif' if s_9876 else 'tidak aktif'}")
+        print(f"[AXIOM] Port 9877 (HTTP): {'aktif' if s_9877 else 'tidak aktif'}")
+        print(f"[AXIOM] Port 9879 (MCP): {'aktif' if s_9879 else 'tidak aktif'}")
 
         # 3. VALIDACIÓN RNA
         chat_types = _import_addon("chat_types")
@@ -115,9 +115,9 @@ def register():
         # 5. VEREDICTO
         all_ok = s_9876 and s_9877 and s_9879
         if all_ok:
-            print(f"[AXIOM] ⭐ REPORTE DE INTEGRIDAD v{ver}: SISTEMA OPERATIVO AL 100%\n")
+            print(f"[AXIOM] Integritas v{ver}: sistem siap.\n")
         else:
-            print(f"[AXIOM] 🚨 REPORTE DE INTEGRIDAD v{ver}: SISTEMA DEGRADADO (Revisa Sockets)\n")
+            print(f"[AXIOM] Integritas v{ver}: sistem terdegradasi; periksa port.\n")
         
         def auto_refresh():
             try: bpy.ops.aimcp.refresh()
@@ -126,7 +126,7 @@ def register():
         bpy.app.timers.register(auto_refresh, first_interval=1.0)
         
     except Exception as e:
-        print(f"[AXIOM] ❌ FALLO EN LA SECUENCIA: {e}")
+        print(f"[AXIOM] Pemeriksaan sistem gagal: {e}")
         traceback.print_exc()
 
 def _start_servers(pkg_name):
@@ -142,7 +142,7 @@ def _start_servers(pkg_name):
         threading.Thread(target=run_mcp, daemon=True).start()
         
     except Exception as e:
-        print(f"[AXIOM] ❌ ERROR DE INICIALIZACIÓN DE SERVIDORES: {e}")
+        print(f"[AXIOM] Inisialisasi server gagal: {e}")
 
 def unregister():
     bsock = _import_addon("_axsock")

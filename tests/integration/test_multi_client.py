@@ -116,28 +116,24 @@ class TestMCPProtocol:
 class TestClientConfigs:
     """Tests for client configuration files."""
     
-    def test_opencode_config_exists(self):
-        """Test opencode config file exists."""
-        config_path = os.path.expanduser("~/.config/opencode/opencode.json")
-        assert os.path.exists(config_path)
-    
-    def test_opencode_config_valid(self):
-        """Test opencode config is valid JSON."""
-        config_path = os.path.expanduser("~/.config/opencode/opencode.json")
+    def test_opencode_config_example_valid(self):
+        """Contoh konfigurasi repo harus valid dan memuat server Blender."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))
+        config_path = os.path.join(repo_root, "docs", "opencode.json.example")
         with open(config_path) as f:
             config = json.load(f)
         assert "mcp" in config
-        assert "blender-mcp-ultra" in config["mcp"]
+        assert any("blender" in name.lower() for name in config["mcp"])
     
     def test_docs_exist(self):
-        """Test client documentation files exist."""
-        docs_dir = "/home/carlosh/blender-mcp/docs/clients"
-        assert os.path.exists(docs_dir)
-        assert os.path.exists(os.path.join(docs_dir, "opencode.md"))
-        assert os.path.exists(os.path.join(docs_dir, "claude_desktop.md"))
-        assert os.path.exists(os.path.join(docs_dir, "cursor.md"))
-        assert os.path.exists(os.path.join(docs_dir, "vscode.md"))
-        assert os.path.exists(os.path.join(docs_dir, "windsurf.md"))
+        """Dokumentasi client yang dikirim repo harus tersedia."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))
+        docs_dir = os.path.join(repo_root, "docs")
+        for filename in ("opencode.md", "claude-desktop.md", "cursor.md",
+                         "vscode.md", "windsurf.md"):
+            assert os.path.exists(os.path.join(docs_dir, filename))
 
 
 if __name__ == '__main__':

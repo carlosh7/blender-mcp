@@ -109,36 +109,115 @@ def create_material_nodes(material_name: str, preset: str) -> Dict:
     except Exception as e: return {"error": str(e)}
 
 def group_nodes(material_name: str, node_names: list, group_name: str = "NodeGroup") -> Dict:
+    """Kumpulkan beberapa node ke dalam satu node group.
+
+    Memakai data API (bukan `bpy.ops.node.group`), karena operator itu butuh
+    editor node yang terbuka sehingga gagal di mode background, dan namanya
+    sudah berubah di Blender 4.4 (`group_make`).
+    """
     try:
         import bpy
         mat = bpy.data.materials.get(material_name)
-        if not mat or not mat.node_tree: return {"error": f"Material not found: {material_name}"}
+        if not mat or not mat.node_tree:
+            return {"error": f"Material tidak ditemukan: {material_name}"}
         nt = mat.node_tree
-        nodes_to_group = [nt.nodes.get(n) for n in node_names if nt.nodes.get(n)]
-        if len(nodes_to_group) < 2: return {"error": "Need at least 2 nodes"}
-        # Try to set active object for node editing
-        try:
-            active = getattr(bpy.context, 'active_object', None)
-            if active:
-                bpy.context.view_layer.objects.active = active
-        except:
-            pass
-        for n in nodes_to_group: n.select = True
-        bpy.ops.node.group()
-        return {"success": True, "group_name": group_name}
-    except Exception as e: return {"error": str(e)}
+        picked = [nt.nodes.get(n) for n in node_names]
+        picked = [n for n in picked if n is not None]
+        if len(picked) < 2:
+            return {"error": "Butuh minimal 2 node yang valid untuk digrupkan."}
+
+        group = bpy.data.node_groups.new(group_name, "ShaderNodeTree")
+        _group_io(group, "INPUT")
+        _group_io(group, "OUTPUT")
+
+        # Salin node ke dalam group, lalu hapus aslinya dari material.
+        mapping = {}
+        for node in picked:
+            clone = group.nodes.new(node.bl_idname)
+            clone.location = node.location
+            for src_in, dst_in in zip(node.inputs, clone.inputs):
+                if hasattr(src_in, "default_value") and hasattr(dst_in, "default_value"):
+                    try:
+                        dst_in.default_value = src_in.default_value
+                    except Exception:
+                        pass
+            mapping[node.name] = clone
+
+        # Pertahankan koneksi yang kedua ujungnya ikut masuk group.
+        inside = {n.name for n in picked}
+        for link in list(nt.links):
+            if link.from_node.name in inside and link.to_node.name in inside:
+                group.links.new(
+                    mapping[link.from_node.name].outputs[link.from_socket.name],
+                    mapping[link.to_node.name].inputs[link.to_socket.name])
+
+        for node in picked:
+            nt.nodes.remove(node)
+
+        holder = nt.nodes.new("ShaderNodeGroup")
+        holder.node_tree = group
+        holder.name = group_name
+        return {"success": True, "group_name": group.name,
+                "grouped": len(mapping), "node": holder.name}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _group_io(group, in_out: str):
+    """Siapkan socket antarmuka group, lintas versi.
+
+    Blender 4.0+ memakai `group.interface.new_socket(...)`; versi lama
+    memakai `group.inputs.new(...)` / `group.outputs.new(...)`.
+    """
+    try:
+        group.interface.new_socket(
+            name="Shader", in_out=in_out, socket_type="NodeSocketShader")
+    except AttributeError:
+        coll = group.inputs if in_out == "INPUT" else group.outputs
+        coll.new("NodeSocketShader", "Shader")
+
 
 def ungroup_nodes(material_name: str, group_name: str) -> Dict:
+    """Bongkar node group: isinya dikembalikan ke node tree material."""
     try:
         import bpy
         mat = bpy.data.materials.get(material_name)
-        if not mat or not mat.node_tree: return {"error": f"Material not found: {material_name}"}
-        node = mat.node_tree.nodes.get(group_name)
-        if not node: return {"error": f"Node group not found: {group_name}"}
-        mat.node_tree.nodes.active = node
-        bpy.ops.node.group_unmake()
-        return {"success": True}
-    except Exception as e: return {"error": str(e)}
+        if not mat or not mat.node_tree:
+            return {"error": f"Material tidak ditemukan: {material_name}"}
+        nt = mat.node_tree
+        holder = nt.nodes.get(group_name)
+        if not holder or holder.bl_idname != "ShaderNodeGroup":
+            return {"error": f"Node group tidak ditemukan: {group_name}"}
+        inner = holder.node_tree
+        if inner is None:
+            return {"error": f"{group_name} tidak menyimpan node tree."}
+
+        mapping = {}
+        for node in inner.nodes:
+            if node.bl_idname in ("NodeGroupInput", "NodeGroupOutput"):
+                continue
+            clone = nt.nodes.new(node.bl_idname)
+            clone.location = (holder.location[0] + node.location[0],
+                              holder.location[1] + node.location[1])
+            for src_in, dst_in in zip(node.inputs, clone.inputs):
+                if hasattr(src_in, "default_value") and hasattr(dst_in, "default_value"):
+                    try:
+                        dst_in.default_value = src_in.default_value
+                    except Exception:
+                        pass
+            mapping[node.name] = clone
+
+        for link in inner.links:
+            a = mapping.get(link.from_node.name)
+            b = mapping.get(link.to_node.name)
+            if a is not None and b is not None:
+                nt.links.new(a.outputs[link.from_socket.name],
+                             b.inputs[link.to_socket.name])
+
+        nt.nodes.remove(holder)
+        return {"success": True, "ungrouped": len(mapping)}
+    except Exception as e:
+        return {"error": str(e)}
 
 HANDLERS = {
     "shader.add_node": add_node, "shader.connect_nodes": connect_nodes,

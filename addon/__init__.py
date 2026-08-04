@@ -20,11 +20,11 @@ if _src_dir not in sys.path:
 
 bl_info = {
     "name": "blender-mcp-ultra",
-    "blender": (4, 0, 0),
+    "blender": (4, 2, 0),
     "category": "System",
-    "version": (1, 0, 0),
+    "version": (2, 0, 0),
     "author": "CarlosH",
-    "description": "The most complete MCP server for Blender — 118+ tools",
+    "description": "The most complete MCP server for Blender — 130+ tools",
 }
 
 # Global state
