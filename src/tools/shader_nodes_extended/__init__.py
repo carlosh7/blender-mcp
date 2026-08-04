@@ -152,7 +152,7 @@ def musgrave_texture(material_name: str, scale: float = 5.0) -> Dict:
         import bpy
         mat = bpy.data.materials.get(material_name)
         if not mat or not mat.node_tree: return {"error": f"Material not found: {material_name}"}
-        node = mat.node_tree.nodes.new('ShaderNodeTexMusgrave')
+        node = mat.node_tree.nodes.new('ShaderNodeTexNoise')
         node.inputs['Scale'].default_value = scale
         return {"success": True, "node": node.name}
     except Exception as e: return {"error": str(e)}
@@ -394,7 +394,7 @@ def displacement_output(material_name: str) -> Dict:
         import bpy
         mat = bpy.data.materials.get(material_name)
         if not mat or not mat.node_tree: return {"error": f"Material not found: {material_name}"}
-        node = mat.node_tree.nodes.new('ShaderNodeOutputDisplacement')
+        node = mat.node_tree.nodes.new('ShaderNodeDisplacement')
         return {"success": True, "node": node.name}
     except Exception as e: return {"error": str(e)}
 
@@ -471,7 +471,7 @@ def velvet_bsdf(material_name: str) -> Dict:
         import bpy
         mat = bpy.data.materials.get(material_name)
         if not mat or not mat.node_tree: return {"error": f"Material not found: {material_name}"}
-        node = mat.node_tree.nodes.new('ShaderNodeBsdfVelvet')
+        node = mat.node_tree.nodes.new('ShaderNodeBsdfSheen')
         return {"success": True, "node": node.name}
     except Exception as e: return {"error": str(e)}
 
@@ -480,7 +480,7 @@ def sss_bsdf(material_name: str) -> Dict:
         import bpy
         mat = bpy.data.materials.get(material_name)
         if not mat or not mat.node_tree: return {"error": f"Material not found: {material_name}"}
-        node = mat.node_tree.nodes.new('ShaderNodeBsdfPrincipled')
+        node = mat.node_tree.nodes.new('ShaderNodeSubsurfaceScattering')
         return {"success": True, "node": node.name}
     except Exception as e: return {"error": str(e)}
 

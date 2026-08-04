@@ -118,14 +118,14 @@ def feed_from_polyhaven(category, keywords=None):
 
     results = []
     for kw in keywords:
-        print(f"[AKB] Buscando '{kw}' en Poly Haven...")
+        print(f"[AKB] Mencari '{kw}' di Poly Haven...")
         models = _search_polyhaven_models(kw)
         for model in models[:3]:
             aid = model["id"]
-            print(f"[AKB]  Descargando {aid}...")
+            print(f"[AKB] Mengunduh {aid}...")
             dims = _get_polyhaven_model_dimensions(aid)
             if not dims:
-                print(f"[AKB]  ❌ No se pudo obtener dimensiones de {aid}")
+                print(f"[AKB] Dimensi {aid} tidak dapat diperoleh")
                 continue
 
             bp_data = {
@@ -152,7 +152,7 @@ def feed_from_scanner(obj_name):
 
     obj = bpy.data.objects.get(obj_name)
     if not obj:
-        return {"error": f"Object not found: {obj_name}"}
+        return {"error": f"Objek tidak ditemukan: {obj_name}"}
 
     dims = [round(d, 4) for d in obj.dimensions]
     bp_data = {

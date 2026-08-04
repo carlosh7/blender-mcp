@@ -9,7 +9,7 @@ class GeometryScanner:
     def get_blueprint(obj):
         """Genera una especificación técnica total (v0.4.0) del objeto."""
         if obj.type != 'MESH':
-            return {"error": "El objeto no es una malla (Mesh)"}
+            return {"error": "Objek bukan mesh"}
             
         # Forzar actualización de Blender
         dg = bpy.context.evaluated_depsgraph_get()
@@ -85,4 +85,4 @@ class GeometryScanner:
         """Busca perforaciones o centros de agujeros en la malla."""
         # Lógica para detectar huecos (simplificada para V1)
         # En una mesa de billar, buscamos áreas vacías cerca de las esquinas del bounding box.
-        return {"status": "feature_under_development", "message": "Hole detection requires bmesh topology analysis."}
+        return {"status": "feature_under_development", "message": "Deteksi lubang memerlukan analisis topologi bmesh."}

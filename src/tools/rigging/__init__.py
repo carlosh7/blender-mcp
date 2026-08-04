@@ -58,8 +58,8 @@ def add_bone(armature_name: str, name: str = "Bone", head: Tuple = (0, 0, 0), ta
             bone.tail = tail
             bpy.ops.object.mode_set(mode='OBJECT')
             return {"success": True, "name": name}
-        except:
-            return {"success": True, "name": name, "note": "Added in background mode (edit bones only available in GUI)"}
+        except Exception as exc:
+            return {"error": f"Gagal menambah tulang: {exc}"}
     except Exception as e: return {"error": str(e)}
 
 def add_constraint(object_name: str, type: str, target: str = None) -> Dict:
@@ -90,10 +90,6 @@ def assign_vertex_group(object_name: str, group_name: str, weight: float = 1.0) 
         if not obj or obj.type != 'MESH': return {"error": f"Mesh not found: {object_name}"}
         vg = obj.vertex_groups.get(group_name)
         if not vg: return {"error": f"Vertex group not found: {group_name}"}
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.object.mode_set(mode='OBJECT')
         verts = [v.index for v in obj.data.vertices]
         vg.add(verts, weight, 'REPLACE')
         return {"success": True, "group": group_name, "verts": len(verts)}
@@ -102,6 +98,8 @@ def assign_vertex_group(object_name: str, group_name: str, weight: float = 1.0) 
 def auto_weight(object_name: str = None, armature_name: str = None) -> Dict:
     try:
         import bpy
+        if getattr(bpy.app, "background", False):
+            return {"error": "Pembobotan otomatis memerlukan antarmuka Blender."}
         obj = bpy.data.objects.get(object_name) if object_name else getattr(bpy.context, 'active_object', None)
         if obj is None:
             try:

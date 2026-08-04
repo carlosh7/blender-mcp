@@ -40,8 +40,13 @@ def create_group(name: str = "GeometryNodes") -> Dict:
     try:
         import bpy
         ng = bpy.data.node_groups.new(name=name, type='GeometryNodeTree')
-        ng.nodes.new('NodeGroupInput')
-        ng.nodes.new('NodeGroupOutput')
+        ng.interface.new_socket(
+            name='Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+        ng.interface.new_socket(
+            name='Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+        inp = ng.nodes.new('NodeGroupInput')
+        out = ng.nodes.new('NodeGroupOutput')
+        ng.links.new(inp.outputs['Geometry'], out.inputs['Geometry'])
         return {"success": True, "name": ng.name}
     except Exception as e: return {"error": str(e)}
 

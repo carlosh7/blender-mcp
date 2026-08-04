@@ -56,15 +56,15 @@ def register_properties():
     Scene.aimcp_models = PointerProperty(type=ModelsData)
 
     # 2. CHAT UI STATE
-    Scene.aimcp_input = StringProperty(name="Input", default="")
-    Scene.aimcp_connected = BoolProperty(name="Connected", default=False)
-    Scene.aimcp_ai_state = StringProperty(default="disconnected")
-    Scene.aimcp_status = StringProperty(name="Status", default="Ready")
+    Scene.aimcp_input = StringProperty(name="Masukan", default="")
+    Scene.aimcp_connected = BoolProperty(name="Terhubung", default=False)
+    Scene.aimcp_ai_state = StringProperty(default="terputus")
+    Scene.aimcp_status = StringProperty(name="Status", default="Siap")
     Scene.aimcp_waiting = BoolProperty(default=False)
     Scene.aimcp_spinner_idx = IntProperty(default=0)
     Scene.aimcp_connection_status = StringProperty(default="")
     Scene.aimcp_chat_index = IntProperty(default=0)
-    Scene.aimcp_model = StringProperty(name="Selected Model", default="")
+    Scene.aimcp_model = StringProperty(name="Model terpilih", default="")
     Scene.aimcp_pending_msg_id = StringProperty(default="")
 
     # 3. CONFIG & API PROPERTIES (LAS QUE FALTABAN)

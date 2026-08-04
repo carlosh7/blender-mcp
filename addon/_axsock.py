@@ -16,6 +16,19 @@ mcp_status = "idle"
 mcp_error = ""
 _mcp_process = None  # true if ping received in last 15s
 
+def _wrap(result):
+    """Bungkus hasil handler; dict berisi kunci 'error'/'status error'
+    disebarkan sebagai kegagalan, bukan sukses palsu."""
+    if isinstance(result, dict):
+        if result.get("status") == "error":
+            return {"status": "error", "message": result.get("message", "Gagal"),
+                    "result": result}
+        if "error" in result:
+            return {"status": "error", "message": str(result["error"]),
+                    "result": result}
+    return {"status": "success", "result": result}
+
+
 class BlenderSocketServer:
     """TCP socket server inside Blender for receiving MCP commands."""
 
@@ -27,6 +40,9 @@ class BlenderSocketServer:
         self.thread = None
         self.listening = False
         self.last_error = None
+        self._pending = []
+        self._pending_lock = threading.Lock()
+
 
     def start(self):
         if self.running:
@@ -57,7 +73,7 @@ class BlenderSocketServer:
             self.running = False
             self.listening = False
             self.last_error = str(e)
-            print(f"[BLENDER SOCKET] Failed: {e}")
+            print(f"[BLENDER SOCKET] Gagal: {e}")
             self.stop()
 
     def stop(self):
@@ -75,7 +91,8 @@ class BlenderSocketServer:
                 threading.Thread(target=self._handle, args=(client,), daemon=True).start()
             except socket.timeout:
                 continue
-            except: pass
+            except Exception:
+                pass
 
     def _handle(self, client):
         buffer = b''
@@ -98,7 +115,14 @@ class BlenderSocketServer:
                         except:
                             client.sendall(json.dumps({"status": "error", "message": traceback.format_exc()}).encode('utf-8'))
                         return None
-                    bpy.app.timers.register(execute, first_interval=0.0)
+                    if getattr(bpy.app, "background", False):
+                        # Headless: tidak ada main loop yang memicu timer. Jalankan
+                        # via antrean yang dipompa oleh process_pending() dari
+                        # skrip host, supaya bpy tetap dieksekusi di main thread.
+                        with self._pending_lock:
+                            self._pending.append(execute)
+                    else:
+                        bpy.app.timers.register(execute, first_interval=0.0)
                 except json.JSONDecodeError:
                     pass
         except: pass
@@ -106,36 +130,60 @@ class BlenderSocketServer:
             try: client.close()
             except: pass
 
+    def process_pending(self):
+        """Eksekusi perintah antrean di main thread (dipanggil skrip host headless)."""
+        with self._pending_lock:
+            pending = self._pending
+            self._pending = []
+        for job in pending:
+            job()
+
+
+
     def _execute(self, cmd):
         cmd_type = cmd.get("type") or cmd.get("command")
         params = cmd.get("params") or cmd.get("args") or {}
-        
+
         # Try direct method on self first (legacy commands)
         handler = getattr(self, f"cmd_{cmd_type}", None)
         if handler:
             try:
                 result = handler(**params)
-                return {"status": "success", "result": result}
+                return _wrap(result)
             except Exception as e:
                 return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
 
-        return {"status": "error", "message": f"Unknown command: {cmd_type}"}
+        # Extended command surface: registry in addon/handlers.py
+        try:
+            from . import handlers as _handlers
+        except Exception:
+            _handlers = None
+        if _handlers is not None:
+            fn = _handlers.get_handler(cmd_type)
+            if fn is not None:
+                try:
+                    result = fn(**params)
+                    return _wrap(result)
+                except Exception as e:
+                    return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
+
+        return {"status": "error", "message": f"Perintah tidak dikenal: {cmd_type}"}
 
     def cmd_get_viewport_screenshot(self, filepath=None, max_size=800):
-        """Captura una imagen del viewport actual para validación Axiom."""
+        """Ambil gambar viewport saat ini untuk validasi."""
         if not filepath:
             import tempfile
             temp_dir = tempfile.gettempdir()
             filepath = os.path.join(temp_dir, f"axiom_vision_{int(time.time())}.png")
         
         try:
-            # Buscar una ventana y pantalla válidas (Blender 4.2+ requiere contexto explícito)
+            # Cari window dan screen yang valid (Blender 4.2+ butuh konteks eksplisit)
             window = bpy.context.window if bpy.context.window else bpy.context.window_manager.windows[0]
             screen = window.screen
             area = next((a for a in screen.areas if a.type == 'VIEW_3D'), None)
             
             if not area:
-                return {"error": "No se encontró un viewport 3D activo en la ventana principal"}
+                return {"error": "Tidak ditemukan viewport 3D aktif di window utama"}
             
             # Forzar el renderizado de la captura con el contexto completo
             with bpy.context.temp_override(window=window, screen=screen, area=area):
@@ -155,7 +203,7 @@ class BlenderSocketServer:
                     "width": img.size[0], 
                     "height": img.size[1]
                 }
-            return {"error": "Falló la creación del archivo de captura"}
+            return {"error": "Gagal membuat file tangkapan"}
         except Exception as e:
             return {"error": str(e)}
 
@@ -165,7 +213,7 @@ class BlenderSocketServer:
             return {"results": assets.AssetManager.search_polyhaven(asset_type, query)}
         elif provider == "sketchfab":
             return {"results": assets.AssetManager.search_sketchfab(query)}
-        return {"error": "Proveedor no soportado"}
+        return {"error": "Penyedia tidak didukung"}
 
     def cmd_generate_3d(self, prompt=""):
         from . import assets
@@ -181,18 +229,12 @@ class BlenderSocketServer:
                     report.append(f"⚠️ {obj.name}: {poly_count} polígonos (Crítico)")
                 elif poly_count > 10000:
                     report.append(f"ℹ️ {obj.name}: {poly_count} polígonos (Alto)")
-        return {"report": report or ["Escena optimizada. No se detectaron objetos pesados."]}
+        return {"report": report or ["Scene sudah optimal. Tidak ada objek berat."]}
 
-    def cmd_cleanup_scene(self):
-        """Limpia datos huérfanos y normaliza nombres."""
-        # Eliminar bloques de datos no usados
-        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-        # Normalizar nombres (ejemplo básico)
-        for obj in bpy.context.scene.objects:
-            if "." in obj.name:
-                base = obj.name.split(".")[0]
-                # (Lógica opcional de renombrado aquí)
-        return {"status": "success", "message": "Limpieza profunda de Axiom completada."}
+    def cmd_cleanup_scene(self, purge_unused=True):
+        """Hapus data yatim dan normalkan nama objek."""
+        from . import scene_tools
+        return scene_tools.cleanup_scene(purge_unused=purge_unused)
 
     def cmd_get_scene_info(self):
         info = {"name": bpy.context.scene.name, "object_count": len(bpy.context.scene.objects), "objects": []}
@@ -203,6 +245,7 @@ class BlenderSocketServer:
                 "location": [round(float(obj.location.x), 2), round(float(obj.location.y), 2), round(float(obj.location.z), 2)],
             })
         return info
+
 
     def cmd_get_object_anchors(self, obj_name=""):
         try:
@@ -273,6 +316,77 @@ class BlenderSocketServer:
         mcp_connected = True
         return {"pong": True, "time": mcp_last_ping}
 
+    # ─── Puente al ToolRegistry de src/ (228 tools) ───
+
+    def cmd_list_tools(self, category=None):
+        from . import registry_bridge
+        return registry_bridge.list_tools(category)
+
+    def cmd_describe_tool(self, name=""):
+        from . import registry_bridge
+        return registry_bridge.describe_tool(name)
+
+    def cmd_call_tool(self, tool_name="", params=None):
+        from . import registry_bridge
+        return registry_bridge.call_tool(tool_name, params or {})
+
+    def cmd_registry_status(self):
+        from . import registry_bridge
+        return registry_bridge.status()
+
+    # ─── Lote transaccional ───
+
+    def cmd_run_batch(self, steps=None, atomic=True, label="Axiom Batch"):
+        from . import transaction
+        return transaction.run_batch(steps or [], atomic=atomic, label=label)
+
+    # ─── Inspección de escena ───
+
+    def cmd_scene_graph(self, include_data=True):
+        from . import inspect_scene
+        return inspect_scene.scene_graph(include_data)
+
+    def cmd_measure(self, name_a="", name_b=None):
+        from . import inspect_scene
+        return inspect_scene.measure(name_a, name_b)
+
+    def cmd_find_objects(self, name_contains="", type=None, min_polygons=None, has_material=None):
+        from . import inspect_scene
+        return inspect_scene.find_objects(name_contains, type, min_polygons, has_material)
+
+    # ─── Ensamblaje extendido ───
+
+    def _resolve(self, names):
+        objs, missing = [], []
+        for n in names or []:
+            o = bpy.data.objects.get(n)
+            (objs if o else missing).append(o if o else n)
+        return objs, missing
+
+    def cmd_align_objects(self, names=None, axis="Z", mode="MIN", reference=None):
+        from . import assembly
+        objs, missing = self._resolve(names)
+        if missing:
+            return {"error": f"Objek tidak ditemukan: {', '.join(missing)}"}
+        ref = bpy.data.objects.get(reference) if reference else None
+        if reference and ref is None:
+            return {"error": f"Objek referensi tidak ditemukan: {reference}"}
+        return assembly.AssemblyEngine.align(objs, axis, mode, ref)
+
+    def cmd_distribute_objects(self, names=None, axis="X", spacing=None):
+        from . import assembly
+        objs, missing = self._resolve(names)
+        if missing:
+            return {"error": f"Objek tidak ditemukan: {', '.join(missing)}"}
+        return assembly.AssemblyEngine.distribute(objs, axis, spacing)
+
+    def cmd_array_object(self, name="", count=3, axis="X", gap=0.0, linked=False):
+        from . import assembly
+        obj = bpy.data.objects.get(name)
+        if obj is None:
+            return {"error": f"Objek tidak ditemukan: {name}"}
+        return assembly.AssemblyEngine.array(obj, count, axis, gap, linked)
+
     def _strip_bad_code(self, code):
         import re
         code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
@@ -285,6 +399,11 @@ class BlenderSocketServer:
         return code
 
     def cmd_execute_code(self, code=""):
+        from blender_mcp.utils.validator import validate
+
+        errors = validate(code)
+        if errors:
+            return {"output": "\n".join(str(error) for error in errors), "error": "Unsafe code"}
         code = self._strip_bad_code(code)
         win = bpy.context.window if bpy.context.window else (bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None)
         ns = {
@@ -296,34 +415,43 @@ class BlenderSocketServer:
             "screen": win.screen if win else None,
         }
         
+        # SIGALRM sólo existe en Unix; en Windows este atributo no está y la
+        # ejecución fallaba antes de empezar. Sin alarma se ejecuta igual,
+        # simplemente sin corte por tiempo.
         import signal
+        can_alarm = hasattr(signal, "SIGALRM") and threading.current_thread() is threading.main_thread()
+        timeout = float(os.environ.get("BLENDER_MCP_EXEC_TIMEOUT", "10"))
+
         def handler(signum, frame):
-            raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 2.0 segundos de límite.")
+            raise TimeoutError(
+                f"AXIOM TIMEOUT: Eksekusi melebihi batas {timeout}s.")
 
         # AXIOM v2.0 Atomic Transaction Start
         bpy.ops.ed.undo_push(message="Axiom Precision Task")
-        
+
+        previous = None
         buf = io.StringIO()
         with redirect_stdout(buf):
-            # Configurar alarma de 2 segundos
-            signal.signal(signal.SIGALRM, handler)
-            signal.alarm(2)
+            if can_alarm:
+                previous = signal.signal(signal.SIGALRM, handler)
+                signal.setitimer(signal.ITIMER_REAL, timeout)
             try:
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, ns)
             except TimeoutError as e:
                 bpy.ops.ed.undo()
-                return {"output": f"❌ {e} (Escena revertida)"}
+                return {"output": f"❌ {e} (Scene dipulihkan)", "error": str(e)}
             except SyntaxError as e:
                 bpy.ops.ed.undo()
-                return {"output": f"❌ Axiom SyntaxError: {e} (Escena revertida)"}
+                return {"output": f"Kesalahan sintaks: {e} (scene dipulihkan)", "error": str(e)}
             except Exception as e:
                 bpy.ops.ed.undo()
-                return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
+                return {"output": f"Kesalahan eksekusi: {str(e)[:200]} (scene dipulihkan)", "error": str(e)}
             finally:
-                # Desactivar alarma
-                signal.alarm(0)
-        
+                if can_alarm:
+                    signal.setitimer(signal.ITIMER_REAL, 0)
+                    signal.signal(signal.SIGALRM, previous)
+
         return {"output": buf.getvalue()}
 
     def cmd_chat_send(self, message="", model=""):
@@ -445,7 +573,7 @@ class BlenderSocketServer:
 
     def cmd_export_glb(self, filepath=""):
         if not filepath:
-            return {"status": "error", "message": "filepath required"}
+            return {"status": "error", "message": "filepath wajib diisi"}
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             # Select all objects and export
@@ -463,6 +591,17 @@ def start_socket_server():
         _socket_server = BlenderSocketServer()
     if not _socket_server.running:
         _socket_server.start()
+    return _socket_server
+
+def get_socket_server():
+    """Devuelve la instancia del servidor, creándola si aún no existe.
+
+    Permite reutilizar los handlers cmd_* (misma política de validación y
+    undo) desde otros transportes, p. ej. el API HTTP.
+    """
+    global _socket_server
+    if _socket_server is None:
+        _socket_server = BlenderSocketServer()
     return _socket_server
 
 def stop_socket_server():

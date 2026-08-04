@@ -94,12 +94,12 @@ class BLENDERMCP_OT_OpenWeb(Operator):
 
 
 _AKB_COMMANDS = {
-    "help": "Show available AKB commands | Muestra los comandos disponibles",
-    "list": "List all AKB blueprints | Lista los blueprints en AKB",
-    "specs": "Search for object specs in AKB | Busca especificaciones en AKB",
-    "feed": "Search Poly Haven and save blueprints | Busca en Poly Haven y guarda en AKB",
-    "feed_all": "Feed all AKB categories automatically | Alimenta todas las categorías del AKB",
-    "clean": "Delete all test objects from scene | Elimina objetos de prueba de la escena",
+    "help": "Tampilkan perintah AKB",
+    "list": "Tampilkan seluruh blueprint AKB",
+    "specs": "Cari spesifikasi objek di AKB",
+    "feed": "Cari Poly Haven lalu simpan blueprint",
+    "feed_all": "Isi semua kategori AKB otomatis",
+    "clean": "Hapus seluruh objek uji dari scene",
 }
 
 _AKB_CMD_MAP = {
@@ -146,16 +146,16 @@ class PN_PT_Chat(Panel):
             box.label(text="⚠️ No AI model selected", icon='ERROR')
             box.label(text="Go to Scene Properties → Axiom Engine Config")
             row = box.row(align=True)
-            row.operator("aimcp.refresh", text="Refresh Models", icon='FILE_REFRESH')
+            row.operator("aimcp.refresh", text="Segarkan Model", icon='FILE_REFRESH')
             L.separator()
 
         # ── Status + Actions ──
-        conn = c.aimcp_connection_status or "Listo"
+        conn = c.aimcp_connection_status or "Siap"
         icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'CHECKBOX_DEHLT'
         row = L.row(align=True)
         if c.aimcp_waiting:
-            row.operator("aimcp.stop_agent", text="STOP", icon='CANCEL')
-            row.label(text="Working...", icon='SORTTIME')
+            row.operator("aimcp.stop_agent", text="BERHENTI", icon='CANCEL')
+            row.label(text="Memproses...", icon='SORTTIME')
         else:
             row.label(text=conn[:28], icon=icon)
         row.operator("blendermcp.open_web", text="", icon='URL')

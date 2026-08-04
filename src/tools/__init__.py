@@ -38,11 +38,15 @@ class ToolRegistry(IToolRegistry):
         self._tools: Dict[str, Tool] = {}
         self._handlers: Dict[str, Callable] = {}
         self._loaded_categories: set = set()
+        self._collisions: List[str] = []
         self._logger = get_logger()
         self._cache = get_tool_cache() if use_cache else None
     
     def register_tool(self, tool: Tool, handler: Callable) -> None:
-        """Register a tool."""
+        """Register a tool. A duplicate name silently shadowed the earlier tool
+        before; now it is recorded so the collision is visible in get_stats()."""
+        if tool.name in self._tools:
+            self._collisions.append(tool.name)
         self._tools[tool.name] = tool
         self._handlers[tool.name] = handler
         
@@ -82,8 +86,10 @@ class ToolRegistry(IToolRegistry):
                 error=f"Handler not found for tool: {tool_name}"
             )
         
-        # Check cache first
-        if self._cache:
+        # Only READ_ONLY tools are cacheable. Caching a WRITE/DESTRUCTIVE tool
+        # would swallow the second call entirely (e.g. object.delete twice).
+        cacheable = self._cache is not None and tool.permission == ToolPermission.READ_ONLY
+        if cacheable:
             cached_result = self._cache.get_result(tool_name, params)
             if cached_result is not None:
                 return cached_result
@@ -96,28 +102,41 @@ class ToolRegistry(IToolRegistry):
             
             # Execute handler
             result = handler(**params)
-            
+
             execution_time = time.time() - start_time
-            
-            # Log execution
+
+            # Handlers report failure as {'error': ...} instead of raising
+            # (e.g. 'Blender not available'). Without this the caller got
+            # success=True wrapping an error payload.
+            handler_error = result.get('error') if isinstance(result, dict) else None
+
             self._logger.log_tool_execution(
                 tool_name=tool_name,
                 params=params,
-                success=True,
-                execution_time=execution_time
+                success=handler_error is None,
+                execution_time=execution_time,
+                error=handler_error,
             )
-            
+
+            if handler_error is not None:
+                return ToolResult(
+                    success=False,
+                    error=handler_error,
+                    execution_time=execution_time,
+                    timestamp=datetime.now().isoformat()
+                )
+
             tool_result = ToolResult(
                 success=True,
                 data=result,
                 execution_time=execution_time,
                 timestamp=datetime.now().isoformat()
             )
-            
-            # Cache result
-            if self._cache:
+
+            # Cache result (read-only tools only)
+            if cacheable:
                 self._cache.set_result(tool_name, params, tool_result)
-            
+
             return tool_result
             
         except Exception as e:
@@ -196,6 +215,7 @@ class ToolRegistry(IToolRegistry):
             'total_tools': len(self._tools),
             'loaded_categories': len(self._loaded_categories),
             'tools_by_category': categories,
+            'name_collisions': sorted(set(self._collisions)),
         }
         
         if self._cache:

@@ -286,6 +286,8 @@ def play(
     """Play animation."""
     try:
         import bpy
+        if getattr(bpy.app, "background", False):
+            return {"error": "Pemutaran animasi memerlukan antarmuka Blender."}
         
         scene = bpy.context.scene
         
@@ -310,6 +312,8 @@ def stop() -> Dict[str, Any]:
     """Stop animation."""
     try:
         import bpy
+        if getattr(bpy.app, "background", False):
+            return {"error": "Penghentian playback memerlukan antarmuka Blender."}
         
         bpy.ops.screen.animation_cancel(restore_frame=False)
         

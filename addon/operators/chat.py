@@ -22,7 +22,7 @@ class OP_Send(Operator):
         # Check if model is configured
         model = ctx.scene.aimcp_model
         if not model:
-            ctx.scene.aimcp_chat.add("system", "⚠️ No AI model configured. Go to Scene Properties → Axiom Engine Config → Refresh Models → select one.", scene=ctx.scene)
+            ctx.scene.aimcp_chat.add("system", "Model AI belum dikonfigurasi. Buka Scene Properties → Axiom Engine Config → Segarkan Model → pilih model.", scene=ctx.scene)
             ctx.scene.aimcp_input = ""
             if ctx.area:
                 ctx.area.tag_redraw()
@@ -119,7 +119,7 @@ class OP_Send(Operator):
                     bpy.app.timers.register(update, first_interval=0.0)
             except Exception as e:
                 def update():
-                    ctx.scene.aimcp_chat.add("system", f"Error: {str(e)[:80]}", scene=ctx.scene)
+                    ctx.scene.aimcp_chat.add("system", f"Kesalahan: {str(e)[:80]}", scene=ctx.scene)
                     ctx.scene.aimcp_waiting = False
                     return None
                 bpy.app.timers.register(update, first_interval=0.0)

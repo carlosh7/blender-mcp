@@ -208,31 +208,31 @@ class OP_SelectModel(Operator):
         model_id = self.model_id  # guardar antes del thread (StructRNA se elimina en thread)
         provider = _detect_provider(model_id)
         key = _get_api_key(provider)
-        print(f"[VERIFY] Modelo={model_id}, Provider={provider}, Key={'✅' if key else '❌'}")
+        print(f"[VERIFY] Model={model_id}, Provider={provider}, Key={'ada' if key else 'tidak ada'}")
         if not key:
-            _queue_status(ctx.scene.name, "🔴 Sin API key para " + provider)
+            _queue_status(ctx.scene.name, "API key tidak tersedia untuk " + provider)
             return
         cfg = _PROVIDER_API.get(provider)
         if not cfg:
-            _queue_status(ctx.scene.name, "⚠️ Modelo sin verificar")
-            print(f"[VERIFY] No config for {provider}")
+            _queue_status(ctx.scene.name, "Model belum diverifikasi")
+            print(f"[VERIFY] Konfigurasi {provider} tidak ada")
             return
         try:
             headers = {"Authorization": f"Bearer {key}", "User-Agent": "blender-mcp/0.8"}
             req = urllib.request.Request(cfg["url"], headers=headers)
             print(f"[VERIFY] URL={cfg['url']}")
             urllib.request.urlopen(req, timeout=5)
-            print(f"[VERIFY] ✅ Conectado a {provider}")
-            _queue_status(ctx.scene.name, "✅ Conectado: " + provider)
+            print(f"[VERIFY] Terhubung ke {provider}")
+            _queue_status(ctx.scene.name, "Terhubung: " + provider)
         except urllib.error.HTTPError as e:
-            print(f"[VERIFY] HTTP Error {e.code}")
-            _queue_status(ctx.scene.name, f"🔴 Key inválida ({e.code})")
+            print(f"[VERIFY] Kesalahan HTTP {e.code}")
+            _queue_status(ctx.scene.name, f"Kunci tidak valid ({e.code})")
         except urllib.error.URLError:
-            print(f"[VERIFY] URL Error - no se pudo contactar")
-            _queue_status(ctx.scene.name, "🔴 No se pudo contactar servidor")
+            print("[VERIFY] Server tidak dapat dihubungi")
+            _queue_status(ctx.scene.name, "Server tidak dapat dihubungi")
         except Exception as e:
-            print(f"[VERIFY] Error: {traceback.format_exc()}")
-            _queue_status(ctx.scene.name, f"🔴 Error: {str(e)[:60]}")
+            print(f"[VERIFY] Kesalahan: {traceback.format_exc()}")
+            _queue_status(ctx.scene.name, f"Kesalahan: {str(e)[:60]}")
 
     def _queue_status(self, ctx, msg):
         """Thread-safe: queue status update for main thread timer."""

@@ -147,7 +147,7 @@ def _search_with_timeout(subdir, query, max_results=10, timeout=2.0):
 
 # ─── Fallback por introspección (0 MB, siempre disponible) ───
 
-def _introspect_ops(query):
+def _introspect_ops(query, max_results=10):
     import bpy
     tokens = _tokenize(query)
     if not tokens:
@@ -186,19 +186,40 @@ def _introspect_ops(query):
 def _introspect_topic(topic):
     import bpy
     parts = topic.replace("bpy.", "").split(".")
-    obj = bpy
-    chain = "bpy"
+    roots = [bpy]
+    if parts and parts[0] == "types":
+        pass
+    elif hasattr(bpy, "types"):
+        roots.append(bpy.types)
+    for root in roots:
+        result = _resolve_chain(root, "bpy" if root is bpy else "bpy.types", parts, topic)
+        if result is not None:
+            return result
+    return {"topic": topic, "error": f"Topik tidak ditemukan: {topic}", "source": "introspect"}
+
+
+def _resolve_chain(root, chain, parts, topic):
+    obj = root
     for p in parts:
         if not p:
             continue
+        found = None
         try:
-            obj = getattr(obj, p, None)
+            found = getattr(obj, p, None)
         except Exception:
-            return {"topic": topic, "error": f"Cannot resolve: {chain}.{p}", "source": "introspect"}
-        if obj is None:
-            return {"topic": topic, "error": f"{chain}.{p} not found", "source": "introspect"}
+            found = None
+        if found is None and hasattr(obj, "bl_rna"):
+            props = getattr(obj.bl_rna, "properties", None)
+            if props is not None:
+                found = props.get(p)
+        if found is None:
+            return None
+        obj = found
         chain += f".{p}"
-    doc = (obj.__doc__ or "").strip()[:4000]
+    if hasattr(obj, "description"):
+        doc = str(getattr(obj, "description", "")).strip()[:4000]
+    else:
+        doc = (obj.__doc__ or "").strip()[:4000]
     return {"topic": topic, "doc": doc, "source": "introspect"}
 
 
@@ -225,7 +246,7 @@ def search_api_docs(query, max_results=10):
 
 def get_python_api_docs(topic):
     if not topic:
-        return {"topic": topic, "error": "No topic provided"}
+        return {"topic": topic, "error": "Topik wajib diisi"}
     cached = _SEARCH_CACHE.get(f"doc:{topic}")
     if cached:
         return cached

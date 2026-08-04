@@ -12,7 +12,7 @@ if ($Help) {
     exit 0
 }
 
-$AddonSrc = Join-Path $PSScriptRoot "addon"
+$ProjectRoot = Split-Path -Parent $PSScriptRoot
 
 # Find Blender
 $BlenderPaths = @(
@@ -53,14 +53,17 @@ if (-not $BlenderFound -or -not $BlenderVersion) {
 
 $AddonDir = "$env:APPDATA\Blender Foundation\Blender\$BlenderVersion\scripts\addons\ai_assistant"
 
-if (-not (Test-Path $AddonSrc)) {
-    Write-Host "❌ Addon source not found: $AddonSrc"
-    Write-Host "   Run this script from the blender-mcp root directory."
+if (-not (Test-Path (Join-Path $ProjectRoot "__init__.py")) -or -not (Test-Path (Join-Path $ProjectRoot "addon"))) {
+    Write-Host "Sumber addon kanonik tidak lengkap: $ProjectRoot"
     exit 1
 }
 
+if (Test-Path $AddonDir) { Remove-Item $AddonDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $AddonDir | Out-Null
-Copy-Item -Path "$AddonSrc\*" -Destination $AddonDir -Recurse -Force
+$Files = @("__init__.py", "mcp_server.py", "mcp_tools.py", "blender_connection.py", "blender_manifest.toml")
+$Directories = @("addon", "blender_mcp", "data", "src")
+foreach ($Name in $Files) { Copy-Item (Join-Path $ProjectRoot $Name) $AddonDir -Force }
+foreach ($Name in $Directories) { Copy-Item (Join-Path $ProjectRoot $Name) $AddonDir -Recurse -Force }
 
 Write-Host "✅ blender-mcp addon installed!" -ForegroundColor Green
 Write-Host "   Location: $AddonDir" -ForegroundColor Green

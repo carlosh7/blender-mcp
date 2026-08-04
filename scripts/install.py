@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-install.py — Universal blender-mcp addon installer for Windows, Linux, macOS.
-Auto-detects Blender version and installs the addon.
+install.py — Installer universal addon blender-mcp untuk Windows, Linux, dan macOS.
+Mendeteksi versi Blender lalu memasang paket addon kanonik.
 """
 
 import os
@@ -13,11 +13,11 @@ import json
 from pathlib import Path
 
 SYSTEM = platform.system()
-ADDON_SRC = Path(__file__).parent / "addon"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def find_blender_version() -> str | None:
-    """Detect installed Blender version."""
+    """Deteksi versi Blender yang terpasang."""
     blender = shutil.which("blender.exe") or shutil.which("blender")
     if not blender:
         return None
@@ -36,7 +36,7 @@ def find_blender_version() -> str | None:
 
 
 def get_addon_dir(version: str) -> Path | None:
-    """Return the Blender addons directory for the detected version."""
+    """Kembalikan direktori addon Blender untuk versi yang terdeteksi."""
     home = Path.home()
 
     if SYSTEM == "Windows":
@@ -53,48 +53,55 @@ def get_addon_dir(version: str) -> Path | None:
 
 
 def install():
-    print(f"\n  blender-mcp — Addon Installer ({SYSTEM})\n")
+    print(f"\n  blender-mcp — Installer Addon ({SYSTEM})\n")
 
-    # Check source
-    if not ADDON_SRC.exists():
-        print(f"  ❌ Addon source not found: {ADDON_SRC}")
-        print(f"     Run this script from the blender-mcp root directory.")
+    required = ("__init__.py", "addon", "blender_mcp", "mcp_server.py",
+                "mcp_tools.py", "blender_connection.py", "data", "src")
+    missing = [name for name in required if not (PROJECT_ROOT / name).exists()]
+    if missing:
+        print(f"  Sumber addon tidak lengkap: {', '.join(missing)}")
         sys.exit(1)
 
-    # Detect Blender
+    # Deteksi Blender
     version = find_blender_version()
     if not version:
-        print(f"  ❌ Blender not found.")
+        print("  Blender tidak ditemukan.")
         if SYSTEM == "Windows":
-            print(f"     Download from: https://www.blender.org/download/")
+            print("     Unduh: https://www.blender.org/download/")
         elif SYSTEM == "Linux":
-            print(f"     Install: sudo apt install blender")
+            print("     Pasang: sudo apt install blender")
         sys.exit(1)
 
     addon_dir = get_addon_dir(version)
     if not addon_dir:
-        print(f"  ❌ Could not determine addon directory for Blender {version}")
+        print(f"  Direktori addon Blender {version} tidak dapat ditentukan")
         sys.exit(1)
 
-    # Install
-    os.makedirs(addon_dir, exist_ok=True)
-    for item in ADDON_SRC.iterdir():
-        dst = addon_dir / item.name
-        if item.is_dir():
-            shutil.copytree(item, dst, dirs_exist_ok=True)
+    # Pasang paket kanonik: root __init__.py + modul runtime yang dipakainya.
+    if addon_dir.exists():
+        shutil.rmtree(addon_dir)
+    addon_dir.mkdir(parents=True)
+    for name in required:
+        src = PROJECT_ROOT / name
+        dst = addon_dir / name
+        if src.is_dir():
+            shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         else:
-            shutil.copy2(item, dst)
+            shutil.copy2(src, dst)
+    manifest = PROJECT_ROOT / "blender_manifest.toml"
+    if manifest.exists():
+        shutil.copy2(manifest, addon_dir / manifest.name)
 
-    print(f"  ✅ Addon installed!")
-    print(f"     Location: {addon_dir}")
-    print(f"     Blender:  {version}")
+    print("  Addon berhasil dipasang.")
+    print(f"     Lokasi:  {addon_dir}")
+    print(f"     Blender: {version}")
     print()
-    print(f"     Next steps:")
-    print(f"     1. Open Blender")
-    print(f"     2. Edit → Preferences → Add-ons")
-    print(f"     3. Search for 'AI Assistant'")
-    print(f"     4. Enable it")
-    print(f"     5. In 3D Viewport, open the Sidebar (N) → AI tab")
+    print("     Langkah berikutnya:")
+    print("     1. Buka Blender")
+    print("     2. Edit → Preferences → Add-ons")
+    print("     3. Cari 'blender-mcp-ultra'")
+    print("     4. Aktifkan addon")
+    print("     5. Buka Sidebar (N) → Axiom di 3D Viewport")
     print()
 
 

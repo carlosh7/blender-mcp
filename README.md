@@ -66,6 +66,11 @@ Add to your MCP client config:
 
 ## Tools
 
+### High-level Creation
+- `create_model(primitive, name, dimensions, color, metallic, roughness, bevel, subdivision)` - Create a finished primitive with real dimensions, Principled BSDF material, and optional modifiers
+- `animate_object(object_name, keyframes, interpolation)` - Animate location, Euler rotation, and scale from structured keyframes
+- `color_object(object_name, color, metallic, roughness)` - Create or update a Principled BSDF material
+
 ### Scene Management
 - `scene.get_info()` - Get scene information
 - `scene.create(name)` - Create new scene

@@ -387,3 +387,68 @@ User: "Exporta esta pieza para impresión 3D en milímetros"
 | Agente lento | Modo autónomo sin streaming | Usar modo Proxy (Claude Desktop) |
 | Addon no aparece | Versión Blender | Blender 4.0+ mínimo |
 | `blender-mcp: command not found` | uv no instalado | `curl -LsSf https://astral.sh/uv/install.sh | sh` |
+
+---
+
+## 10. v2.0 — Superficie completa (128 tools)
+
+> Blender **4.2 LTS .. 5.x** · 114 comandos en `addon/handlers.py` · 128 tools MCP
+> generadas desde una sola spec (`mcp_tools.py`) para FastMCP y `stdio_bridge.py`.
+
+### Modelado (desde cero, background-safe)
+`create_object` (CUBE/PLANE/SPHERE/UVSPHERE/ICOSPHERE/CYLINDER/CONE/TORUS/
+MONKEY/GRID/CIRCLE/EMPTY), `transform_object`, `duplicate_object`,
+`add_modifier` (18 tipos: subsurf, bevel, boolean, array, mirror, solidify,
+screw, wireframe, decimate, remesh, weld, displace…), `boolean_operation`,
+`bevel_mesh`, `extrude_face`, `inset_face`, `merge_by_distance`, `clean_mesh`,
+`join_objects`, `create_text`, `create_curve`, `create_screw_profile` (torno),
+`apply_transform`, `apply_modifiers` (bake), `create_empty`,
+`subdivide_mesh`, `loop_cut` (bisect_plane).
+
+### Coloreado / materiales
+`create_material` (Principled BSDF: color, roughness, metallic, emission, IOR,
+alpha, transmission), `assign_material`, `set_color`, `add_shader_node`
+(26 tipos), `connect_shader_nodes`, `set_node_value`, `remove_shader_node`,
+`create_image_texture`, `assign_image_texture`, `add_vertex_color`,
+`set_emission`, `set_transparency`, `colorize_from_scratch`.
+
+### Rigging
+`create_armature`, `add_bone`, `remove_bone`, `list_bones`, `rename_bone`,
+`add_vertex_group`, `assign_vertex_weights`, `remove_vertex_group`,
+`add_constraint` (20 tipos), `setup_ik_chain`, `auto_rig_weight`,
+`mirror_bones`, `reset_pose`, `pose_bone`, `add_armature_modifier` (tanpa weight paint,
+background-safe). Bone collections (API 4.0+).
+
+### Animación
+`insert_keyframe`, `animate_location/rotation/scale`, `keyframe_animation`,
+`create_action`, `set_keyframe_interpolation` (CONSTANT/LINEAR/BEZIER),
+`set_render_range`, `set_frame`, `add_shape_key`, `list_shape_keys`,
+`add_rigid_body`, `set_gravity`, `clear_keyframes`.
+
+### Escena / luces / cámara / render
+`create_light` (POINT/SUN/SPOT/AREA), `setup_three_point_lighting`,
+`create_camera`, `set_camera_target`, `set_camera_active`,
+`set_render_engine` (CYCLES/EEVEE/WORKBENCH), `set_render_resolution`,
+`set_render_samples`, `set_cycles_device`, `render_frame`,
+`scene_summary`, `cleanup_scene`, `purge_orphans`, `select_by_type`,
+`hide_object`, `jump_to_view3d_object_by_name`.
+
+### UV · Impresión 3D · Batch · Análisis · Geometry Nodes · IO
+`unwrap_object` (SMART/PLANAR/CUBE/SPHERE/CYLINDER, background-safe),
+`add_uv_map`, `texel_density` · `check_manifold`, `set_dimensions_mm`,
+`add_wall_thickness`, `bed_layout`, `export_stl_mm` · `batch_rename`,
+`batch_delete_by_type`, `apply_transforms_all`, `batch_duplicate` ·
+`get_objects_summary`, `get_object_detail_summary`, `mesh_analysis`,
+`get_blendfile_summary_datablocks`, `analyze_performance` ·
+`scatter_instances` (GN), `add_geometry_nodes_modifier`, `gn_add_node` ·
+`export_scene/export_selected/import_file` (glb/gltf/fbx/obj/stl/ply/usd/usdz/dae/x3d).
+
+### Compatibilidad Blender 5.x
+- `blender_version_min = "4.2.0"` (manifest + `bl_info`)
+- `addon/compat.py`: gates de versión para `temp_override`, bone collections,
+  muestras de EEVEE Next y device de Cycles
+- La geometría se crea con data API / bmesh (funciona en `blender -b`); solo
+  features que requieren UI (monkey, auto-weights, screenshots) devuelven un
+  mensaje claro en modo background
+- Verificación offline: `tests/bpy_stub.py` + `tests/test_command_surface.py`
+  ejecutan las 71 órdenes documentadas sin binario de Blender

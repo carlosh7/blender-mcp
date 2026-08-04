@@ -4,7 +4,7 @@
 
 set -e
 
-ADDON_SRC="$(dirname "$0")/addon"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Find Blender version
 BLENDER_BIN=$(which blender 2>/dev/null || echo "/usr/bin/blender")
@@ -21,14 +21,18 @@ fi
 
 ADDON_DIR="$HOME/.config/blender/$BLENDER_VER/scripts/addons/ai_assistant"
 
-if [ ! -d "$ADDON_SRC" ]; then
-    echo "❌ Addon source not found: $ADDON_SRC"
-    echo "   Run this script from the blender-mcp root directory."
+if [ ! -f "$PROJECT_ROOT/__init__.py" ] || [ ! -d "$PROJECT_ROOT/addon" ]; then
+    echo "Sumber addon kanonik tidak lengkap: $PROJECT_ROOT"
     exit 1
 fi
 
+rm -rf "$ADDON_DIR"
 mkdir -p "$ADDON_DIR"
-cp -r "$ADDON_SRC"/* "$ADDON_DIR/"
+cp "$PROJECT_ROOT/__init__.py" "$PROJECT_ROOT/mcp_server.py" \
+   "$PROJECT_ROOT/mcp_tools.py" "$PROJECT_ROOT/blender_connection.py" \
+   "$PROJECT_ROOT/blender_manifest.toml" "$ADDON_DIR/"
+cp -r "$PROJECT_ROOT/addon" "$PROJECT_ROOT/blender_mcp" \
+      "$PROJECT_ROOT/data" "$PROJECT_ROOT/src" "$ADDON_DIR/"
 echo "✅ blender-mcp addon installed!"
 echo "   Location: $ADDON_DIR"
 echo "   Blender:  $BLENDER_VER"

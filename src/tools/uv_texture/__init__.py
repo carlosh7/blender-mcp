@@ -107,8 +107,14 @@ def delete_uv(object_name: str, name: str) -> Dict:
 def create_texture(name: str = "Texture", width: int = 1024, height: int = 1024, color: tuple = (0.5, 0.5, 0.5, 1)) -> Dict:
     try:
         import bpy
+        width, height = int(width), int(height)
+        rgba = tuple(float(component) for component in color)
+        if len(rgba) == 3:
+            rgba += (1.0,)
+        if width < 1 or height < 1 or len(rgba) != 4:
+            raise ValueError("width/height harus positif dan color harus RGB/RGBA")
         img = bpy.data.images.new(name=name, width=width, height=height, alpha=True)
-        img.pixels[:] = color * (width * height)
+        img.pixels[:] = rgba * (width * height)
         return {"success": True, "name": img.name, "width": width, "height": height}
     except Exception as e: return {"error": str(e)}
 
@@ -136,7 +142,6 @@ def assign_to_material(material_name: str, texture_name: str, slot: str = "Base 
 def bake(type: str = "DIFFUSE", margin: int = 16) -> Dict:
     try:
         import bpy
-        bpy.context.scene.render.bake.type = type
         bpy.context.scene.render.bake.margin = margin
         bpy.ops.object.bake(type=type)
         return {"success": True, "type": type, "margin": margin}
