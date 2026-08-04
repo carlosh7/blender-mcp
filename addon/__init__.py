@@ -31,6 +31,98 @@ class MCPUltraProperties(bpy.types.PropertyGroup):
     port: IntProperty(default=9876, name="Port")
     auto_start: BoolProperty(default=True, name="Auto-start Server")
     status: StringProperty(default="Disconnected")
+    
+    # Modeling
+    primitive_type: bpy.props.EnumProperty(
+        name="Primitive",
+        items=[
+            ('cube', "Cube", ""),
+            ('sphere', "Sphere", ""),
+            ('cylinder', "Cylinder", ""),
+            ('cone', "Cone", ""),
+            ('torus', "Torus", ""),
+            ('capsule', "Capsule", ""),
+            ('pyramid', "Pyramid", ""),
+            ('star', "Star", ""),
+            ('gear', "Gear", ""),
+            ('spring', "Spring", ""),
+        ],
+        default='cube'
+    )
+    
+    # Texturing
+    material_type: bpy.props.EnumProperty(
+        name="Material",
+        items=[
+            ('wood_oak', "Wood Oak", ""),
+            ('wood_walnut', "Wood Walnut", ""),
+            ('metal_gold', "Gold", ""),
+            ('metal_silver', "Silver", ""),
+            ('metal_chrome', "Chrome", ""),
+            ('stone_marble', "Marble", ""),
+            ('plastic_white', "Plastic White", ""),
+            ('glass_clear', "Glass", ""),
+            ('fabric_cotton', "Cotton", ""),
+            ('leather_brown', "Leather", ""),
+        ],
+        default='wood_oak'
+    )
+    
+    # Rigging
+    rig_type: bpy.props.EnumProperty(
+        name="Rig Type",
+        items=[
+            ('humanoid', "Humanoid", ""),
+            ('quadruped', "Quadruped", ""),
+        ],
+        default='humanoid'
+    )
+    
+    # Animation
+    animation_type: bpy.props.EnumProperty(
+        name="Animation",
+        items=[
+            ('walk', "Walk Cycle", ""),
+            ('run', "Run Cycle", ""),
+            ('idle', "Idle", ""),
+            ('jump', "Jump", ""),
+            ('wave', "Wave", ""),
+            ('spin', "Spin", ""),
+        ],
+        default='walk'
+    )
+    
+    # Character
+    character_type: bpy.props.EnumProperty(
+        name="Character",
+        items=[
+            ('humanoid', "Humanoid", ""),
+            ('quadruped', "Quadruped", ""),
+            ('avian', "Avian", ""),
+            ('reptile', "Reptile", ""),
+            ('fantasy', "Fantasy", ""),
+        ],
+        default='humanoid'
+    )
+    
+    # Export
+    export_format: bpy.props.EnumProperty(
+        name="Format",
+        items=[
+            ('FBX', "FBX (Unity/Unreal)", ""),
+            ('GLB', "glTF (Web/AR)", ""),
+            ('STL', "STL (3D Print)", ""),
+            ('OBJ', "OBJ (Universal)", ""),
+            ('USD', "USD (Film)", ""),
+        ],
+        default='FBX'
+    )
+    
+    # Quality
+    target_quality: IntProperty(default=85, min=0, max=100, name="Target Quality")
+    
+    # Text to 3D
+    text_description: StringProperty(default="", name="Description")
 
 
 class MCPUltraStartServer(Operator):
