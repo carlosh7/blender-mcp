@@ -123,6 +123,13 @@ class MCPUltraProperties(bpy.types.PropertyGroup):
     
     # Text to 3D
     text_description: StringProperty(default="", name="Description")
+    
+    # Image to 3D / References
+    image_path: StringProperty(
+        name="Image Path",
+        description="Path to image file",
+        subtype='FILE_PATH'
+    )
 
 
 class MCPUltraStartServer(Operator):

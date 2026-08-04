@@ -1,7 +1,6 @@
 """
-blender-mcp — UI Panel
-Panel de usuario profesional para blender-mcp-ultra.
-Integra todos los módulos: Modeling, Texturing, Rigging, Animation, etc.
+blender-mcp — UI Panel (Simplified)
+Panel profesional con solo features ÚNICOS que Blender NO tiene.
 """
 import bpy
 from bpy.props import EnumProperty, IntProperty, StringProperty
@@ -9,172 +8,14 @@ from bpy.types import Panel, Operator
 
 
 # ═══════════════════════════════════════════════════════════════
-# OPERADORES
+# OPERADORES ÚNICOS
 # ═══════════════════════════════════════════════════════════════
 
-class MCP_UL_CreatePrimitive(Operator):
-    """Crear primitiva avanzada"""
-    bl_idname = "mcp_ultra.create_primitive"
-    bl_label = "Create Primitive"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        try:
-            from ..core import mesh_engine
-            obj = mesh_engine.create_advanced_primitive(props.primitive_type)
-            self.report({'INFO'}, f"Created: {obj.name}")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_ApplyMaterial(Operator):
-    """Aplicar material PBR"""
-    bl_idname = "mcp_ultra.apply_material"
-    bl_label = "Apply Material"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        obj = context.active_object
-        if not obj:
-            self.report({'ERROR'}, "No active object")
-            return {'CANCELLED'}
-        
-        try:
-            from ..core import texture_engine
-            mat = texture_engine.create_pbr_material(f"Mat_{props.material_type}", props.material_type)
-            obj.data.materials.append(mat)
-            self.report({'INFO'}, f"Applied: {props.material_type}")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_CreateRig(Operator):
-    """Crear esqueleto"""
-    bl_idname = "mcp_ultra.create_rig"
-    bl_label = "Create Rig"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        try:
-            from ..core import rig_engine
-            if props.rig_type == "humanoid":
-                obj = rig_engine.create_humanoid_rig()
-            else:
-                obj = rig_engine.create_quadruped_rig()
-            self.report({'INFO'}, f"Created: {obj.name}")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_CreateAnimation(Operator):
-    """Crear animación"""
-    bl_idname = "mcp_ultra.create_animation"
-    bl_label = "Create Animation"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        obj = context.active_object
-        if not obj:
-            self.report({'ERROR'}, "No active object")
-            return {'CANCELLED'}
-        
-        try:
-            from ..core import animation_engine
-            if props.animation_type == "walk":
-                animation_engine.create_walk_cycle(obj)
-            elif props.animation_type == "run":
-                animation_engine.create_run_cycle(obj)
-            elif props.animation_type == "idle":
-                animation_engine.create_idle_animation(obj)
-            elif props.animation_type == "jump":
-                animation_engine.create_jump_animation(obj)
-            elif props.animation_type == "wave":
-                animation_engine.create_wave_animation(obj)
-            elif props.animation_type == "spin":
-                animation_engine.create_spin_animation(obj)
-            self.report({'INFO'}, f"Created: {props.animation_type}")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_CreateCharacter(Operator):
-    """Crear personaje"""
-    bl_idname = "mcp_ultra.create_character"
-    bl_label = "Create Character"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        try:
-            from ..organic import character_gen
-            parts = character_gen.create_character(props.character_type)
-            self.report({'INFO'}, f"Created: {len(parts)} parts")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_AnalyzeScene(Operator):
-    """Analizar escena"""
-    bl_idname = "mcp_ultra.analyze_scene"
-    bl_label = "Analyze Scene"
-    
-    def execute(self, context):
-        try:
-            from ..perception import perception_system
-            result = perception_system.analyze_scene()
-            score = result["summary"]["score"]
-            action = result["summary"]["action"]
-            self.report({'INFO'}, f"Score: {score}/100, Action: {action}")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_RefineQuality(Operator):
-    """Refinar calidad"""
-    bl_idname = "mcp_ultra.refine_quality"
-    bl_label = "Refine Quality"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        try:
-            from ..perception import quality_refinement
-            result = quality_refinement.refine_quality(props.target_quality)
-            score = result["final_quality"]
-            self.report({'INFO'}, f"Quality: {score}/100")
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
-class MCP_UL_Export(Operator):
-    """Exportar escena"""
-    bl_idname = "mcp_ultra.export"
-    bl_label = "Export"
-    
-    def execute(self, context):
-        props = context.scene.mcp_ultra
-        try:
-            from ..export import export_engine
-            filepath = f"/tmp/scene.{props.export_format.lower()}"
-            result = export_engine.smart_export(filepath, props.export_format)
-            if result.get("success"):
-                self.report({'INFO'}, f"Exported: {filepath}")
-            else:
-                self.report({'ERROR'}, result.get("error", "Export failed"))
-        except Exception as e:
-            self.report({'ERROR'}, str(e))
-        return {'FINISHED'}
-
-
 class MCP_UL_TextTo3D(Operator):
-    """Crear 3D desde texto"""
+    """Crear modelo 3D desde descripción textual"""
     bl_idname = "mcp_ultra.text_to_3d"
     bl_label = "Text to 3D"
+    bl_description = "Create 3D model from natural language description"
     
     def execute(self, context):
         props = context.scene.mcp_ultra
@@ -194,14 +35,104 @@ class MCP_UL_TextTo3D(Operator):
         return {'FINISHED'}
 
 
+class MCP_UL_ImageTo3D(Operator):
+    """Crear modelo 3D desde imagen"""
+    bl_idname = "mcp_ultra.image_to_3d"
+    bl_label = "Image to 3D"
+    bl_description = "Create 3D model from reference image"
+    
+    def execute(self, context):
+        props = context.scene.mcp_ultra
+        if not props.image_path:
+            self.report({'ERROR'}, "Select an image first")
+            return {'CANCELLED'}
+        
+        try:
+            from ..ai import ai_assistant
+            obj = ai_assistant.image_to_3d(props.image_path)
+            if obj:
+                self.report({'INFO'}, f"Created: {obj.name}")
+            else:
+                self.report({'ERROR'}, "Failed to create object")
+        except Exception as e:
+            self.report({'ERROR'}, str(e))
+        return {'FINISHED'}
+
+
+class MCP_UL_AnalyzeScene(Operator):
+    """Analizar escena con percepción"""
+    bl_idname = "mcp_ultra.analyze_scene"
+    bl_label = "Analyze Scene"
+    bl_description = "Scan and analyze the entire scene"
+    
+    def execute(self, context):
+        try:
+            from ..perception import perception_system
+            result = perception_system.analyze_scene()
+            score = result["summary"]["score"]
+            action = result["summary"]["action"]
+            objects = result["summary"]["total_objects"]
+            anomalies = result["summary"]["anomalies"]
+            
+            msg = f"Score: {score}/100 | Objects: {objects} | Anomalies: {anomalies}"
+            self.report({'INFO'}, msg)
+        except Exception as e:
+            self.report({'ERROR'}, str(e))
+        return {'FINISHED'}
+
+
+class MCP_UL_RefineQuality(Operator):
+    """Refinar calidad automáticamente"""
+    bl_idname = "mcp_ultra.refine_quality"
+    bl_label = "Refine Quality"
+    bl_description = "Auto-improve scene quality"
+    
+    def execute(self, context):
+        props = context.scene.mcp_ultra
+        try:
+            from ..perception import quality_refinement
+            result = quality_refinement.refine_quality(props.target_quality)
+            score = result["final_quality"]
+            improvements = len(result["improvements"])
+            self.report({'INFO'}, f"Quality: {score}/100 | Improvements: {improvements}")
+        except Exception as e:
+            self.report({'ERROR'}, str(e))
+        return {'FINISHED'}
+
+
+class MCP_UL_LoadReference(Operator):
+    """Cargar imagen de referencia"""
+    bl_idname = "mcp_ultra.load_reference"
+    bl_label = "Load Reference"
+    bl_description = "Load reference image for guiding creation"
+    
+    def execute(self, context):
+        props = context.scene.mcp_ultra
+        if not props.image_path:
+            self.report({'ERROR'}, "Select an image path")
+            return {'CANCELLED'}
+        
+        try:
+            from ..perception import reference_system
+            ref = reference_system.ReferenceManager()
+            result = ref.load_reference(props.image_path)
+            if isinstance(result, dict) and "error" in result:
+                self.report({'ERROR'}, result["error"])
+            else:
+                self.report({'INFO'}, f"Reference loaded: {props.image_path}")
+        except Exception as e:
+            self.report({'ERROR'}, str(e))
+        return {'FINISHED'}
+
+
 # ═══════════════════════════════════════════════════════════════
-# PANELES
+# PANELES SIMPLIFICADOS
 # ═══════════════════════════════════════════════════════════════
 
-class MCP_UL_ModelingPanel(Panel):
-    """Panel de modelado"""
-    bl_label = "Modeling"
-    bl_idname = "MCP_UL_PT_modeling"
+class MCP_UL_AIAssistantPanel(Panel):
+    """Panel de asistente IA"""
+    bl_label = "AI Assistant"
+    bl_idname = "MCP_UL_PT_ai"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MCP"
@@ -211,76 +142,17 @@ class MCP_UL_ModelingPanel(Panel):
         layout = self.layout
         props = context.scene.mcp_ultra
         
-        layout.prop(props, "primitive_type")
-        layout.operator("mcp_ultra.create_primitive", icon='MESH_CUBE')
-
-
-class MCP_UL_TexturingPanel(Panel):
-    """Panel de texturizado"""
-    bl_label = "Texturing"
-    bl_idname = "MCP_UL_PT_texturing"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "MCP"
-    bl_parent_id = "MCPUltra_PT_main"
-    
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.mcp_ultra
+        # Text to 3D
+        box = layout.box()
+        box.label(text="Text to 3D:", icon='OUTLINER_OB_MESH')
+        box.prop(props, "text_description", text="Description")
+        box.operator("mcp_ultra.text_to_3d", text="Create", icon='PLAY')
         
-        layout.prop(props, "material_type")
-        layout.operator("mcp_ultra.apply_material", icon='MATERIAL')
-
-
-class MCP_UL_RiggingPanel(Panel):
-    """Panel de rigging"""
-    bl_label = "Rigging"
-    bl_idname = "MCP_UL_PT_rigging"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "MCP"
-    bl_parent_id = "MCPUltra_PT_main"
-    
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.mcp_ultra
-        
-        layout.prop(props, "rig_type")
-        layout.operator("mcp_ultra.create_rig", icon='ARMATURE_DATA')
-
-
-class MCP_UL_AnimationPanel(Panel):
-    """Panel de animación"""
-    bl_label = "Animation"
-    bl_idname = "MCP_UL_PT_animation"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "MCP"
-    bl_parent_id = "MCPUltra_PT_main"
-    
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.mcp_ultra
-        
-        layout.prop(props, "animation_type")
-        layout.operator("mcp_ultra.create_animation", icon='PLAY')
-
-
-class MCP_UL_CharacterPanel(Panel):
-    """Panel de personajes"""
-    bl_label = "Characters"
-    bl_idname = "MCP_UL_PT_character"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "MCP"
-    bl_parent_id = "MCPUltra_PT_main"
-    
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.mcp_ultra
-        
-        layout.prop(props, "character_type")
-        layout.operator("mcp_ultra.create_character", icon='USER')
+        # Image to 3D
+        box = layout.box()
+        box.label(text="Image to 3D:", icon='IMAGE_DATA')
+        box.prop(props, "image_path", text="Image")
+        box.operator("mcp_ultra.image_to_3d", text="Create", icon='PLAY')
 
 
 class MCP_UL_PerceptionPanel(Panel):
@@ -296,15 +168,22 @@ class MCP_UL_PerceptionPanel(Panel):
         layout = self.layout
         props = context.scene.mcp_ultra
         
-        layout.operator("mcp_ultra.analyze_scene", icon='VIEWZOOM')
-        layout.operator("mcp_ultra.refine_quality", icon='MOD_SMOOTH')
-        layout.prop(props, "target_quality")
+        # Analyze
+        box = layout.box()
+        box.label(text="Scene Analysis:", icon='VIEWZOOM')
+        box.operator("mcp_ultra.analyze_scene", text="Analyze", icon='PLAY')
+        
+        # Refine
+        box = layout.box()
+        box.label(text="Quality Refinement:", icon='MOD_SMOOTH')
+        box.prop(props, "target_quality", text="Target")
+        box.operator("mcp_ultra.refine_quality", text="Refine", icon='PLAY')
 
 
-class MCP_UL_ExportPanel(Panel):
-    """Panel de exportación"""
-    bl_label = "Export"
-    bl_idname = "MCP_UL_PT_export"
+class MCP_UL_ReferencesPanel(Panel):
+    """Panel de referencias"""
+    bl_label = "References"
+    bl_idname = "MCP_UL_PT_references"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "MCP"
@@ -314,49 +193,25 @@ class MCP_UL_ExportPanel(Panel):
         layout = self.layout
         props = context.scene.mcp_ultra
         
-        layout.prop(props, "export_format")
-        layout.operator("mcp_ultra.export", icon='EXPORT')
-
-
-class MCP_UL_TextTo3DPanel(Panel):
-    """Panel de Text to 3D"""
-    bl_label = "Text to 3D"
-    bl_idname = "MCP_UL_PT_text_to_3d"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "MCP"
-    bl_parent_id = "MCPUltra_PT_main"
-    
-    def draw(self, context):
-        layout = self.layout
-        props = context.scene.mcp_ultra
-        
-        layout.prop(props, "text_description")
-        layout.operator("mcp_ultra.text_to_3d", icon='OUTLINER_OB_MESH')
+        box = layout.box()
+        box.label(text="Reference Images:", icon='IMAGE_DATA')
+        box.prop(props, "image_path", text="Path")
+        box.operator("mcp_ultra.load_reference", text="Load", icon='FILE_FOLDER')
 
 
 # ═══════════════════════════════════════════════════════════════
-# REGISTRO (solo operadores y paneles, NO propiedades)
+# REGISTRO
 # ═══════════════════════════════════════════════════════════════
 
 classes = (
-    MCP_UL_CreatePrimitive,
-    MCP_UL_ApplyMaterial,
-    MCP_UL_CreateRig,
-    MCP_UL_CreateAnimation,
-    MCP_UL_CreateCharacter,
+    MCP_UL_TextTo3D,
+    MCP_UL_ImageTo3D,
     MCP_UL_AnalyzeScene,
     MCP_UL_RefineQuality,
-    MCP_UL_Export,
-    MCP_UL_TextTo3D,
-    MCP_UL_ModelingPanel,
-    MCP_UL_TexturingPanel,
-    MCP_UL_RiggingPanel,
-    MCP_UL_AnimationPanel,
-    MCP_UL_CharacterPanel,
+    MCP_UL_LoadReference,
+    MCP_UL_AIAssistantPanel,
     MCP_UL_PerceptionPanel,
-    MCP_UL_ExportPanel,
-    MCP_UL_TextTo3DPanel,
+    MCP_UL_ReferencesPanel,
 )
 
 
