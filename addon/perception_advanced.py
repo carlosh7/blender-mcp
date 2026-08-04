@@ -193,4 +193,169 @@ def list_perception_tools():
         "quality_check": "Verificación de calidad",
         "reference_compare": "Comparación con referencia",
         "screenshot_analysis": "Screenshot + análisis",
+        "object_detector": "Detección de objetos",
+        "material_analyzer": "Análisis de materiales",
+        "spatial_analyzer": "Análisis espacial",
+        "anomaly_detector": "Detección de anomalías",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# OBJECT DETECTOR
+# ═══════════════════════════════════════════════════════════════
+
+def object_detector(scene=None, filter_type=None):
+    """
+    Detectar objetos por tipo.
+    
+    Args:
+        scene: Escena (default: actual)
+        filter_type: Filtrar por tipo ('MESH', 'LIGHT', etc.)
+    
+    Returns:
+        Lista de objetos detectados
+    """
+    if bpy is None:
+        return []
+    
+    if scene is None:
+        scene = bpy.context.scene
+    
+    detected = []
+    
+    for obj in scene.objects:
+        if filter_type and obj.type != filter_type:
+            continue
+        
+        detected.append({
+            "name": obj.name,
+            "type": obj.type,
+            "location": tuple(obj.location),
+            "size": tuple(obj.scale),
+        })
+    
+    print(f"Detected {len(detected)} objects")
+    return detected
+
+
+# ═══════════════════════════════════════════════════════════════
+# MATERIAL ANALYZER
+# ═══════════════════════════════════════════════════════════════
+
+def material_analyzer(scene=None):
+    """
+    Analizar materiales de la escena.
+    """
+    if bpy is None:
+        return []
+    
+    if scene is None:
+        scene = bpy.context.scene
+    
+    materials = []
+    
+    for mat in bpy.data.materials:
+        if mat.use_nodes:
+            bsdf = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    bsdf = node
+                    break
+            
+            if bsdf:
+                materials.append({
+                    "name": mat.name,
+                    "color": tuple(bsdf.inputs["Base Color"].default_value[:3]),
+                    "roughness": bsdf.inputs["Roughness"].default_value,
+                    "metallic": bsdf.inputs["Metallic"].default_value,
+                    "users": mat.users,
+                })
+    
+    print(f"Analyzed {len(materials)} materials")
+    return materials
+
+
+# ═══════════════════════════════════════════════════════════════
+# SPATIAL ANALYZER
+# ═══════════════════════════════════════════════════════════════
+
+def spatial_analyzer(scene=None):
+    """
+    Análisis espacial de la escena.
+    """
+    if bpy is None:
+        return {}
+    
+    if scene is None:
+        scene = bpy.context.scene
+    
+    # Calcular bounds de la escena
+    all_points = []
+    for obj in scene.objects:
+        if obj.type == 'MESH':
+            bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+            all_points.extend(bbox)
+    
+    if not all_points:
+        return {"error": "No mesh objects found"}
+    
+    mins = Vector((min(p[i] for p in all_points) for i in range(3)))
+    maxs = Vector((max(p[i] for p in all_points) for i in range(3)))
+    
+    return {
+        "bounds_min": tuple(mins),
+        "bounds_max": tuple(maxs),
+        "size": tuple(maxs - mins),
+        "center": tuple((mins + maxs) / 2),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# ANOMALY DETECTOR
+# ═══════════════════════════════════════════════════════════════
+
+def anomaly_detector(scene=None):
+    """
+    Detectar anomalías en la escena.
+    """
+    if bpy is None:
+        return []
+    
+    if scene is None:
+        scene = bpy.context.scene
+    
+    anomalies = []
+    
+    for obj in scene.objects:
+        # Objeto muy lejos del centro
+        if obj.location.length > 100:
+            anomalies.append({
+                "object": obj.name,
+                "type": "far_from_center",
+                "severity": "medium"
+            })
+        
+        # Objeto muy pequeño
+        if obj.type == 'MESH':
+            bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+            size = Vector((max(p[i] for p in bbox) - min(p[i] for p in bbox) for i in range(3)))
+            if size.length < 0.001:
+                anomalies.append({
+                    "object": obj.name,
+                    "type": "too_small",
+                    "severity": "low"
+                })
+        
+        # Objeto muy grande
+        if obj.type == 'MESH':
+            bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+            size = Vector((max(p[i] for p in bbox) - min(p[i] for p in bbox) for i in range(3)))
+            if size.length > 100:
+                anomalies.append({
+                    "object": obj.name,
+                    "type": "too_large",
+                    "severity": "medium"
+                })
+    
+    print(f"Detected {len(anomalies)} anomalies")
+    return anomalies
