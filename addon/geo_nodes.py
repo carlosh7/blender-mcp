@@ -209,4 +209,160 @@ def list_geo_nodes_types():
         "chair": "Silla paramétrica",
         "molding": "Molduras",
         "pipe": "Tuberías",
+        "railing": "Barandillas",
+        "stairs": "Escaleras",
+        "fence": "Cercas",
+        "wall": "Sistemas de paredes",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# BARANDILLAS PARAMÉTRICAS
+# ═══════════════════════════════════════════════════════════════
+
+def create_railing_parametric(length=2.0, height=1.0, bar_spacing=0.1, style="vertical"):
+    """
+    Crear barandilla paramétrica.
+    
+    Args:
+        length: Largo de la barandilla
+        height: Altura
+        bar_spacing: Espaciado entre barras
+        style: 'vertical', 'horizontal', 'glass'
+    """
+    if bpy is None:
+        return None
+    
+    # Crear base
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
+    railing = bpy.context.active_object
+    railing.name = "Railing"
+    railing.scale = (length, 0.05, height)
+    bpy.ops.object.transform_apply(rotation=False, scale=True)
+    
+    # Material
+    mat = bpy.data.materials.get("metal") or create_simple_material("metal")
+    railing.data.materials.append(mat)
+    
+    print(f"Barandilla: {length}m x {height}m, estilo {style}")
+    return railing
+
+
+# ═══════════════════════════════════════════════════════════════
+# ESCALERAS PARAMÉTRICAS
+# ═══════════════════════════════════════════════════════════════
+
+def create_stairs_parametric(steps=10, step_height=0.18, step_depth=0.25, width=1.0):
+    """
+    Crear escaleras paramétricas.
+    
+    Args:
+        steps: Número de escalones
+        step_height: Altura de cada escalón
+        step_depth: Profundidad de cada escalón
+        width: Ancho de las escaleras
+    """
+    if bpy is None:
+        return None
+    
+    parts = []
+    
+    for i in range(steps):
+        z = i * step_height
+        bpy.ops.mesh.primitive_cube_add(
+            size=1,
+            location=(0, -i * step_depth, z + step_height/2)
+        )
+        step = bpy.context.active_object
+        step.name = f"Step_{i}"
+        step.scale = (width, step_depth, step_height)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        
+        # Material
+        mat = bpy.data.materials.get("concrete") or create_simple_material("concrete")
+        step.data.materials.append(mat)
+        
+        parts.append(step)
+    
+    print(f"Escaleras: {steps} escalones, {step_height*steps:.2f}m alto")
+    return parts
+
+
+# ═══════════════════════════════════════════════════════════════
+# CERCAS
+# ═══════════════════════════════════════════════════════════════
+
+def create_fence(length=5.0, height=1.5, post_spacing=1.0):
+    """
+    Crear cerca.
+    
+    Args:
+        length: Largo total
+        height: Altura
+        post_spacing: Espaciado entre postes
+    """
+    if bpy is None:
+        return None
+    
+    parts = []
+    
+    # Crear postes
+    num_posts = int(length / post_spacing) + 1
+    for i in range(num_posts):
+        x = -length/2 + i * post_spacing
+        bpy.ops.mesh.primitive_cylinder_add(
+            radius=0.03,
+            depth=height,
+            location=(x, 0, height/2)
+        )
+        post = bpy.context.active_object
+        post.name = f"Fence_Post_{i}"
+        mat = bpy.data.materials.get("wood") or create_simple_material("wood")
+        post.data.materials.append(mat)
+        parts.append(post)
+    
+    # Crear barras horizontales
+    for h in [0.3, 0.7, 1.1]:
+        bpy.ops.mesh.primitive_cube_add(
+            size=1,
+            location=(0, 0, h)
+        )
+        bar = bpy.context.active_object
+        bar.name = f"Fence_Bar_{h}"
+        bar.scale = (length, 0.02, 0.03)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        bar.data.materials.append(mat)
+        parts.append(bar)
+    
+    print(f"Cerca: {length}m x {height}m, {num_posts} postes")
+    return parts
+
+
+# ═══════════════════════════════════════════════════════════════
+# SISTEMAS DE PAREDES
+# ═══════════════════════════════════════════════════════════════
+
+def create_wall_system(width=3.0, height=2.5, thickness=0.15):
+    """
+    Crear sistema de pared.
+    
+    Args:
+        width: Ancho
+        height: Altura
+        thickness: Espesor
+    """
+    if bpy is None:
+        return None
+    
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
+    wall = bpy.context.active_object
+    wall.name = "Wall"
+    wall.scale = (width, thickness, height)
+    bpy.ops.object.transform_apply(rotation=False, scale=True)
+    
+    # Material
+    mat = bpy.data.materials.get("concrete") or create_simple_material("concrete")
+    wall.data.materials.append(mat)
+    
+    print(f"Pared: {width}m x {height}m x {thickness}m")
+    return wall
