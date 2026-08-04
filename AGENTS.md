@@ -4,114 +4,83 @@ Este archivo define las leyes globales para cualquier agente IA operando blender
 
 ## ⚖️ Reglas de Oro (Inquebrantables)
 
-1. **Buscar antes de ejecutar**: Antes de escribir CUALQUIER código bpy, llama a `search_api_docs(consulta)` para encontrar la API correcta. No inventes nombres de funciones.
-2. **Cero Coordenadas Manuales**: No uses `obj.location = (x, y, z)`. Usa siempre `snap_and_parent` o `snap_to_anchor`.
-3. **Validar después de ensamblar**: Tras cada snap, ejecuta `validate_geometry()` para detectar colisiones.
-4. **Estándar de Nomenclatura de Anclas**: Formato `A_X_Y_Z` donde X,Y,Z pueden ser `MIN`, `CENTER` o `MAX`.
-5. **No hardcodear URLs**: Usa `os.environ.get()` con fallback a `localhost` para servicios locales (Ollama, opencode, Blender socket).
+1. **PERCEPCIÓN PRIMERO**: ANTES de crear CUALQUIER cosa, USA `get_scene_info()` para ver qué existe.
+2. **VALIDAR DESPUÉS**: DESPUÉS de crear CADA pieza, USA `validate_object()` para verificar.
+3. **VER VISUALMENTE**: DESPUÉS de cada paso, USA `get_viewport_screenshot()` para ver el resultado.
+4. **CONECTAR PIEZAS**: Usa `snap_and_parent()` para unir piezas correctamente.
+5. **NO BORRAR TODO**: Si algo está mal, CORRIGE solo eso, no borres todo.
+6. **MEDIR DISTANCIAS**: Usa `get_bbox()` para verificar tamaños y posiciones.
 
-## 🏗️ Workflow
+## 🔄 Workflow Obligatorio (para cualquier objeto)
 
-1. **Consultar**: `search_api_docs(query)` para aprender la API correcta.
-2. **Inspeccionar**: `get_scene_info()` para conocer el estado actual.
-3. **Ejecutar**: `execute_blender_code(code)` con el código correcto (basado en docs).
-4. **Ensamblar**: `snap_and_parent()` con sistema de 27 anclas.
-5. **Validar**: `validate_geometry()` para verificar colisiones.
-
-## 🧪 Testing
-
-### Estructura de tests
+### ANTES de crear:
 ```
-tests/
-├── helpers.py              # is_blender_available(), skip_without_blender
-├── conftest.py             # Configuración pytest, MockBpy
-├── test_handlers.py        # 18 categorías de tools (src.tools.*)
-├── test_e2e_socket.py      # Tests socket con guarda skip_without_blender
-├── unit/
-│   └── test_tools.py       # Tests unitarios de tools
-├── e2e/
-│   ├── test_real_tools.py  # Tests reales con Blender
-│   └── test_e2e_workflows.py
-├── integration/
-│   ├── test_blender_integration.py
-│   ├── test_multi_client.py
-│   └── test_stress.py
-└── validate_*.py           # Scripts de validación manual
+1. get_scene_info()        → ¿Qué hay en la escena?
+2. get_spatial_visual()    → ¿Cómo se ve actualmente?
 ```
 
-### Ejecutar tests
-```bash
-# Suite completa
-pytest
-
-# Solo tests de handlers (sin Blender)
-pytest tests/test_handlers.py tests/unit/test_tools.py -v
-
-# Tests que requieren Blender activo en :9876
-pytest tests/test_e2e_socket.py -v
+### DESPUÉS de cada pieza:
+```
+1. validate_object()       → ¿La pieza está correcta?
+2. get_viewport_screenshot() → ¿Cómo se ve visualmente?
+3. verify_connection()     → ¿Está conectada a otra pieza?
 ```
 
-### Convenciones
-- Los tests que requieren Blender usan `@skip_without_blender` de `helpers.py`
-- Los tests que requieren `bpy` usan `pytest.importorskip("bpy")`
-- `conftest.py` inyecta `MockBpy` en `sys.modules` cuando bpy no está disponible
-
-## 📁 Estructura del Proyecto
-
+### DESPUÉS de terminar:
 ```
-blender-mcp/
-├── addon/                      # Addon de Blender
-│   ├── __init__.py             # Registro del addon
-│   ├── _axsock.py              # Socket server TCP :9876
-│   ├── core/                   # Motores fundamentales
-│   │   ├── mesh_engine.py      # 17 primitivas + booleanos + subdivision
-│   │   ├── texture_engine.py   # 50+ PBR materials + procedural
-│   │   ├── rig_engine.py       # Armature + IK/FK + auto-rig
-│   │   └── animation_engine.py # Keyframes + walk/run + facial
-│   ├── organic/                # Sistema orgánico
-│   │   └── character_gen.py    # 5 tipos de personajes
-│   ├── physics/                # Simulación física
-│   │   └── physics_engine.py   # Rigid/Soft/Fluid/Particles
-│   ├── ai/                     # Asistente IA
-│   │   └── ai_assistant.py     # Text→3D + Image→3D + Voice
-│   ├── perception/             # Sistema de visión
-│   │   └── perception_system.py # Scanner + Analyzer + Decision
-│   ├── libraries/              # Bibliotecas
-│   │   └── libraries.py        # 50+ materials + 20+ animations
-│   ├── export/                 # Exportación
-│   │   └── export_engine.py    # Unity/Unreal/glTF/STL/LOD
-│   ├── creation_rules.py       # Dimensiones, conexiones, colecciones
-│   ├── state_manager.py        # Persistencia, backup, historial
-│   ├── validator.py            # Validación visual, dimensiones
-│   └── ...                     # Otros módulos existentes
-├── src/                        # Clean Architecture
-│   ├── core/                   # Entidades e interfaces
-│   ├── tools/                  # 19 categorías de tools
-│   ├── adapters/               # Adaptadores
-│   └── infrastructure/         # Cache, logging, security
-└── tests/                      # Suite de tests
+1. validate_scene()       → ¿Todo está bien?
+2. get_scene_summary()    → Resumen final
+3. get_viewport_screenshot() → Ver resultado final
 ```
 
-## 🔌 Puertos
+## 📋 Herramientas Disponibles (50+)
 
-| Puerto | Servicio | Configuración |
-|--------|----------|---------------|
-| 9876 | Blender Socket TCP | `BLENDER_PORT` env var |
-| 9877 | HTTP REST API | hardcoded en addon |
-| 9879 | MCP SSE Server | hardcoded en addon |
-| 45677 | opencode SSE | `OPENCODE_SSE_URL` env var |
-| 11434 | Ollama API | `OLLAMA_BASE_URL` env var |
+### Percepción (VER)
+| Herramienta | Función |
+|-------------|---------|
+| `get_scene_info()` | Información de la escena |
+| `get_viewport_screenshot()` | Captura del viewport |
+| `get_spatial_visual()` | Relaciones espaciales |
+| `analyze_scene()` | Análisis completo |
 
-## 🎨 Materiales y dimensiones
+### Validación (VERIFICAR)
+| Herramienta | Función |
+|-------------|---------|
+| `validate_scene()` | Validar toda la escena |
+| `validate_object()` | Validar pieza individual |
+| `validate_geometry()` | Validar geometría |
 
-* Usa siempre dimensiones reales en metros.
-* Aplica materiales con color. No dejes nada sin material.
-* Para Blender 4.2+, usa `BLENDER_EEVEE_NEXT` en lugar de `BLENDER_EEVEE`.
+### Creación (CONSTRUIR)
+| Herramienta | Función |
+|-------------|---------|
+| `create_object()` | Crear objeto con reglas |
+| `create_collection()` | Crear colección |
+| `snap_and_parent()` | Conectar piezas |
 
-## ⏱️ Timeout
+### Herramientas Avanzadas
+| Herramienta | Función |
+|-------------|---------|
+| `get_object_anchors()` | Obtener anclas de objeto |
+| `apply_symmetry()` | Aplicar simetría |
+| `fix_normals()` | Corregir normales |
+| `search_assets()` | Buscar assets |
+| `generate_3d()` | Generar 3D |
 
-El socket server (`_axsock.py`) tiene un timeout de **10 segundos** por ejecución de código.
-Si necesitas más tiempo para operaciones complejas (rigging, render), aumenta `signal.alarm()`.
+## 🚫 Lo que NO debes hacer
+
+1. **NO borres todo** — Corrige solo lo que está mal
+2. **NO crees sin verificar** — Siempre valida después
+3. **NO asumas posiciones** — Mide antes de crear
+4. **NO ignores errores** — Valida cada pieza
+
+## 📊 Métricas de Éxito
+
+| Métrica | Objetivo |
+|---------|----------|
+| **Errores por objeto** | 0 |
+| **Piezas conectadas** | 100% |
+| **Calidad visual** | > 90/100 |
+| **Tiempo por objeto** | < 5 min |
 
 ---
 *Este manual es la autoridad máxima sobre el comportamiento del agente.*
