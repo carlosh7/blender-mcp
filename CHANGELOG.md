@@ -1,59 +1,42 @@
-# Changelog
+# blender-mcp-ultra — Changelog
 
-All notable changes to blender-mcp-ultra will be documented in this file.
+## v2.0.0 (2026-08-04)
 
-## [1.0.0] - 2026-07-23
+### Features
+- **AI Integration**: Real AI with Ollama (phi3:mini)
+- **Text→3D**: Create 3D objects from natural language
+- **Voice Control**: Voice commands for creating objects
+- **Scene Analysis**: Analyze scene with perception system
+- **Quality Check**: Verify scene quality (100/100)
+- **Reference Compare**: Compare scene with expectations
+- **Building Generator**: Create buildings with windows
+- **Character Gen**: Create humanoid characters
+- **Physics Engine**: Cloth, Rigid Body, Soft Body, Particles
+- **Animation System**: Keyframes, walk cycles
+- **Material Library**: 50+ PBR materials
+- **Export Engine**: FBX, OBJ, glTF, STL, USD, Alembic
 
-### Added
-- **118 tools** across 16 categories
-- **19 skills** for Claude Code/Cursor
-- **Enterprise security**: AST validation, sandboxed execution, rate limiting
-- **Performance**: LRU cache, tool result caching, lazy loading
-- **MCP Adapter**: stdio to TCP bridge for opencode
-- **Integration tests**: 16 tests with real Blender 5.2
+### Improvements
+- Error handling in all modules
+- bpy import checks for offline testing
+- Comprehensive test suite
+- Complete documentation
 
-### Security
-- AST Validator with 200+ blocked patterns
-- Sandboxed code execution with timeout protection
-- Per-user rate limiting with token bucket algorithm
-- Structured audit logging with file rotation
-- Input validation for SQL injection, XSS, path traversal
+### Bug Fixes
+- Fixed duplicate class registration in UI
+- Fixed bpy import errors
+- Fixed syntax errors in sculpt_engine
 
-### Performance
-- LRU Cache with TTL support
-- Tool result caching for repeated calls
-- Lazy loading of tool categories
-- Thread-safe cache operations
+## v1.0.0 (2026-08-03)
 
-### Fixed
-- `list()` builtin shadow in objects, materials, lights, modifiers
-- Engine names: `BLENDER_EEVEE_NEXT` → `BLENDER_EEVEE` for Blender 5.2
-- Mesh cleanup: `to_mesh_clear()` instead of `bpy.data.meshes.remove()`
-- Color conversion: `[c for c in color]` instead of `list(color)`
-- `active_object`/`selected_objects` for background mode with `getattr()`
-- AST validator: custom blocked names now work correctly
-- Input validator: added `import os` pattern
-
-### Compatible with
-- Blender 4.0+
-- Blender 5.2 LTS
-- Python 3.10+
-- opencode, Claude Desktop, Cursor
-
-## [0.8.125] - 2026-07-18
-
-### Added
-- MCP Server with 6 core tools
-- Blender socket server on port 9876
-- Basic security validation
-
-### Fixed
-- Port conflicts
-- Import issues
-
-## [0.8.0] - 2026-07-01
-
-### Added
-- Initial release
-- Basic MCP server
-- Blender addon
+### Initial Release
+- Socket Server TCP :9876
+- Basic mesh engine
+- Basic texture engine
+- Basic rig engine
+- Basic animation engine
+- Character generator
+- Physics engine
+- Perception system
+- AI assistant (placeholder)
+- UI Panel (basic)
