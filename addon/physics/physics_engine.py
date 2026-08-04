@@ -317,3 +317,123 @@ def add_force_field(obj, field_type='WIND', strength=1.0):
         print(f"Force field: {obj.name} ({field_type}, strength={strength})")
     
     return effector
+
+
+# ═══════════════════════════════════════════════════════════════
+# FLUID SIMULATION PRESETS
+# ═══════════════════════════════════════════════════════════════
+
+FLUID_PRESETS = {
+    "water": {"resolution": 64, "viscosity": 1.0, "diffusion": 0.0},
+    "honey": {"resolution": 48, "viscosity": 10.0, "diffusion": 0.0},
+    "oil": {"resolution": 48, "viscosity": 5.0, "diffusion": 0.0},
+    "milk": {"resolution": 64, "viscosity": 2.0, "diffusion": 0.1},
+    "lava": {"resolution": 32, "viscosity": 100.0, "diffusion": 0.0},
+}
+
+
+def add_fluid_preset(obj, preset="water"):
+    """
+    Agregar fluido con preset predefinido.
+    
+    Presets: water, honey, oil, milk, lava
+    """
+    if bpy is None:
+        return None
+    
+    if preset not in FLUID_PRESETS:
+        print(f"Preset no encontrado: {preset}")
+        return None
+    
+    params = FLUID_PRESETS[preset]
+    return add_fluid_domain(obj, resolution=params["resolution"])
+
+
+# ═══════════════════════════════════════════════════════════════
+# COLLISION PRESETS
+# ═══════════════════════════════════════════════════════════════
+
+COLLISION_PRESETS = {
+    "ice": {"friction": 0.01, "stickiness": 0.0},
+    "rubber": {"friction": 0.8, "stickiness": 0.5},
+    "wood": {"friction": 0.5, "stickiness": 0.1},
+    "metal": {"friction": 0.3, "stickiness": 0.0},
+    "fabric": {"friction": 0.6, "stickiness": 0.3},
+}
+
+
+def add_collision_preset(obj, preset="wood"):
+    """
+    Agregar colisión con preset predefinido.
+    """
+    if bpy is None:
+        return None
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    bpy.ops.object.modifier_add(type='COLLISION')
+    
+    mod = obj.modifiers.get("Collision")
+    if mod and preset in COLLISION_PRESETS:
+        params = COLLISION_PRESETS[preset]
+        mod.settings.friction_factor = params["friction"]
+        mod.settings.stickiness = params["stickiness"]
+        print(f"Collision preset: {obj.name} ({preset})")
+    
+    return mod
+
+
+# ═══════════════════════════════════════════════════════════════
+# RIGID BODY PRESETS
+# ═══════════════════════════════════════════════════════════════
+
+RIGID_PRESETS = {
+    "light": {"mass": 0.1, "friction": 0.3, "restitution": 0.4},
+    "medium": {"mass": 1.0, "friction": 0.5, "restitution": 0.3},
+    "heavy": {"mass": 5.0, "friction": 0.7, "restitution": 0.2},
+    "bouncy": {"mass": 0.5, "friction": 0.2, "restitution": 0.8},
+    "metal": {"mass": 3.0, "friction": 0.4, "restitution": 0.1},
+}
+
+
+def add_rigid_body_preset(obj, preset="medium"):
+    """
+    Agregar rigid body con preset predefinido.
+    """
+    if bpy is None:
+        return None
+    
+    if preset not in RIGID_PRESETS:
+        print(f"Preset no encontrado: {preset}")
+        return None
+    
+    params = RIGID_PRESETS[preset]
+    return add_rigid_body(obj, **params)
+
+
+# ═══════════════════════════════════════════════════════════════
+# SOFT BODY PRESETS
+# ═══════════════════════════════════════════════════════════════
+
+SOFT_PRESETS = {
+    "rubber": {"mass": 0.3, "friction": 0.5, "speed": 1.0},
+    "gelatin": {"mass": 0.2, "friction": 0.3, "speed": 0.8},
+    "jelly": {"mass": 0.4, "friction": 0.4, "speed": 0.9},
+    "foam": {"mass": 0.1, "friction": 0.2, "speed": 0.6},
+}
+
+
+def add_soft_body_preset(obj, preset="rubber"):
+    """
+    Agregar soft body con preset predefinido.
+    """
+    if bpy is None:
+        return None
+    
+    if preset not in SOFT_PRESETS:
+        print(f"Preset no encontrado: {preset}")
+        return None
+    
+    params = SOFT_PRESETS[preset]
+    return add_soft_body(obj, **params)
