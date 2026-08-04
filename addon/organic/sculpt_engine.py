@@ -108,7 +108,7 @@ def inflate_region(obj, center, radius, strength=0.2):
             v.select = True
     
     # Inflar (mover en dirección normal)
-    bpy.ops.mesh.extrude_region_move(TRANSFORM Translate)
+    bpy.ops.mesh.extrude_region_move(TRANSFORM_translate=(0, 0, 0.1))
     
     bpy.ops.object.mode_set(mode='OBJECT')
     print(f"Región inflada: radio {radius}")
@@ -131,7 +131,7 @@ def create_crease(obj, edge_loop, depth=0.1):
             edge.select = True
     
     # Crear pliegue
-    bpy.ops.mesh.extrude_region_move(TRANSFORM Translate)
+    bpy.ops.mesh.extrude_region_move(TRANSFORM_translate=(0, 0, -depth))
     
     bpy.ops.object.mode_set(mode='OBJECT')
     print(f"Pliegue creado: profundidad {depth}")
@@ -595,5 +595,3 @@ def spin_mesh(obj, steps=12, angle=360):
     
     print(f"Mesh spun: {steps} steps, {angle} degrees")
     return True
-        "mode": obj.mode if hasattr(obj, 'mode') else 'OBJECT',
-    }
