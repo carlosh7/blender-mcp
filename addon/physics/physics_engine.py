@@ -1,8 +1,11 @@
 """
 blender-mcp — Physics Engine
-Simulación física: Rigid Body, Soft Body, Fluid, Particles.
+Simulación física: Rigid Body, Soft Body, Fluid, Particles, Cloth.
 """
-import bpy
+try:
+    import bpy
+except ImportError:
+    bpy = None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -188,8 +191,129 @@ def list_physics_types():
         "rigid_body": "Cuerpo rígido (caída, colisiones)",
         "rigid_body_passive": "Cuerpo rígido pasivo (suelo)",
         "soft_body": "Cuerpo blando (goma, gelatina)",
+        "cloth": "Simulación de tela (ropa, banderas)",
         "fluid_domain": "Dominio de fluido (agua)",
         "fluid_flow": "Flujo de fluido (chorro)",
         "hair": "Sistema de pelo",
         "emitter": "Sistema de emisor (lluvia, chispas)",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# CLOTH SIMULATION
+# ═══════════════════════════════════════════════════════════════
+
+def add_cloth(obj, mass=0.3, tension=15, compression=15, bending=5):
+    """
+    Agregar simulación de tela a un objeto.
+    
+    Args:
+        obj: Objeto (idealmente un plano)
+        mass: Masa de la tela
+        tension: Tensión (resistencia a estiramiento)
+        compression: Compresión
+        bending: Resistencia a doblar
+    """
+    if bpy is None:
+        return None
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    bpy.ops.object.modifier_add(type='CLOTH')
+    
+    mod = obj.modifiers.get("Cloth")
+    if mod:
+        mod.settings.mass = mass
+        mod.settings.tension_stiffness = tension
+        mod.settings.compression_stiffness = compression
+        mod.settings.bending_stiffness = bending
+        
+        # Configurar colisión
+        mod.collision_settings.use_collision = True
+        mod.collision_settings.distance_min = 0.01
+        
+        print(f"Cloth simulation: {obj.name} (mass={mass}, tension={tension})")
+    
+    return mod
+
+
+def add_cloth_preset(obj, preset="cotton"):
+    """
+    Agregar cloth con preset predefinido.
+    
+    Presets: cotton, silk, leather, rubber, metal
+    """
+    presets = {
+        "cotton": {"mass": 0.3, "tension": 15, "compression": 15, "bending": 5},
+        "silk": {"mass": 0.1, "tension": 5, "compression": 5, "bending": 1},
+        "leather": {"mass": 0.5, "tension": 25, "compression": 25, "bending": 10},
+        "rubber": {"mass": 0.4, "tension": 10, "compression": 10, "bending": 2},
+        "metal": {"mass": 1.0, "tension": 50, "compression": 50, "bending": 20},
+    }
+    
+    if preset not in presets:
+        print(f"Preset no encontrado: {preset}")
+        return None
+    
+    params = presets[preset]
+    return add_cloth(obj, **params)
+
+
+# ═══════════════════════════════════════════════════════════════
+# DYNAMIC PAINT
+# ═══════════════════════════════════════════════════════════════
+
+def add_dynamic_paint(obj, surface_type='PAINT'):
+    """
+    Agregar Dynamic Paint a un objeto.
+    
+    Args:
+        obj: Objeto
+        surface_type: 'PAINT', 'WAVE', 'WEIGHT'
+    """
+    if bpy is None:
+        return None
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    bpy.ops.object.modifier_add(type='DYNAMIC_PAINT')
+    
+    mod = obj.modifiers.get("Dynamic Paint")
+    if mod:
+        mod.ui_type = 'SURFACE'
+        mod.surface_settings.surface_type = surface_type
+        
+        print(f"Dynamic Paint: {obj.name} ({surface_type})")
+    
+    return mod
+
+
+# ═══════════════════════════════════════════════════════════════
+# FORCE FIELDS
+# ═══════════════════════════════════════════════════════════════
+
+def add_force_field(obj, field_type='WIND', strength=1.0):
+    """
+    Agregar campo de fuerza.
+    
+    Args:
+        obj: Objeto
+        field_type: 'WIND', 'VORTEX', 'MAGNET', 'HARMONIC', 'FORCE'
+        strength: Fuerza del campo
+    """
+    if bpy is None:
+        return None
+    
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    
+    bpy.ops.object.effector_add(type=field_type)
+    
+    effector = obj.field
+    if effector:
+        effector.strength = strength
+        print(f"Force field: {obj.name} ({field_type}, strength={strength})")
+    
+    return effector
