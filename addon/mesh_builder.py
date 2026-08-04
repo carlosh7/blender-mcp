@@ -300,4 +300,179 @@ def list_mesh_tools():
         "mirror_mesh": "Simetría",
         "array_mesh": "Repetición",
         "extrude_profile": "Extrusión de perfil",
+        "inset_faces": "Inset de caras",
+        "knife_cut": "Corte con cuchillo",
+        "vertex_colors": "Colores por vértice",
+        "edge_slide": "Deslizar aristas",
+        "weld_vertices": "Soldar vértices",
+        "bridge_edge_loops": "Conectar edge loops",
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# INSET FACES
+# ═══════════════════════════════════════════════════════════════
+
+def inset_faces(obj, thickness=0.1):
+    """
+    Aplicar inset a caras seleccionadas.
+    
+    Args:
+        obj: Objeto mesh
+        thickness: Grosor del inset
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.inset(thickness=thickness)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Inset applied: thickness={thickness}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# KNIFE CUT
+# ═══════════════════════════════════════════════════════════════
+
+def knife_cut(obj, points):
+    """
+    Aplicar corte con cuchillo.
+    
+    Args:
+        obj: Objeto mesh
+        points: Lista de puntos de corte [(x,y,z), ...]
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    
+    # Knife project
+    for i in range(len(points) - 1):
+        p1 = Vector(points[i])
+        p2 = Vector(points[i + 1])
+        
+        # Crear línea de corte
+        bpy.ops.mesh.vert_connect(path=[p1, p2])
+    
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Knife cut: {len(points)} points")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# VERTEX COLORS
+# ═══════════════════════════════════════════════════════════════
+
+def vertex_colors(obj, color=(1, 0, 0)):
+    """
+    Aplicar color por vértice.
+    
+    Args:
+        obj: Objeto mesh
+        color: Tupla RGBA (0-1)
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    # Crear vertex color layer
+    if not obj.data.vertex_colors:
+        obj.data.vertex_colors.new()
+    
+    color_layer = obj.data.vertex_colors.active
+    
+    # Asignar color a todas las caras
+    for poly in obj.data.polygons:
+        for loop_idx in poly.loop_indices:
+            color_layer.data[loop_idx].color = (*color, 1)
+    
+    print(f"Vertex colors applied: {color}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# EDGE SLIDE
+# ═══════════════════════════════════════════════════════════════
+
+def edge_slide(obj, edge_index, factor=0.5):
+    """
+    Deslizar arista.
+    
+    Args:
+        obj: Objeto mesh
+        edge_index: Índice de la arista
+        factor: Factor de deslizamiento (0-1)
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    
+    # Seleccionar arista
+    bm = bmesh.from_edit_mesh(obj.data)
+    if edge_index < len(bm.edges):
+        bm.edges[edge_index].select = True
+        bmesh.update_edit_mesh(obj.data)
+    
+    # Edge slide
+    bpy.ops.mesh.edge_slide(factor=factor)
+    
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Edge slide: factor={factor}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# WELD VERTICES
+# ═══════════════════════════════════════════════════════════════
+
+def weld_vertices(obj, distance=0.01):
+    """
+    Soldar vértices cercanos.
+    
+    Args:
+        obj: Objeto mesh
+        distance: Distancia máxima de weld
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=distance)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print(f"Weld vertices: distance={distance}")
+    return True
+
+
+# ═══════════════════════════════════════════════════════════════
+# BRIDGE EDGE LOOPS
+# ═══════════════════════════════════════════════════════════════
+
+def bridge_edge_loops(obj):
+    """
+    Conectar edge loops.
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.bridge_edge_loops()
+    bpy.ops.object.mode_set(mode='OBJECT')
+    
+    print("Bridge edge loops applied")
+    return True
