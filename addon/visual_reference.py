@@ -320,3 +320,137 @@ def overlay_reference(obj_name, reference_image_path):
     
     print(f"Reference overlay created: {obj_name}")
     return plane
+
+
+# ═══════════════════════════════════════════════════════════════
+# ANNOTATION
+# ═══════════════════════════════════════════════════════════════
+
+def create_annotation(obj_name, text, offset=(0, 0, 0.5)):
+    """
+    Crear anotación sobre un objeto.
+    
+    Args:
+        obj_name: Nombre del objeto
+        text: Texto de la anotación
+        offset: Desplazamiento desde el objeto
+    """
+    if bpy is None:
+        return None
+    
+    obj = bpy.data.objects.get(obj_name)
+    if not obj:
+        return None
+    
+    # Crear empty como marcador
+    bpy.ops.object.empty_add(
+        type='PLAIN_AXES',
+        location=(obj.location.x + offset[0], 
+                  obj.location.y + offset[1], 
+                  obj.location.z + offset[2])
+    )
+    marker = bpy.context.active_object
+    marker.name = f"Annotation_{obj_name}"
+    marker.empty_display_size = 0.1
+    
+    # Agregar texto
+    bpy.ops.object.text_add(location=(obj.location.x + offset[0], 
+                                       obj.location.y + offset[1], 
+                                       obj.location.z + offset[2] + 0.1))
+    text_obj = bpy.context.active_object
+    text_obj.name = f"Text_{obj_name}"
+    text_obj.data.body = text
+    text_obj.data.size = 0.1
+    
+    print(f"Annotation created: {obj_name} - {text}")
+    return marker
+
+
+# ═══════════════════════════════════════════════════════════════
+# MEASURE ANGLE
+# ═══════════════════════════════════════════════════════════════
+
+def measure_angle(obj1_name, obj2_name, obj3_name):
+    """
+    Medir ángulo entre tres objetos.
+    
+    Args:
+        obj1_name: Primer objeto (vértice del ángulo)
+        obj2_name: Segundo objeto
+        obj3_name: Tercer objeto
+    
+    Returns:
+        Ángulo en grados
+    """
+    if bpy is None:
+        return None
+    
+    obj1 = bpy.data.objects.get(obj1_name)
+    obj2 = bpy.data.objects.get(obj2_name)
+    obj3 = bpy.data.objects.get(obj3_name)
+    
+    if not obj1 or not obj2 or not obj3:
+        return None
+    
+    # Obtener posiciones
+    p1 = Vector(obj1.location)
+    p2 = Vector(obj2.location)
+    p3 = Vector(obj3.location)
+    
+    # Calcular ángulo
+    v1 = p2 - p1
+    v2 = p3 - p1
+    
+    angle = v1.angle(v2)
+    angle_deg = math.degrees(angle)
+    
+    print(f"Angle: {obj1_name} - {obj2_name} - {obj3_name} = {angle_deg:.1f}°")
+    return angle_deg
+
+
+# ═══════════════════════════════════════════════════════════════
+# DIMENSION LINE
+# ═══════════════════════════════════════════════════════════════
+
+def create_dimension_line(obj1_name, obj2_name, offset=(0, 0, 0)):
+    """
+    Crear línea de dimensión entre dos objetos.
+    
+    Args:
+        obj1_name: Primer objeto
+        obj2_name: Segundo objeto
+        offset: Desplazamiento
+    """
+    if bpy is None:
+        return None
+    
+    obj1 = bpy.data.objects.get(obj1_name)
+    obj2 = bpy.data.objects.get(obj2_name)
+    
+    if not obj1 or not obj2:
+        return None
+    
+    # Obtener centros
+    bb1 = [obj1.matrix_world @ Vector(c) for c in obj1.bound_box]
+    bb2 = [obj2.matrix_world @ Vector(c) for c in obj2.bound_box]
+    
+    center1 = Vector((sum(p[i] for p in bb1) / len(bb1) for i in range(3)))
+    center2 = Vector((sum(p[i] for p in bb2) / len(bb2) for i in range(3)))
+    
+    # Crear curva como línea de dimensión
+    curve_data = bpy.data.curves.new("DimensionLine", type='CURVE')
+    curve_data.dimensions = '3D'
+    
+    spline = curve_data.splines.new('BEZIER')
+    spline.bezier_points.add(1)
+    spline.bezier_points[0].co = center1 + Vector(offset)
+    spline.bezier_points[1].co = center2 + Vector(offset)
+    
+    obj = bpy.data.objects.new("DimensionLine", curve_data)
+    bpy.context.collection.objects.link(obj)
+    
+    # Calcular distancia
+    distance = (center1 - center2).length
+    
+    print(f"Dimension line: {obj1_name} to {obj2_name} = {distance:.3f}m")
+    return obj
