@@ -66,14 +66,24 @@ def create_pbr_wood(name, color=(0.45, 0.30, 0.15), grain_scale=10):
     bump.location = (0, -100)
     bump.inputs["Strength"].default_value = 0.3
     
+    # Roughness Map (imperfecciones de superficie)
+    rough_map = nodes.new("ShaderNodeMapRange")
+    rough_map.location = (150, -50)
+    rough_map.inputs["From Min"].default_value = 0.0
+    rough_map.inputs["From Max"].default_value = 1.0
+    rough_map.inputs["To Min"].default_value = 0.3
+    rough_map.inputs["To Max"].default_value = 0.7
+    
     # Conectar
     links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
+    links.new(noise.outputs["Fac"], rough_map.inputs["Value"])
+    links.new(rough_map.outputs["Result"], bsdf.inputs["Roughness"])
     links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
     links.new(noise.outputs["Fac"], bump.inputs["Height"])
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
     
-    print(f"Material madera creado: {name}")
+    print(f"Material madera PBR fotorrealista creado: {name}")
     return mat
 
 

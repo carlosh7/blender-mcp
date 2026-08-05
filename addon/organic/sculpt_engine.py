@@ -46,18 +46,37 @@ def create_sculpt_base(primitive_type="sphere", subdivisions=4):
         mod = obj.modifiers.new("Subdivision", 'SUBSURF')
         mod.levels = subdivisions
         bpy.ops.object.modifier_apply(modifier=mod.name)
-    elif primitive_type == "cylinder":
-        bpy.ops.mesh.primitive_cylinder_add(
-            radius=1,
-            depth=2,
-            vertices=64,
-            location=(0, 0, 0)
-        )
+def voxel_remesh_sculpt(obj, voxel_size=0.02):
+    """
+    Aplicar Voxel Remesh real de Blender para preparar mallas orgánicas para esculpido fluido.
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
     
-    obj = bpy.context.active_object
-    obj.name = "SculptBase"
+    try:
+        obj.data.remesh_voxel_size = voxel_size
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.voxel_remesh()
+        print(f"Voxel Remesh aplicado con tamaño {voxel_size}m en {obj.name}")
+        return True
+    except Exception as e:
+        print(f"Voxel Remesh notice: {e}")
+        return False
+
+def apply_multiresolution_sculpt(obj, levels=3):
+    """
+    Aplicar modificador Multiresolution para esculpido multinivel sin deformar la malla base.
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
     
-    # Entrar en modo sculpt
+    mod = obj.modifiers.get("Multires") or obj.modifiers.new("Multires", 'MULTIRES')
+    for _ in range(levels):
+        bpy.ops.object.multires_subdivide(modifier="Multires", mode='CATMULL_CLARK')
+    
+    print(f"Multiresolution aplicado a {obj.name} con {levels} niveles")
+    return True
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='SCULPT')
     

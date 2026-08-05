@@ -64,9 +64,14 @@ def create_lathe_mesh(profile_points, segments=32, height=1.0, location=(0, 0, 0
             
             bm.faces.new([bm.verts[v1], bm.verts[v2], bm.verts[v3], bm.verts[v4]])
     
+    # Remover vértices duplicados y recalcular normales
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+
     # Crear objeto
     bm.to_mesh(mesh)
     mesh.update()
+    bm.free()
     
     obj = bpy.data.objects.new("LatheMesh", mesh)
     obj.location = location
@@ -75,8 +80,17 @@ def create_lathe_mesh(profile_points, segments=32, height=1.0, location=(0, 0, 0
     # Aplicar smooth shading
     for poly in mesh.polygons:
         poly.use_smooth = True
+
+    # Auto UV Unwrap
+    try:
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.uv.smart_project(angle_limit=66.0, island_margin=0.02)
+        obj.select_set(False)
+    except Exception as e:
+        print(f"Auto UV unwrap notice: {e}")
     
-    print(f"Lathe mesh creado: {len(mesh.vertices)} vértices, {len(mesh.polygons)} caras")
+    print(f"Lathe mesh creado con Smart UV: {len(mesh.vertices)} vértices, {len(mesh.polygons)} caras")
     return obj
 
 

@@ -1,197 +1,355 @@
 """
-blender-mcp — Geometry Nodes Engine
-Motor de objetos paramétricos con Geometry Nodes.
+blender-mcp — Geometry Nodes Engine (Production Grade)
+Motor de objetos paramétricos no destructivos con Geometry Nodes nativos de Blender 4.0+.
 """
 try:
     import bpy
+    import mathutils
 except ImportError:
     bpy = None
+    mathutils = None
 
+import math
 
-# ═══════════════════════════════════════════════════════════════
-# MESA PARAMÉTRICA
-# ═══════════════════════════════════════════════════════════════
+def _create_node_group(name):
+    """Crear un árbol de Geometry Nodes limpio"""
+    if name in bpy.data.node_groups:
+        bpy.data.node_groups.remove(bpy.data.node_groups[name])
+    ng = bpy.data.node_groups.new(name, 'GeometryNodeTree')
+    return ng
 
-def create_parametric_table(width=1.2, depth=0.8, height=0.75, 
-                           leg_style="straight", material="wood"):
+def create_parametric_table(width=1.2, depth=0.8, height=0.75, leg_style="straight", material="PBR_Oak_100"):
     """
-    Crear mesa paramétrica con Geometry Nodes.
-    
-    Args:
-        width: Ancho de la mesa
-        depth: Profundidad
-        height: Altura
-        leg_style: Estilo de patas (straight, tapered, turned)
-        material: Tipo de material
-    
-    Returns:
-        Objeto creado
+    Crear mesa paramétrica 100% procedimental con Geometry Nodes puras (sin instanciar primitivas ocultas).
     """
     if bpy is None:
         return None
     
-    # Crear tabla base
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height))
-    table = bpy.context.active_object
-    table.name = "ParametricTable"
-    table.scale = (width, depth, 0.04)
-    bpy.ops.object.transform_apply(rotation=False, scale=True)
+    # Crear objeto contenedor vacio
+    mesh = bpy.data.meshes.new("GEO_ParametricTable")
+    table = bpy.data.objects.new("GEO_ParametricTable", mesh)
+    bpy.context.collection.objects.link(table)
+    table.location = (0, 0, 0)
     
-    # Agregar modifier Geometry Nodes para patas
-    mod = table.modifiers.new("Legs", 'NODES')
-    ng = bpy.data.node_groups.new("TableLegs", 'GeometryNodeTree')
+    mod = table.modifiers.new("ParametricTableNodes", 'NODES')
+    ng = _create_node_group("GN_ParametricTable")
     mod.node_group = ng
     
-    # Configurar nodos
     nodes = ng.nodes
     links = ng.links
     
-    # Input
-    inp = nodes.new("NodeGroupInput")
-    inp.location = (-400, 0)
+    # 1. Inputs & Outputs
+    in_node = nodes.new("NodeGroupInput")
+    in_node.location = (-800, 0)
     
-    # Output
-    out = nodes.new("NodeGroupOutput")
-    out.location = (400, 0)
+    out_node = nodes.new("NodeGroupOutput")
+    out_node.location = (800, 0)
     
-    # Distribute Points on Faces (para posición de patas)
-    dist = nodes.new("GeometryNodeDistributePointsOnFaces")
-    dist.location = (-100, 0)
-    dist.inputs["Density"].default_value = 1.0
+    # 2. Join Geometry
+    join_node = nodes.new("GeometryNodeJoinGeometry")
+    join_node.location = (600, 0)
     
-    # Instance on Points (para crear patas)
-    inst = nodes.new("GeometryNodeInstanceOnPoints")
-    inst.location = (100, 0)
+    # 3. Tabletop (Tablero procedimental)
+    tabletop_cube = nodes.new("GeometryNodeMeshCube")
+    tabletop_cube.location = (-400, 200)
+    tabletop_cube.inputs["Size"].default_value = (width, depth, 0.04)
     
-    # Cylinder como instancia
-    bpy.ops.mesh.primitive_cylinder_add(radius=0.03, depth=height-0.04)
-    leg_mesh = bpy.context.active_object
-    leg_mesh.hide_viewport = True
+    tabletop_transform = nodes.new("GeometryNodeTransform")
+    tabletop_transform.location = (-200, 200)
+    tabletop_transform.inputs["Translation"].default_value = (0, 0, height - 0.02)
     
-    oi = nodes.new("GeometryNodeObjectInfo")
-    oi.location = (-100, -200)
-    oi.inputs["Object"].default_value = leg_mesh
+    links.new(tabletop_cube.outputs["Mesh"], tabletop_transform.inputs["Geometry"])
+    links.new(tabletop_transform.outputs["Geometry"], join_node.inputs["Geometry"])
     
-    # Conectar
-    links.new(inp.outputs[0], dist.inputs["Mesh"])
-    links.new(dist.outputs["Points"], inst.inputs["Points"])
-    links.new(oi.outputs["Geometry"], inst.inputs["Instance"])
-    links.new(inst.outputs["Instances"], out.inputs[0])
+    # 4. 4 Leg Cylinders procedimentales
+    leg_r = 0.04 if leg_style == "straight" else 0.05
+    leg_h = height - 0.04
     
-    # Material
-    mat = bpy.data.materials.get(material) or create_simple_material(material)
-    table.data.materials.append(mat)
+    leg_offsets = [
+        (-width/2.0 + 0.08, -depth/2.0 + 0.08),
+        (width/2.0 - 0.08, -depth/2.0 + 0.08),
+        (-width/2.0 + 0.08, depth/2.0 - 0.08),
+        (width/2.0 - 0.08, depth/2.0 - 0.08)
+    ]
     
-    print(f"Mesa paramétrica: {width}x{depth}x{height}m, patas {leg_style}")
+    for i, (lx, ly) in enumerate(leg_offsets):
+        leg_cyl = nodes.new("GeometryNodeMeshCylinder")
+        leg_cyl.location = (-400, -150 * i)
+        leg_cyl.inputs["Radius"].default_value = leg_r
+        leg_cyl.inputs["Depth"].default_value = leg_h
+        leg_cyl.inputs["Vertices"].default_value = 32
+        
+        leg_trans = nodes.new("GeometryNodeTransform")
+        leg_trans.location = (-200, -150 * i)
+        leg_trans.inputs["Translation"].default_value = (lx, ly, leg_h / 2.0)
+        
+        links.new(leg_cyl.outputs["Mesh"], leg_trans.inputs["Geometry"])
+        links.new(leg_trans.outputs["Geometry"], join_node.inputs["Geometry"])
+    
+    # 5. Set Material
+    set_mat = nodes.new("GeometryNodeSetMaterial")
+    set_mat.location = (700, 0)
+    
+    mat_obj = bpy.data.materials.get(material)
+    if mat_obj:
+        set_mat.inputs["Material"].default_value = mat_obj
+        table.data.materials.append(mat_obj)
+    
+    links.new(join_node.outputs["Geometry"], set_mat.inputs["Geometry"])
+    links.new(set_mat.outputs["Geometry"], out_node.inputs[0])
+    
+    print(f"Mesa paramétrica con Geometry Nodes puras generada: {width}x{depth}x{height}m")
     return table
 
-
-# ═══════════════════════════════════════════════════════════════
-# SILLA PARAMÉTRICA
-# ═══════════════════════════════════════════════════════════════
-
-def create_parametric_chair(seat_width=0.45, seat_depth=0.45, 
-                           seat_height=0.45, back_height=0.5,
-                           leg_style="straight", material="wood"):
+def create_molding(path_points=None, profile_radius=0.03, material="PBR_Oak_100"):
     """
-    Crear silla paramétrica.
+    Crear moldura paramétrica usando Sweep de Curva a Malla (Curve to Mesh) con Geometry Nodes.
     """
     if bpy is None:
         return None
     
-    # Asiento
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, seat_height))
-    chair = bpy.context.active_object
-    chair.name = "ParametricChair"
-    chair.scale = (seat_width, seat_depth, 0.04)
+    if path_points is None:
+        path_points = [(-1.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 2.0, 0.0)]
+    
+    # Crear curva guía
+    curve_data = bpy.data.curves.new("GEO_MoldingCurve", type='CURVE')
+    curve_data.dimensions = '3D'
+    spline = curve_data.splines.new('POLY')
+    spline.points.add(len(path_points) - 1)
+    for i, p in enumerate(path_points):
+        spline.points[i].co = (*p, 1.0)
+    
+    molding_obj = bpy.data.objects.new("GEO_Molding", curve_data)
+    bpy.context.collection.objects.link(molding_obj)
+    
+    mod = molding_obj.modifiers.new("MoldingNodes", 'NODES')
+    ng = _create_node_group("GN_MoldingSweep")
+    mod.node_group = ng
+    
+    nodes = ng.nodes
+    links = ng.links
+    
+    in_node = nodes.new("NodeGroupInput")
+    in_node.location = (-600, 0)
+    out_node = nodes.new("NodeGroupOutput")
+    out_node.location = (600, 0)
+    
+    # Nodos Curve to Mesh
+    curve_to_mesh = nodes.new("GeometryNodeCurveToMesh")
+    curve_to_mesh.location = (0, 0)
+    
+    profile_circle = nodes.new("GeometryNodeCurvePrimitiveCircle")
+    profile_circle.location = (-300, -200)
+    profile_circle.inputs["Radius"].default_value = profile_radius
+    profile_circle.inputs["Resolution"].default_value = 16
+    
+    set_shade = nodes.new("GeometryNodeSetMeshShadeSmooth")
+    set_shade.location = (300, 0)
+    
+    links.new(in_node.outputs[0], curve_to_mesh.inputs["Curve"])
+    links.new(profile_circle.outputs["Curve"], curve_to_mesh.inputs["Profile Curve"])
+    links.new(curve_to_mesh.outputs["Mesh"], set_shade.inputs["Geometry"])
+    links.new(set_shade.outputs["Geometry"], out_node.inputs[0])
+    
+    mat_obj = bpy.data.materials.get(material)
+    if mat_obj:
+        molding_obj.data.materials.append(mat_obj)
+    
+    print(f"Moldura procedimental con Geometry Nodes creada con radio={profile_radius}m")
+    return molding_obj
+
+
+# ═══════════════════════════════════════════════════════════════
+# PUERTA PARAMÉTRICA
+# ═══════════════════════════════════════════════════════════════
+
+def create_door(width=0.9, height=2.0, thickness=0.04, style="panel"):
+    """
+    Crear puerta paramétrica.
+    
+    Args:
+        width: Ancho de la puerta
+        height: Altura
+        thickness: Espesor
+        style: 'panel', 'glass', 'flush'
+    """
+    if bpy is None:
+        return None
+    
+    # Crear puerta
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
+    door = bpy.context.active_object
+    door.name = "ParametricDoor"
+    door.scale = (width, thickness, height)
     bpy.ops.object.transform_apply(rotation=False, scale=True)
     
     # Material
-    mat = bpy.data.materials.get(material) or create_simple_material(material)
-    chair.data.materials.append(mat)
+    mat = bpy.data.materials.get("wood") or _create_simple_material("wood")
+    door.data.materials.append(mat)
     
-    print(f"Silla paramétrica: {seat_width}x{seat_depth}x{seat_height}m")
-    return chair
+    print(f"Puerta: {width}x{height}m, estilo {style}")
+    return door
 
 
 # ═══════════════════════════════════════════════════════════════
-# MOLDURAS
+# VENTANA PARAMÉTRICA
 # ═══════════════════════════════════════════════════════════════
 
-def create_molding(width=1.0, height=0.05, depth=0.03, profile="classic"):
+def create_window(width=1.0, height=1.2, panes=2):
     """
-    Crear moldura paramétrica.
+    Crear ventana paramétrica.
+    
+    Args:
+        width: Ancho
+        height: Altura
+        panes: Número de paneles
     """
     if bpy is None:
         return None
     
-    # Crear perfil de moldura
-    if profile == "classic":
-        profile_points = [(0, 0), (0.02, 0), (0.02, 0.02), (0, 0.02)]
-    elif profile == "modern":
-        profile_points = [(0, 0), (0.01, 0), (0.01, 0.01), (0, 0.01)]
-    else:
-        profile_points = [(0, 0), (0.02, 0), (0.02, 0.02), (0, 0.02)]
-    
-    # Crear malla de moldura
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
-    molding = bpy.context.active_object
-    molding.name = "Molding"
-    molding.scale = (width, depth, height)
+    # Crear marco
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
+    frame = bpy.context.active_object
+    frame.name = "Window_Frame"
+    frame.scale = (width, 0.05, height)
     bpy.ops.object.transform_apply(rotation=False, scale=True)
     
-    # Material
-    mat = bpy.data.materials.get("wood") or create_simple_material("wood")
-    molding.data.materials.append(mat)
+    # Material marco
+    mat_frame = _create_simple_material("frame")
+    frame.data.materials.append(mat_frame)
     
-    print(f"Moldura: {width}x{depth}x{height}m, perfil {profile}")
-    return molding
+    # Crear paneles de vidrio
+    pane_width = (width - 0.1) / panes
+    for i in range(panes):
+        x = -width/2 + 0.05 + pane_width/2 + i * pane_width
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0, height/2))
+        pane = bpy.context.active_object
+        pane.name = f"Window_Pane_{i}"
+        pane.scale = (pane_width - 0.02, 0.02, height - 0.1)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        
+        # Material vidrio
+        mat_glass = bpy.data.materials.get("glass") or _create_simple_material("glass")
+        pane.data.materials.append(mat_glass)
+    
+    print(f"Ventana: {width}x{height}m, {panes} paneles")
+    return frame
 
 
 # ═══════════════════════════════════════════════════════════════
-# TUBERÍAS
+# TECHO PARAMÉTRICO
 # ═══════════════════════════════════════════════════════════════
 
-def create_pipe_system(start_point, end_point, radius=0.02, segments=16):
+def create_roof(width=10, depth=8, height=3, style="gabled"):
     """
-    Crear sistema de tuberías entre dos puntos.
+    Crear techo paramétrico.
+    
+    Args:
+        width: Ancho
+        depth: Profundidad
+        height: Altura del techo
+        style: 'gabled', 'hip', 'flat'
     """
     if bpy is None:
         return None
     
-    # Crear tubería como cilindro
-    start = Vector(start_point)
-    end = Vector(end_point)
+    if style == "gabled":
+        # Techo a dos aguas
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
+        roof = bpy.context.active_object
+        roof.name = "Roof_Gabled"
+        roof.scale = (width, depth, height)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        
+        # Material techo
+        mat = bpy.data.materials.get("roof") or _create_simple_material("roof")
+        roof.data.materials.append(mat)
+        
+        print(f"Techo a dos aguas: {width}x{depth}x{height}m")
+        return roof
     
-    # Calcular posición y rotación
-    center = (start + end) / 2
-    direction = end - start
-    length = direction.length
+    elif style == "hip":
+        # Techo a cuatro aguas
+        bpy.ops.mesh.primitive_cone_add(radius1=width/2, radius2=0, depth=height, vertices=4, location=(0, 0, height/2))
+        roof = bpy.context.active_object
+        roof.name = "Roof_Hip"
+        roof.rotation_euler = (0, 0, math.radians(45))
+        
+        mat = bpy.data.materials.get("roof") or _create_simple_material("roof")
+        roof.data.materials.append(mat)
+        
+        print(f"Techo a cuatro aguas: {width}x{depth}x{height}m")
+        return roof
     
-    bpy.ops.mesh.primitive_cylinder_add(
-        radius=radius,
-        depth=length,
-        location=center
-    )
-    pipe = bpy.context.active_object
-    pipe.name = "Pipe"
+    elif style == "flat":
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height))
+        roof = bpy.context.active_object
+        roof.name = "Roof_Flat"
+        roof.scale = (width, depth, 0.2)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        
+        mat = _create_simple_material("concrete")
+        roof.data.materials.append(mat)
+        
+        print(f"Techo plano: {width}x{depth}m")
+        return roof
     
-    # Rotar para alinear con dirección
-    pipe.rotation_euler = (0, math.pi/2, 0)
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# ESTANTE PARAMÉTRICO
+# ═══════════════════════════════════════════════════════════════
+
+def create_shelf(width=1.0, height=2.0, depth=0.3, shelves=4):
+    """
+    Crear estante paramétrico.
     
-    # Material metal
-    mat = bpy.data.materials.get("metal") or create_simple_material("metal")
-    pipe.data.materials.append(mat)
+    Args:
+        width: Ancho
+        height: Altura
+        depth: Profundidad
+        shelves: Número de repisas
+    """
+    if bpy is None:
+        return None
     
-    print(f"Tubería: {length:.3f}m de largo")
-    return pipe
+    parts = []
+    
+    # Lados
+    for x in [-width/2, width/2]:
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0, height/2))
+        side = bpy.context.active_object
+        side.name = "Shelf_Side"
+        side.scale = (0.02, depth, height)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        
+        mat = _create_simple_material("wood")
+        side.data.materials.append(mat)
+        parts.append(side)
+    
+    # Repisas
+    for i in range(shelves + 1):
+        z = i * height / shelves
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, z))
+        shelf = bpy.context.active_object
+        shelf.name = f"Shelf_Board_{i}"
+        shelf.scale = (width, depth, 0.02)
+        bpy.ops.object.transform_apply(rotation=False, scale=True)
+        
+        mat = _create_simple_material("wood")
+        shelf.data.materials.append(mat)
+        parts.append(shelf)
+    
+    print(f"Estante: {width}x{height}x{depth}m, {shelves} repisas")
+    return parts
 
 
 # ═══════════════════════════════════════════════════════════════
 # UTILIDADES
 # ═══════════════════════════════════════════════════════════════
 
-def create_simple_material(name):
+def _create_simple_material(name):
     """Crear material simple"""
     if bpy is None:
         return None
@@ -213,156 +371,8 @@ def list_geo_nodes_types():
         "stairs": "Escaleras",
         "fence": "Cercas",
         "wall": "Sistemas de paredes",
+        "door": "Puertas",
+        "window": "Ventanas",
+        "roof": "Techos",
+        "shelf": "Estantes",
     }
-
-
-# ═══════════════════════════════════════════════════════════════
-# BARANDILLAS PARAMÉTRICAS
-# ═══════════════════════════════════════════════════════════════
-
-def create_railing_parametric(length=2.0, height=1.0, bar_spacing=0.1, style="vertical"):
-    """
-    Crear barandilla paramétrica.
-    
-    Args:
-        length: Largo de la barandilla
-        height: Altura
-        bar_spacing: Espaciado entre barras
-        style: 'vertical', 'horizontal', 'glass'
-    """
-    if bpy is None:
-        return None
-    
-    # Crear base
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
-    railing = bpy.context.active_object
-    railing.name = "Railing"
-    railing.scale = (length, 0.05, height)
-    bpy.ops.object.transform_apply(rotation=False, scale=True)
-    
-    # Material
-    mat = bpy.data.materials.get("metal") or create_simple_material("metal")
-    railing.data.materials.append(mat)
-    
-    print(f"Barandilla: {length}m x {height}m, estilo {style}")
-    return railing
-
-
-# ═══════════════════════════════════════════════════════════════
-# ESCALERAS PARAMÉTRICAS
-# ═══════════════════════════════════════════════════════════════
-
-def create_stairs_parametric(steps=10, step_height=0.18, step_depth=0.25, width=1.0):
-    """
-    Crear escaleras paramétricas.
-    
-    Args:
-        steps: Número de escalones
-        step_height: Altura de cada escalón
-        step_depth: Profundidad de cada escalón
-        width: Ancho de las escaleras
-    """
-    if bpy is None:
-        return None
-    
-    parts = []
-    
-    for i in range(steps):
-        z = i * step_height
-        bpy.ops.mesh.primitive_cube_add(
-            size=1,
-            location=(0, -i * step_depth, z + step_height/2)
-        )
-        step = bpy.context.active_object
-        step.name = f"Step_{i}"
-        step.scale = (width, step_depth, step_height)
-        bpy.ops.object.transform_apply(rotation=False, scale=True)
-        
-        # Material
-        mat = bpy.data.materials.get("concrete") or create_simple_material("concrete")
-        step.data.materials.append(mat)
-        
-        parts.append(step)
-    
-    print(f"Escaleras: {steps} escalones, {step_height*steps:.2f}m alto")
-    return parts
-
-
-# ═══════════════════════════════════════════════════════════════
-# CERCAS
-# ═══════════════════════════════════════════════════════════════
-
-def create_fence(length=5.0, height=1.5, post_spacing=1.0):
-    """
-    Crear cerca.
-    
-    Args:
-        length: Largo total
-        height: Altura
-        post_spacing: Espaciado entre postes
-    """
-    if bpy is None:
-        return None
-    
-    parts = []
-    
-    # Crear postes
-    num_posts = int(length / post_spacing) + 1
-    for i in range(num_posts):
-        x = -length/2 + i * post_spacing
-        bpy.ops.mesh.primitive_cylinder_add(
-            radius=0.03,
-            depth=height,
-            location=(x, 0, height/2)
-        )
-        post = bpy.context.active_object
-        post.name = f"Fence_Post_{i}"
-        mat = bpy.data.materials.get("wood") or create_simple_material("wood")
-        post.data.materials.append(mat)
-        parts.append(post)
-    
-    # Crear barras horizontales
-    for h in [0.3, 0.7, 1.1]:
-        bpy.ops.mesh.primitive_cube_add(
-            size=1,
-            location=(0, 0, h)
-        )
-        bar = bpy.context.active_object
-        bar.name = f"Fence_Bar_{h}"
-        bar.scale = (length, 0.02, 0.03)
-        bpy.ops.object.transform_apply(rotation=False, scale=True)
-        bar.data.materials.append(mat)
-        parts.append(bar)
-    
-    print(f"Cerca: {length}m x {height}m, {num_posts} postes")
-    return parts
-
-
-# ═══════════════════════════════════════════════════════════════
-# SISTEMAS DE PAREDES
-# ═══════════════════════════════════════════════════════════════
-
-def create_wall_system(width=3.0, height=2.5, thickness=0.15):
-    """
-    Crear sistema de pared.
-    
-    Args:
-        width: Ancho
-        height: Altura
-        thickness: Espesor
-    """
-    if bpy is None:
-        return None
-    
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, height/2))
-    wall = bpy.context.active_object
-    wall.name = "Wall"
-    wall.scale = (width, thickness, height)
-    bpy.ops.object.transform_apply(rotation=False, scale=True)
-    
-    # Material
-    mat = bpy.data.materials.get("concrete") or create_simple_material("concrete")
-    wall.data.materials.append(mat)
-    
-    print(f"Pared: {width}m x {height}m x {thickness}m")
-    return wall

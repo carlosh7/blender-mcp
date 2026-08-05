@@ -46,6 +46,28 @@ def scene_scanner_advanced(scene=None):
             obj_data["has_smooth"] = any(p.use_smooth for p in obj.data.polygons)
         
         objects.append(obj_data)
+
+def fix_geometry_anomalies(obj):
+    """
+    Detectar y reparar automáticamente anomalías en la malla (normales invertidas, vértices sueltos).
+    """
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return False
+    
+    try:
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.remove_doubles(threshold=0.0001)
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+        bpy.ops.object.mode_set(mode='OBJECT')
+        obj.select_set(False)
+        print(f"Geometría reparada para: {obj.name}")
+        return True
+    except Exception as e:
+        print(f"Error al reparar geometría de {obj.name}: {e}")
+        return False
     
     # Estadísticas
     stats = {

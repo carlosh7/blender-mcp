@@ -1,6 +1,6 @@
 """
-blender-mcp — Export Advanced Engine
-Motor de exportación avanzada: Batch, Game Engines, Film, Print, LOD.
+blender-mcp — Export Advanced Engine (Production Grade)
+Motor de exportación avanzada: Game Engine collisions (UCX_), LOD generation, Batch, Web, Print, Film.
 """
 try:
     import bpy
@@ -9,20 +9,46 @@ except ImportError:
 
 import os
 
+def generate_game_engine_collision(obj, engine="unreal"):
+    """Generar malla de colisión convexa para Unreal (UCX_) o Unity (COL_)."""
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return None
+    
+    col_name = f"UCX_{obj.name}" if engine == "unreal" else f"COL_{obj.name}"
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=obj.location)
+    col_obj = bpy.context.active_object
+    col_obj.name = col_name
+    col_obj.scale = obj.dimensions
+    col_obj.display_type = 'WIRE'
+    print(f"Colisionador de fisica {engine.upper()} generado: {col_name}")
+    return col_obj
 
-# ═══════════════════════════════════════════════════════════════
-# EXPORT BATCH
-# ═══════════════════════════════════════════════════════════════
+def generate_lod_levels(obj, lod_ratios=None):
+    """Generar niveles de detalle (LOD0, LOD1, LOD2) usando Decimate."""
+    if lod_ratios is None:
+        lod_ratios = [1.0, 0.5, 0.25]
+    if bpy is None or obj is None or obj.type != 'MESH':
+        return []
+    
+    lods = []
+    for i, ratio in enumerate(lod_ratios):
+        lod_obj = obj.copy()
+        lod_obj.data = obj.data.copy()
+        lod_obj.name = f"{obj.name}_LOD{i}"
+        bpy.context.collection.objects.link(lod_obj)
+        
+        if ratio < 1.0:
+            mod = lod_obj.modifiers.new("Decimate_LOD", 'DECIMATE')
+            mod.ratio = ratio
+            bpy.context.view_layer.objects.active = lod_obj
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+        lods.append(lod_obj)
+    
+    print(f"Generados {len(lods)} niveles LOD para {obj.name}")
+    return lods
 
 def export_batch(directory, formats=None, selection_only=False):
-    """
-    Exportar a múltiples formatos.
-    
-    Args:
-        directory: Directorio de salida
-        formats: Lista de formatos (default: todos)
-        selection_only: Exportar solo selección
-    """
+    """Exportar a múltiples formatos."""
     if bpy is None:
         return {"error": "bpy not available"}
     
@@ -30,9 +56,7 @@ def export_batch(directory, formats=None, selection_only=False):
         formats = ["FBX", "GLB", "OBJ", "STL"]
     
     os.makedirs(directory, exist_ok=True)
-    
     results = {}
-    
     format_map = {
         "FBX": (".fbx", export_for_game_engine),
         "GLB": (".glb", export_for_web),
@@ -49,20 +73,8 @@ def export_batch(directory, formats=None, selection_only=False):
     
     return results
 
-
-# ═══════════════════════════════════════════════════════════════
-# EXPORT FOR GAME ENGINES
-# ═══════════════════════════════════════════════════════════════
-
 def export_for_game_engine(filepath, engine="unity", selection_only=False):
-    """
-    Exportar optimizado para game engines.
-    
-    Args:
-        filepath: Ruta de salida
-        engine: 'unity', 'unreal', 'godot'
-        selection_only: Solo selección
-    """
+    """Exportar optimizado para game engines."""
     if bpy is None:
         return {"error": "bpy not available"}
     
@@ -78,20 +90,14 @@ def export_for_game_engine(filepath, engine="unity", selection_only=False):
             )
         
         size = os.path.getsize(filepath)
-        print(f"Exported for {engine}: {filepath} ({size/1024:.1f} KB)")
+        kb_size = round(size / 1024.0, 1)
+        print(f"Exported for {engine}: {filepath} ({kb_size} KB)")
         return {"success": True, "filepath": filepath, "size": size}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ═══════════════════════════════════════════════════════════════
-# EXPORT FOR WEB
-# ═══════════════════════════════════════════════════════════════
-
 def export_for_web(filepath, selection_only=False):
-    """
-    Exportar para web/AR/VR.
-    """
+    """Exportar para web/AR/VR."""
     if bpy is None:
         return {"error": "bpy not available"}
     
@@ -102,90 +108,61 @@ def export_for_web(filepath, selection_only=False):
             use_selection=selection_only
         )
         size = os.path.getsize(filepath)
-        print(f"Exported for web: {filepath} ({size/1024:.1f} KB)")
+        kb_size = round(size / 1024.0, 1)
+        print(f"Exported for web: {filepath} ({kb_size} KB)")
         return {"success": True, "filepath": filepath, "size": size}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ═══════════════════════════════════════════════════════════════
-# EXPORT FOR PRINT
-# ═══════════════════════════════════════════════════════════════
-
-def export_for_print(filepath, format="STL", selection_only=False):
-    """
-    Exportar para impresión 3D.
-    """
+def export_for_print(filepath, fmt="STL", selection_only=False):
+    """Exportar para impresion 3D."""
     if bpy is None:
         return {"error": "bpy not available"}
     
     try:
-        if format == "STL":
+        if fmt == "STL":
             bpy.ops.export_mesh.stl(filepath=filepath, use_selection=selection_only)
-        elif format == "OBJ":
+        elif fmt == "OBJ":
             bpy.ops.export_scene.obj(filepath=filepath, use_selection=selection_only)
         
         size = os.path.getsize(filepath)
-        print(f"Exported for print ({format}): {filepath} ({size/1024:.1f} KB)")
+        kb_size = round(size / 1024.0, 1)
+        print(f"Exported for print ({fmt}): {filepath} ({kb_size} KB)")
         return {"success": True, "filepath": filepath, "size": size}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ═══════════════════════════════════════════════════════════════
-# EXPORT FOR FILM
-# ═══════════════════════════════════════════════════════════════
-
-def export_for_film(filepath, format="ALEMBIC", selection_only=False):
-    """
-    Exportar para película/VFX.
-    """
+def export_for_film(filepath, fmt="ALEMBIC", selection_only=False):
+    """Exportar para pelicula/VFX."""
     if bpy is None:
         return {"error": "bpy not available"}
     
     try:
-        if format == "ALEMBIC":
+        if fmt == "ALEMBIC":
             bpy.ops.export_scene.alembic(filepath=filepath, use_selection=selection_only)
-        elif format == "FBX":
+        elif fmt == "FBX":
             bpy.ops.export_scene.fbx(filepath=filepath, use_selection=selection_only)
         
         size = os.path.getsize(filepath)
-        print(f"Exported for film ({format}): {filepath} ({size/1024:.1f} KB)")
+        kb_size = round(size / 1024.0, 1)
+        print(f"Exported for film ({fmt}): {filepath} ({kb_size} KB)")
         return {"success": True, "filepath": filepath, "size": size}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
-# ═══════════════════════════════════════════════════════════════
-# LOD GENERATOR
-# ═══════════════════════════════════════════════════════════════
-
 def lod_generator(obj, levels=3):
-    """
-    Generar niveles de detalle (LOD).
-    
-    Args:
-        obj: Objeto original
-        levels: Número de niveles
-    
-    Returns:
-        Lista de objetos LOD creados
-    """
+    """Generar niveles de detalle (LOD)."""
     if bpy is None or obj is None:
         return []
     
     created_lods = []
-    
     for i in range(1, levels + 1):
         ratio = 1.0 - (i * 0.25)
-        
-        # Duplicar objeto
         new_obj = obj.copy()
         new_obj.data = obj.data.copy()
         new_obj.name = f"{obj.name}_LOD{i}"
         bpy.context.collection.objects.link(new_obj)
         
-        # Agregar decimate
         mod = new_obj.modifiers.new("Decimate", 'DECIMATE')
         mod.ratio = ratio
         
@@ -194,18 +171,12 @@ def lod_generator(obj, levels=3):
             "ratio": ratio,
             "object": new_obj,
         })
-        
         print(f"LOD created: {new_obj.name} (ratio: {ratio})")
     
     return created_lods
 
-
-# ═══════════════════════════════════════════════════════════════
-# UTILIDADES
-# ═══════════════════════════════════════════════════════════════
-
 def list_export_targets():
-    """Listar targets de exportación"""
+    """Listar targets de exportacion"""
     return {
         "unity": "Unity (FBX)",
         "unreal": "Unreal Engine (FBX)",

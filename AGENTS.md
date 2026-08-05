@@ -10,6 +10,9 @@ Este archivo define las leyes globales para cualquier agente IA operando blender
 4. **CONECTAR PIEZAS**: Usa `snap_and_parent()` para unir piezas correctamente.
 5. **NO BORRAR TODO**: Si algo está mal, CORRIGE solo eso, no borres todo.
 6. **MEDIR DISTANCIAS**: Usa `get_bbox()` para verificar tamaños y posiciones.
+7. **NO ENTREGAR PRIMITIVAS PURAS**: Todo objeto debe incluir biselado (`apply_professional_finish` / Bevel), sombreado suave (*Shade Auto Smooth*) y volumen 3D real.
+8. **USAR MATERIALES PBR REALES**: Asignar siempre materiales procedurales PBR (`create_pbr_wood`, `create_pbr_fabric`, etc.) con mapas de relieve (*Bump/Normal*).
+9. **AUTO-DESEMPAQUETADO UV**: Todo objeto generado con `bmesh` debe desdoblarse automáticamente (*Smart UV Unwrapping*).
 
 ## 🔄 Workflow Obligatorio (para cualquier objeto)
 
