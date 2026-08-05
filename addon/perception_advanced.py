@@ -381,3 +381,118 @@ def anomaly_detector(scene=None):
     
     print(f"Detected {len(anomalies)} anomalies")
     return anomalies
+
+
+# ═══════════════════════════════════════════════════════════════
+# DISTANCE CALCULATOR
+# ═══════════════════════════════════════════════════════════════
+
+def distance_calculator(obj1_name, obj2_name):
+    """
+    Calcular distancia entre dos objetos.
+    
+    Args:
+        obj1_name: Nombre del primer objeto
+        obj2_name: Nombre del segundo objeto
+    
+    Returns:
+        Distancia en metros
+    """
+    if bpy is None:
+        return None
+    
+    obj1 = bpy.data.objects.get(obj1_name)
+    obj2 = bpy.data.objects.get(obj2_name)
+    
+    if not obj1 or not obj2:
+        return None
+    
+    # Calcular centros
+    bb1 = [obj1.matrix_world @ Vector(c) for c in obj1.bound_box]
+    bb2 = [obj2.matrix_world @ Vector(c) for c in obj2.bound_box]
+    
+    center1 = Vector((sum(p[i] for p in bb1) / len(bb1) for i in range(3)))
+    center2 = Vector((sum(p[i] for p in bb2) / len(bb2) for i in range(3)))
+    
+    distance = (center1 - center2).length
+    
+    return {
+        "object1": obj1_name,
+        "object2": obj2_name,
+        "distance": distance,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# VOLUME CALCULATOR
+# ═══════════════════════════════════════════════════════════════
+
+def volume_calculator(obj_name):
+    """
+    Calcular volumen de un objeto.
+    
+    Args:
+        obj_name: Nombre del objeto
+    
+    Returns:
+        Volumen en metros cúbicos
+    """
+    if bpy is None:
+        return None
+    
+    obj = bpy.data.objects.get(obj_name)
+    if not obj or obj.type != 'MESH':
+        return None
+    
+    # Calcular bounding box
+    bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+    mins = Vector((min(p[i] for p in bbox) for i in range(3)))
+    maxs = Vector((max(p[i] for p in bbox) for i in range(3)))
+    
+    # Volumen aproximado
+    volume = (maxs[0] - mins[0]) * (maxs[1] - mins[1]) * (maxs[2] - mins[2])
+    
+    return {
+        "object": obj_name,
+        "volume": volume,
+        "dimensions": {
+            "width": maxs[0] - mins[0],
+            "depth": maxs[1] - mins[1],
+            "height": maxs[2] - mins[2],
+        }
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# BBOX ANALYZER
+# ═══════════════════════════════════════════════════════════════
+
+def bbox_analyzer(scene=None):
+    """
+    Analizar bounding boxes de todos los objetos.
+    """
+    if bpy is None:
+        return []
+    
+    if scene is None:
+        scene = bpy.context.scene
+    
+    results = []
+    
+    for obj in scene.objects:
+        if obj.type == 'MESH':
+            bbox = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+            mins = Vector((min(p[i] for p in bbox) for i in range(3)))
+            maxs = Vector((max(p[i] for p in bbox) for i in range(3)))
+            center = (mins + maxs) / 2
+            size = maxs - mins
+            
+            results.append({
+                "name": obj.name,
+                "center": tuple(center),
+                "size": tuple(size),
+                "volume": size[0] * size[1] * size[2],
+            })
+    
+    print(f"Analyzed {len(results)} bounding boxes")
+    return results
