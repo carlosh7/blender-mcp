@@ -503,3 +503,115 @@ def create_ai_texture(description, style="realistic"):
     
     print(f"AI texture created: {description}")
     return mat
+
+
+# ═══════════════════════════════════════════════════════════════
+# BATCH DOWNLOAD
+# ═══════════════════════════════════════════════════════════════
+
+def batch_download_assets(asset_list, save_dir="/tmp/assets"):
+    """
+    Descargar múltiples assets.
+    
+    Args:
+        asset_list: Lista de dicts [{id, source, type}, ...]
+        save_dir: Directorio de guardado
+    
+    Returns:
+        Lista de assets importados
+    """
+    imported = []
+    
+    for asset in asset_list:
+        asset_id = asset.get("id")
+        source = asset.get("source", "polyhaven")
+        
+        if source == "polyhaven":
+            filepath = download_polyhaven_asset(asset_id, save_dir=save_dir)
+        elif source == "ambientcg":
+            filepath = download_ambientcg_asset(asset_id, save_dir=save_dir)
+        else:
+            filepath = None
+        
+        if filepath:
+            imported.append({
+                "id": asset_id,
+                "source": source,
+                "filepath": filepath,
+            })
+    
+    print(f"Batch import: {len(imported)} assets imported")
+    return imported
+
+
+# ═══════════════════════════════════════════════════════════════
+# GET ASSET CATEGORIES
+# ═══════════════════════════════════════════════════════════════
+
+def get_asset_categories():
+    """Obtener categorías de assets disponibles"""
+    return {
+        "polyhaven": {
+            "hdris": "HDRIs para iluminación",
+            "textures": "Texturas PBR",
+            "models": "Modelos 3D",
+        },
+        "ambientcg": {
+            "materials": "Materiales PBR",
+            "hdris": "HDRIs",
+            "models": "Modelos 3D",
+        },
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# COMPARE ASSETS
+# ═══════════════════════════════════════════════════════════════
+
+def compare_assets(asset1_info, asset2_info):
+    """
+    Comparar dos assets.
+    
+    Args:
+        asset1_info: Info del primer asset
+        asset2_info: Info del segundo asset
+    
+    Returns:
+        dict con comparación
+    """
+    differences = []
+    
+    # Comparar dimensiones
+    if "size" in asset1_info and "size" in asset2_info:
+        size1 = asset1_info["size"]
+        size2 = asset2_info["size"]
+        if size1 != size2:
+            differences.append(f"Size: {size1} vs {size2}")
+    
+    # Comparar tipo
+    if "type" in asset1_info and "type" in asset2_info:
+        if asset1_info["type"] != asset2_info["type"]:
+            differences.append(f"Type: {asset1_info['type']} vs {asset2_info['type']}")
+    
+    return {
+        "similar": len(differences) == 0,
+        "differences": differences,
+        "similarity_score": max(0, 100 - len(differences) * 20),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# UTILIDADES
+# ═══════════════════════════════════════════════════════════════
+
+def list_ai_features():
+    """Listar features de IA disponibles"""
+    return {
+        "text_to_3d": "Crear modelo desde descripción",
+        "photo_to_3d": "Crear modelo desde imagen",
+        "search_polyhaven": "Buscar en PolyHaven",
+        "search_ambientcg": "Buscar en AmbientCG",
+        "import_asset": "Importar asset 3D",
+        "create_ai_texture": "Generar textura con IA",
+        "batch_download": "Descargar múltiples assets",
+    }
