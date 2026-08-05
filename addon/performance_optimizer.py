@@ -261,3 +261,107 @@ def fps_counter():
         return {"fps": fps, "status": "estimated"}
     except:
         return {"fps": 0, "status": "error"}
+
+
+# ═══════════════════════════════════════════════════════════════
+# SCENE COMPLEXITY
+# ═══════════════════════════════════════════════════════════════
+
+def scene_complexity():
+    """
+    Analizar complejidad de la escena.
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    stats = get_performance_stats()
+    
+    # Calcular score de complejidad
+    score = 0
+    score += min(stats["objects"] * 1, 50)  # Máximo 50 por objetos
+    score += min(stats["total_vertices"] / 10000, 30)  # Máximo 30 por vértices
+    score += min(stats["total_faces"] / 5000, 20)  # Máximo 20 por caras
+    
+    # Clasificar
+    if score < 30:
+        level = "BASIC"
+    elif score < 60:
+        level = "MEDIUM"
+    elif score < 80:
+        level = "COMPLEX"
+    else:
+        level = "VERY_COMPLEX"
+    
+    return {
+        "score": score,
+        "level": level,
+        "stats": stats,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# OPTIMIZE MATERIALS
+# ═══════════════════════════════════════════════════════════════
+
+def optimize_materials():
+    """
+    Optimizar materiales (eliminar duplicados).
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    # Encontrar materiales duplicados
+    material_names = {}
+    duplicates = []
+    
+    for mat in bpy.data.materials:
+        if mat.name in material_names:
+            duplicates.append(mat.name)
+        else:
+            material_names[mat.name] = mat
+    
+    # Eliminar duplicados
+    removed = 0
+    for mat_name in duplicates:
+        mat = bpy.data.materials.get(mat_name)
+        if mat and mat.users == 0:
+            bpy.data.materials.remove(mat)
+            removed += 1
+    
+    print(f"Materials optimized: {removed} duplicates removed")
+    return {"removed": removed}
+
+
+# ═══════════════════════════════════════════════════════════════
+# CLEANUP UNUSED
+# ═══════════════════════════════════════════════════════════════
+
+def cleanup_unused():
+    """
+    Limpiar datos no utilizados.
+    """
+    if bpy is None:
+        return {"error": "bpy not available"}
+    
+    cleaned = {"materials": 0, "meshes": 0, "images": 0}
+    
+    # Eliminar materiales sin usar
+    for mat in bpy.data.materials:
+        if mat.users == 0:
+            bpy.data.materials.remove(mat)
+            cleaned["materials"] += 1
+    
+    # Eliminar meshes sin usar
+    for mesh in bpy.data.meshes:
+        if mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+            cleaned["meshes"] += 1
+    
+    # Eliminar imágenes sin usar
+    for img in bpy.data.images:
+        if img.users == 0:
+            bpy.data.images.remove(img)
+            cleaned["images"] += 1
+    
+    print(f"Cleanup: {sum(cleaned.values())} items removed")
+    return cleaned
