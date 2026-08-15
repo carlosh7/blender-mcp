@@ -352,7 +352,7 @@ def create_builtin_asset(asset_type, position=(0, 0, 0)):
     if asset_type not in BUILTIN_ASSETS:
         return {"error": f"Asset predefinido no encontrado: {asset_type}"}
     
-    from . import creation_rules
+    import creation_rules
     
     config = BUILTIN_ASSETS[asset_type]
     

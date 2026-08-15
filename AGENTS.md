@@ -14,6 +14,55 @@ Este archivo define las leyes globales para cualquier agente IA operando blender
 8. **USAR MATERIALES PBR REALES**: Asignar siempre materiales procedurales PBR (`create_pbr_wood`, `create_pbr_fabric`, etc.) con mapas de relieve (*Bump/Normal*).
 9. **AUTO-DESEMPAQUETADO UV**: Todo objeto generado con `bmesh` debe desdoblarse automáticamente (*Smart UV Unwrapping*).
 
+## 🚫 REGLA ABSOLUTA: NO BLOCKOUT / NO BLOCKING
+
+### Definición
+**BLOCKOUT/BLOCKING** = Cualquier objeto que sea solo una primitiva básica (cubo, esfera, cilindro) sin detalles, sin materiales reales, sin biselado, sin formas orgánicas. Es un PLACEHOLDER, no un objeto final.
+
+### Qué SÍ es blockout (PROHIBIDO):
+- Cubo sin biselado que representa una silla
+- Esfera que representa una cabeza
+- Cilindro que representa una pierna
+- Cubo escalado que representa una mesa
+- Cualquier primitiva sin Details+Materials+Finish
+
+### Qué SÍ es aceptable (REQUERIDO):
+- Silla con patas, asiento, respaldo, biselado, madera PBR
+- Cabeza con forma orgánica, ojos, nariz, boca, piel PBR
+- Pierna con muslo, rodilla, pantorrilla, pie, biselado
+- Mesa con tablero, patas, bisagras, madera PBR
+
+### Flujo obligatorio al crear CUALQUIER objeto:
+```
+1. ANTES de crear:
+   - ¿Qué forma REAL tiene este objeto?
+   - ¿Qué detalles tiene (biselados, curvas, texturas)?
+   - ¿Qué material PBR lleva?
+
+2. DURANTE la creación:
+   - USAR bmesh para formas complejas
+   - AGREGAR biselado a TODOS los bordes
+   - ASIGNAR material PBR real
+   - APLICAR Smart UV Unwrap
+
+3. DESPUÉS de crear:
+   - ¿Tiene biselado? → Si NO, agregarlo
+   - ¿Tiene material PBR? → Si NO, asignarlo
+   - ¿Tiene sombreado suave? → Si NO, aplicarlo
+   - ¿Se ve como el objeto real? → Si NO, mejorar detalles
+```
+
+### Validación anti-blockout:
+```python
+def is_blockout(obj):
+    """Detectar si un objeto es blockout (prohibido)."""
+    # Sin biselado = blockout
+    # Solo 1 material simple = blockout
+    # Primitiva básica sin modificar = blockout
+    # Sin sombreado suave = blockout
+    # Menos de 10 vértices para objetos complejos = blockout
+```
+
 ## 🔄 Workflow Obligatorio (para cualquier objeto)
 
 ### ANTES de crear:

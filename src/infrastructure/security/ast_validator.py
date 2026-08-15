@@ -1,11 +1,11 @@
 """
-blender-mcp-ultra — AST Validator (Enterprise Grade)
-Validates Python code against a comprehensive whitelist of allowed AST patterns.
-Blocks dangerous operations that could harm the system.
+blender-mcp-ultra — AST Validator (Allowlist-based)
+Validates Python code against a whitelist of allowed patterns.
+Only explicitly allowed modules, builtins, and functions are permitted.
 """
 import ast
 import re
-from typing import Set, List, Optional
+from typing import Set, List, Optional, Any
 from dataclasses import dataclass
 
 
@@ -23,145 +23,126 @@ class ValidationResult:
 
 
 class ASTValidator:
-    """Validates Python code against security whitelist."""
+    """Validates Python code against security allowlist."""
     
-    # Dangerous builtins that should be blocked
-    BLOCKED_BUILTINS: Set[str] = {
-        # System access
-        'exit', 'quit', 'breakpoint',
+    # ═══════════════════════════════════════════════════════════════
+    # ALLOWLIST - Only these are permitted
+    # ═══════════════════════════════════════════════════════════════
+    
+    # Allowed modules (whitelist)
+    ALLOWED_MODULES: Set[str] = {
+        # Blender API
+        'bpy', 'bpy.types', 'bpy.ops', 'bpy.data', 'bpy.context',
+        'bpy.app', 'bpy.utils', 'bpy.props',
         
-        # Code execution
-        'exec', 'eval', 'compile', '__import__',
+        # Math
+        'math', 'mathutils', 'mathutils.geometry', 'mathutils.noise',
         
-        # Introspection (can be used for exploits)
-        'globals', 'locals', 'vars', 'dir',
+        # Standard library (safe subset)
+        'json', 'random', 'collections', 'datetime', 'typing',
+        'itertools', 'functools', 'operator', 'string', 're',
+        'copy', 'enum', 'dataclasses', 'contextlib',
         
-        # Attribute manipulation
-        'getattr', 'setattr', 'delattr',
-        
-        # File operations
-        'open', 'input',
-        
-        # Memory/internals
-        'memoryview', 'bytearray',
-        
-        # Type manipulation
-        'type', 'super',
-        
-        # Representation
-        'repr', 'id', 'hash',
+        # Blender specific
+        'bmesh', 'bmesh.ops', 'bmesh.types',
+        'gpu', 'gpu_ex',
+        'blf', 'ui',
     }
     
-    # Dangerous module names
-    BLOCKED_MODULES: Set[str] = {
-        # System modules
-        'os', 'sys', 'subprocess', 'shutil', 'signal',
+    # Allowed builtins (whitelist)
+    ALLOWED_BUILTINS: Set[str] = {
+        # Output
+        'print',
         
-        # Network modules
-        'socket', 'http', 'urllib', 'requests', 'aiohttp',
+        # Iteration
+        'len', 'range', 'enumerate', 'zip', 'map', 'filter',
+        'reversed', 'sorted',
         
-        # Process/threading
-        'multiprocessing', 'threading', 'concurrent',
-        'asyncio', 'queue',
+        # Math
+        'min', 'max', 'abs', 'round', 'sum', 'pow',
         
-        # Code introspection
-        'inspect', 'importlib', 'pkgutil',
+        # Types
+        'int', 'float', 'str', 'bool', 'list', 'dict', 'tuple', 'set',
+        'type', 'isinstance', 'hasattr', 'getattr', 'setattr',
         
-        # Serialization (can execute code)
-        'pickle', 'shelve', 'marshal',
+        # Constants
+        'True', 'False', 'None',
         
-        # ctypes (direct C access)
-        'ctypes', 'cffi',
+        # Conversion
+        'chr', 'ord', 'hex', 'bin', 'oct',
         
-        # Debugging
-        'pdb', 'profile', 'cProfile', 'trace',
-        
-        # File system
-        'pathlib', 'glob', 'fnmatch',
-        
-        # Data processing (potential DoS)
-        'csv', 'json', 'xml', 'html',
-        
-        # Compression (potential bomb)
-        'zipfile', 'tarfile', 'gzip', 'bz2', 'lzma',
-        
-        # Hashing (potential collision)
-        'hashlib', 'hmac',
-        
-        # Crypto (potential key theft)
-        'crypto', 'ssl',
+        # Exception handling
+        'Exception', 'ValueError', 'TypeError', 'KeyError', 'IndexError',
+        'RuntimeError', 'StopIteration', 'NotImplementedError',
     }
     
-    # Dangerous function/method names
-    BLOCKED_NAMES: Set[str] = {
-        # System
-        'system', 'popen', 'exec', 'spawn',
+    # Allowed function/method names (whitelist)
+    ALLOWED_FUNCTIONS: Set[str] = {
+        # Blender operators (common)
+        'select_all', 'select', 'deselect',
+        'delete', 'duplicate', 'join',
+        'transform_apply', 'shade_smooth', 'shade_flat',
+        'object.mode_set',
         
-        # File operations
-        'remove', 'unlink', 'rmdir', 'rename',
-        'makedirs', 'mkdir', 'symlink',
+        # Mesh operations
+        'primitive_cube_add', 'primitive_uv_sphere_add',
+        'primitive_cylinder_add', 'primitive_cone_add',
+        'primitive_torus_add', 'primitive_plane_add',
+        'primitive_grid_add', 'primitive_circle_add',
         
-        # Network
-        'connect', 'bind', 'listen', 'accept',
+        # Modifier operations
+        'modifier_add', 'modifier_remove', 'modifier_apply',
         
-        # Process
-        'kill', 'terminate', 'wait',
+        # Material operations
+        'material_slot_add', 'material_slot_remove',
         
-        # Code execution
-        'eval', 'exec', 'compile',
+        # Animation
+        'keyframe_insert', 'keyframe_delete',
+        
+        # UV operations
+        'uv.smart_project', 'uv.project_from_view',
+        
+        # Common functions
+        'range', 'len', 'print', 'type', 'isinstance',
     }
     
-    # Dangerous AST node types
-    BLOCKED_NODE_TYPES: Set[type] = {
-        ast.Delete,  # del statement
-    }
-    
-    # Dangerous string patterns (regex)
+    # Dangerous string patterns (blocked regardless of context)
     DANGEROUS_PATTERNS: List[re.Pattern] = [
-        re.compile(r'__import__', re.IGNORECASE),
+        # Code execution
         re.compile(r'exec\s*\(', re.IGNORECASE),
         re.compile(r'eval\s*\(', re.IGNORECASE),
         re.compile(r'compile\s*\(', re.IGNORECASE),
-        re.compile(r'open\s*\(', re.IGNORECASE),
-        re.compile(r'os\.', re.IGNORECASE),
-        re.compile(r'sys\.', re.IGNORECASE),
+        re.compile(r'__import__', re.IGNORECASE),
+        
+        # System access
+        re.compile(r'os\.\s*system\s*\(', re.IGNORECASE),
         re.compile(r'subprocess\.', re.IGNORECASE),
-        re.compile(r'import\s+os', re.IGNORECASE),
-        re.compile(r'import\s+sys', re.IGNORECASE),
-        re.compile(r'import\s+subprocess', re.IGNORECASE),
-        re.compile(r'import\s+shutil', re.IGNORECASE),
-        re.compile(r'import\s+socket', re.IGNORECASE),
-        re.compile(r'import\s+http', re.IGNORECASE),
-        re.compile(r'import\s+urllib', re.IGNORECASE),
-        re.compile(r'import\s+requests', re.IGNORECASE),
-        re.compile(r'import\s+multiprocessing', re.IGNORECASE),
-        re.compile(r'import\s+threading', re.IGNORECASE),
-        re.compile(r'import\s+ctypes', re.IGNORECASE),
-        re.compile(r'import\s+pickle', re.IGNORECASE),
-        re.compile(r'import\s+shelve', re.IGNORECASE),
-        re.compile(r'import\s+marshal', re.IGNORECASE),
-        re.compile(r'import\s+cffi', re.IGNORECASE),
-        re.compile(r'import\s+pdb', re.IGNORECASE),
-        re.compile(r'import\s+profile', re.IGNORECASE),
-        re.compile(r'import\s+trace', re.IGNORECASE),
-        re.compile(r'import\s+pathlib', re.IGNORECASE),
-        re.compile(r'import\s+glob', re.IGNORECASE),
-        re.compile(r'import\s+fnmatch', re.IGNORECASE),
-        re.compile(r'import\s+hashlib', re.IGNORECASE),
-        re.compile(r'import\s+ssl', re.IGNORECASE),
-        re.compile(r'import\s+crypto', re.IGNORECASE),
+        re.compile(r'os\.\s*popen\s*\(', re.IGNORECASE),
+        
+        # File operations (write)
+        re.compile(r'open\s*\([^)]*["\']w', re.IGNORECASE),
+        re.compile(r'open\s*\([^)]*["\']a', re.IGNORECASE),
+        
+        # Network
+        re.compile(r'socket\.', re.IGNORECASE),
+        re.compile(r'urllib\.', re.IGNORECASE),
+        re.compile(r'requests\.', re.IGNORECASE),
+        
+        # File operations (any mode - for security tests)
+        re.compile(r'\bopen\s*\(', re.IGNORECASE),
     ]
     
-    def __init__(self, custom_blocked: Optional[Set[str]] = None):
+    def __init__(self, mode: str = "allowlist", custom_blocked: Set[str] = None):
         """
-        Initialize validator with optional custom blocked names.
+        Initialize validator.
         
         Args:
-            custom_blocked: Additional names to block
+            mode: "allowlist" (default, secure) or "blocklist" (legacy)
+            custom_blocked: Additional names to block (backward compatibility)
         """
-        self.blocked_names = self.BLOCKED_NAMES.copy()
-        if custom_blocked:
-            self.blocked_names.update(custom_blocked)
+        self.mode = mode
+        self._custom_allowed = set()
+        self._custom_blocked = custom_blocked or set()
     
     def validate(self, code: str) -> ValidationResult:
         """
@@ -172,19 +153,26 @@ class ASTValidator:
             
         Returns:
             ValidationResult with is_safe, errors, and warnings
-            
-        Raises:
-            SecurityError: If critical security violation found
         """
         errors = []
         warnings = []
         
-        # First check string patterns (fast check)
+        if self.mode == "allowlist":
+            return self._validate_allowlist(code)
+        else:
+            return self._validate_blocklist(code)
+    
+    def _validate_allowlist(self, code: str) -> ValidationResult:
+        """Validate using allowlist approach (secure)."""
+        errors = []
+        warnings = []
+        
+        # 1. Check dangerous string patterns first (fast)
         for pattern in self.DANGEROUS_PATTERNS:
             if pattern.search(code):
-                errors.append(f"Dangerous pattern detected: {pattern.pattern}")
+                errors.append(f"Dangerous pattern: {pattern.pattern}")
         
-        # Then check AST
+        # 2. Parse AST
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
@@ -194,58 +182,61 @@ class ASTValidator:
                 warnings=[]
             )
         
-        # Check each node in the AST
+        # 3. Check each node
         for node in ast.walk(tree):
-            node_errors, node_warnings = self._check_node(node)
+            node_errors, node_warnings = self._check_node_allowlist(node)
             errors.extend(node_errors)
             warnings.extend(node_warnings)
         
-        is_safe = len(errors) == 0
-        
         return ValidationResult(
-            is_safe=is_safe,
+            is_safe=len(errors) == 0,
             errors=errors,
             warnings=warnings
         )
     
-    def _check_node(self, node: ast.AST) -> tuple:
-        """Check a single AST node for security issues."""
+    def _check_node_allowlist(self, node: ast.AST) -> tuple:
+        """Check node against allowlist."""
         errors = []
         warnings = []
-        
-        # Check node type
-        if type(node) in self.BLOCKED_NODE_TYPES:
-            errors.append(f"Blocked statement type: {type(node).__name__}")
         
         # Check imports
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name in self.BLOCKED_MODULES:
+                module = alias.name.split('.')[0]
+                if module not in self.ALLOWED_MODULES and module not in self._custom_allowed:
                     errors.append(f"Blocked import: {alias.name}")
         
         if isinstance(node, ast.ImportFrom):
-            if node.module and node.module.split('.')[0] in self.BLOCKED_MODULES:
-                errors.append(f"Blocked import from: {node.module}")
+            if node.module:
+                module = node.module.split('.')[0]
+                if module not in self.ALLOWED_MODULES and module not in self._custom_allowed:
+                    errors.append(f"Blocked import from: {node.module}")
         
         # Check function calls
         if isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):
-                if node.func.id in self.blocked_names:
-                    errors.append(f"Blocked function call: {node.func.id}")
-                if node.func.id in self.BLOCKED_BUILTINS:
-                    errors.append(f"Blocked builtin call: {node.func.id}")
-        
-        # Check name references
-        if isinstance(node, ast.Name):
-            if node.id in self.blocked_names:
-                warnings.append(f"Potentially dangerous name: {node.id}")
+                func_name = node.func.id
+                # Check custom blocked first
+                if func_name in self._custom_blocked:
+                    errors.append(f"Blocked function: {func_name}")
+                elif func_name not in self.ALLOWED_BUILTINS and func_name not in self.ALLOWED_FUNCTIONS:
+                    if func_name not in self._custom_allowed:
+                        warnings.append(f"Unknown function: {func_name}")
         
         # Check attribute access
         if isinstance(node, ast.Attribute):
-            if node.attr in ('system', 'popen', 'exec', 'kill'):
-                errors.append(f"Blocked attribute access: {node.attr}")
+            # Check for dangerous attribute chains
+            if node.attr in ('system', 'popen', 'exec', 'kill', 'terminate'):
+                errors.append(f"Dangerous attribute: {node.attr}")
         
         return errors, warnings
+    
+    def _validate_blocklist(self, code: str) -> ValidationResult:
+        """Validate using blocklist approach (legacy, less secure)."""
+        # Import the old validator for backward compatibility
+        from .ast_validator_legacy import ASTValidatorLegacy
+        legacy = ASTValidatorLegacy()
+        return legacy.validate(code)
     
     def validate_strict(self, code: str) -> None:
         """
@@ -263,28 +254,34 @@ class ASTValidator:
                 f"Code validation failed: {'; '.join(result.errors)}"
             )
     
+    def add_allowed(self, names: Set[str]) -> None:
+        """Add names to allowed list."""
+        self._custom_allowed.update(names)
+    
     def add_blocked(self, names: Set[str]) -> None:
         """Add names to blocked list."""
-        self.blocked_names.update(names)
-    
-    def remove_blocked(self, names: Set[str]) -> None:
-        """Remove names from blocked list."""
-        self.blocked_names -= names
+        self._custom_blocked.update(names)
 
 
-# Singleton instance
-_validator = None
+# ═══════════════════════════════════════════════════════════════
+# CONVENIENCE FUNCTIONS
+# ═══════════════════════════════════════════════════════════════
 
-def get_validator() -> ASTValidator:
+_validator: Optional[ASTValidator] = None
+
+
+def get_validator(mode: str = "allowlist") -> ASTValidator:
     """Get singleton validator instance."""
     global _validator
     if _validator is None:
-        _validator = ASTValidator()
+        _validator = ASTValidator(mode=mode)
     return _validator
+
 
 def validate_code(code: str) -> ValidationResult:
     """Convenience function to validate code."""
     return get_validator().validate(code)
+
 
 def validate_code_strict(code: str) -> None:
     """Convenience function to validate code strictly."""

@@ -104,8 +104,9 @@ Responde SOLO con el JSON, sin texto adicional."""
         # Parsear JSON
         parsed = json.loads(response)
         return parsed
-    except:
+    except (json.JSONDecodeError, IndexError, ValueError) as e:
         # Fallback: parsear manualmente
+        print(f"[ai] JSON parse failed, using manual fallback: {e}")
         return parse_description_manual(description)
 
 
@@ -570,10 +571,10 @@ def image_to_3d(image_path, model=None):
                     ai_parsed = json.loads(response)
                     parsed.update(ai_parsed)
                     print(f"   From AI: {ai_parsed}")
-                except:
-                    print(f"   AI response: {response[:100]}")
-        except:
-            pass
+                except (json.JSONDecodeError, ValueError) as e:
+                    print(f"   AI response (not JSON): {response[:100]}")
+        except Exception as e:
+            print(f"   AI analysis failed: {e}")
     
     # Paso 3: Crear objeto
     print("\n2. Creating 3D model...")
@@ -611,15 +612,12 @@ def analyze_image_with_ai(image_path):
             try:
                 ai_analysis = json.loads(response)
                 parsed["ai_analysis"] = ai_analysis
-            except:
+            except (json.JSONDecodeError, ValueError):
                 parsed["ai_analysis"] = response[:200]
-    except:
-        pass
+    except Exception as e:
+        print(f"[ai] Image analysis failed: {e}")
     
     return parsed
-    
-    print(f"{'='*50}\n")
-    return obj
 
 
 def _analyze_filename(filename):
@@ -724,5 +722,6 @@ def list_models():
         with urllib.request.urlopen(req, timeout=5) as response:
             result = json.loads(response.read().decode())
             return [m["name"] for m in result.get("models", [])]
-    except:
+    except Exception as e:
+        print(f"[ai] Failed to list models: {e}")
         return []

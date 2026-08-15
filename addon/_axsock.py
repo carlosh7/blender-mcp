@@ -1,5 +1,6 @@
 # blender-mcp — Socket server for Blender (ahujasid-compatible)
 # Runs inside Blender, listens on port 9876 for JSON commands via TCP socket.
+# Thread-safe: Uses ExecutionQueue for bpy operations.
 import bpy, json, socket, threading, time, io, traceback, importlib
 import sys, os
 from contextlib import redirect_stdout
@@ -29,21 +30,26 @@ class BlenderSocketServer:
         self.last_error = None
 
     def start(self):
+        """Start the socket server."""
         if self.running:
             return
         self.running = True
         try:
-            # Intentar cerrar cualquier socket previo si existe
+            # Close any existing socket
             if self.sock:
-                try: self.sock.close()
-                except: pass
+                try:
+                    self.sock.close()
+                except Exception:
+                    pass
             
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # SO_REUSEADDR + SO_REUSEPORT (si está disponible) para liberar el puerto rápido
+            # SO_REUSEADDR + SO_REUSEPORT for quick port release
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            except: pass
+            except (AttributeError, OSError):
+                # SO_REUSEPORT not available on all platforms
+                pass
             
             self.sock.bind((self.host, self.port))
             self.sock.listen(5)
@@ -61,50 +67,70 @@ class BlenderSocketServer:
             self.stop()
 
     def stop(self):
+        """Stop the socket server."""
         self.running = False
         self.listening = False
         if self.sock:
-            try: self.sock.close()
-            except: pass
+            try:
+                self.sock.close()
+            except Exception:
+                pass
             self.sock = None
 
     def _loop(self):
+        """Main server loop - accept connections."""
         while self.running:
             try:
                 client, addr = self.sock.accept()
                 threading.Thread(target=self._handle, args=(client,), daemon=True).start()
             except socket.timeout:
                 continue
-            except: pass
+            except Exception as e:
+                if self.running:  # Only log if not intentionally stopped
+                    print(f"[BLENDER SOCKET] Accept error: {e}")
 
     def _handle(self, client):
+        """Handle client connection with proper thread-safe execution."""
         buffer = b''
         try:
             while self.running:
-                data = client.recv(1024 * 1024) # Aumentar buffer para imágenes si es necesario
+                data = client.recv(1024 * 1024)
                 if not data:
                     break
                 buffer += data
                 try:
-                    # Intentar encontrar el final del JSON
+                    # Try to find complete JSON
                     raw_data = buffer.decode('utf-8')
                     cmd = json.loads(raw_data)
                     buffer = b''
                     
+                    # Execute via bpy.app.timers for thread safety
                     def execute():
                         try:
                             resp = self._execute(cmd)
                             client.sendall(json.dumps(resp).encode('utf-8'))
-                        except:
-                            client.sendall(json.dumps({"status": "error", "message": traceback.format_exc()}).encode('utf-8'))
+                        except Exception as e:
+                            try:
+                                client.sendall(json.dumps({
+                                    "status": "error", 
+                                    "message": f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+                                }).encode('utf-8'))
+                            except Exception:
+                                pass
                         return None
+                    
+                    # Register in main thread via timers
                     bpy.app.timers.register(execute, first_interval=0.0)
                 except json.JSONDecodeError:
+                    # Incomplete JSON, wait for more data
                     pass
-        except: pass
+        except Exception as e:
+            print(f"[BLENDER SOCKET] Client handler error: {e}")
         finally:
-            try: client.close()
-            except: pass
+            try:
+                client.close()
+            except Exception:
+                pass
 
     def _execute(self, cmd):
         cmd_type = cmd.get("type") or cmd.get("command")
@@ -263,7 +289,11 @@ class BlenderSocketServer:
     def cmd_validate_geometry(self):
         try:
             from . import spatial
-            return {"report": spatial.GeometryValidator.get_report()}
+            report = spatial.GeometryValidator.get_report()
+            # Ensure report is a string and not too large
+            if len(report) > 10000:
+                report = report[:10000] + "\n... (truncated)"
+            return {"report": report}
         except Exception as e:
             return {"error": str(e)}
 
@@ -285,6 +315,7 @@ class BlenderSocketServer:
         return code
 
     def cmd_execute_code(self, code=""):
+        """Execute Python code in Blender with safety measures."""
         code = self._strip_bad_code(code)
         win = bpy.context.window if bpy.context.window else (bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None)
         ns = {
@@ -305,7 +336,7 @@ class BlenderSocketServer:
         if not _is_batch:
             try:
                 bpy.ops.ed.undo_push(message="Axiom Precision Task")
-            except:
+            except Exception:
                 pass
         
         buf = io.StringIO()
@@ -317,18 +348,24 @@ class BlenderSocketServer:
                 exec(compiled, ns)
             except TimeoutError as e:
                 if not _is_batch:
-                    try: bpy.ops.ed.undo()
-                    except: pass
+                    try:
+                        bpy.ops.ed.undo()
+                    except Exception:
+                        pass
                 return {"output": f"❌ {e} (Escena revertida)"}
             except SyntaxError as e:
                 if not _is_batch:
-                    try: bpy.ops.ed.undo()
-                    except: pass
+                    try:
+                        bpy.ops.ed.undo()
+                    except Exception:
+                        pass
                 return {"output": f"❌ Axiom SyntaxError: {e} (Escena revertida)"}
             except Exception as e:
                 if not _is_batch:
-                    try: bpy.ops.ed.undo()
-                    except: pass
+                    try:
+                        bpy.ops.ed.undo()
+                    except Exception:
+                        pass
                 return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
             finally:
                 signal.alarm(0)
@@ -408,6 +445,7 @@ class BlenderSocketServer:
             return {"topic": topic, "error": str(e), "source": "error"}
 
     def cmd_diagnose(self):
+        """Diagnose socket and MCP connections."""
         import socket
         result = {"socket": False, "mcp": False}
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -415,17 +453,20 @@ class BlenderSocketServer:
         try:
             s.connect(('127.0.0.1', 9876))
             result["socket"] = True
-        except:
+        except (ConnectionRefusedError, OSError):
             pass
-        s.close()
+        finally:
+            s.close()
+        
         try:
             s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s2.settimeout(1)
             s2.connect(('127.0.0.1', 9879))
             result["mcp"] = True
             s2.close()
-        except:
+        except (ConnectionRefusedError, OSError):
             pass
+        
         return result
 
     def cmd_start_mcp(self):
@@ -637,7 +678,13 @@ class BlenderSocketServer:
             from .core import animation_engine
             obj = bpy.data.objects.get(obj_name)
             if not obj:
-                return {"status": "error", "message": f"Object not found: {obj_name}"}
+                # Try to find armature by type
+                for o in bpy.data.objects:
+                    if o.type == 'ARMATURE':
+                        obj = o
+                        break
+                if not obj:
+                    return {"status": "error", "message": f"Object not found: {obj_name}"}
             
             if anim_type == "walk":
                 animation_engine.create_walk_cycle(obj)
@@ -650,7 +697,7 @@ class BlenderSocketServer:
             elif anim_type == "spin":
                 animation_engine.create_spin_animation(obj)
             
-            return {"status": "success", "animation": anim_type}
+            return {"status": "success", "animation": anim_type, "object": obj.name}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
@@ -668,7 +715,18 @@ class BlenderSocketServer:
         try:
             from .perception import perception_system
             result = perception_system.analyze_scene()
-            return result
+            # Return minimal summary to avoid JSON serialization issues
+            scan = result.get("scan", {})
+            quality = result.get("quality", {})
+            decision = result.get("decision", {})
+            
+            return {
+                "status": "success",
+                "total_objects": len(scan.get("objects", [])),
+                "anomaly_count": len(scan.get("anomalies", [])),
+                "quality_score": quality.get("score", 0),
+                "recommended_action": decision.get("action", "none"),
+            }
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
@@ -689,6 +747,328 @@ class BlenderSocketServer:
             if obj:
                 return {"status": "success", "object": obj.name}
             return {"status": "error", "message": "Could not create object"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: Phase 1 - Stability
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_get_anchors(self, obj_name=""):
+        """Get 27 anchor points for an object."""
+        try:
+            from . import anchor_system
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            anchors = anchor_system.get_bbox_anchors(obj)
+            return {"status": "success", "anchors": {k: list(v) for k, v in anchors.items()}}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_snap_to_anchor(self, obj_move="", obj_target="", anchor_move="", anchor_target=""):
+        """Snap object to anchor point of another object."""
+        try:
+            from . import anchor_system
+            o_move = bpy.data.objects.get(obj_move)
+            o_target = bpy.data.objects.get(obj_target)
+            if not o_move or not o_target:
+                return {"status": "error", "message": "Object(s) not found"}
+            success = anchor_system.snap_to_anchor(o_move, o_target, anchor_move, anchor_target)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_snap_and_parent(self, obj_move="", obj_target="", anchor_move="", anchor_target=""):
+        """Snap and parent object to another."""
+        try:
+            from . import anchor_system
+            o_move = bpy.data.objects.get(obj_move)
+            o_target = bpy.data.objects.get(obj_target)
+            if not o_move or not o_target:
+                return {"status": "error", "message": "Object(s) not found"}
+            success = anchor_system.snap_and_parent(o_move, o_target, anchor_move, anchor_target)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_purge_orphans(self):
+        """Purge orphan data blocks from memory."""
+        try:
+            from . import orphan_purge
+            result = orphan_purge.purge_orphans()
+            return result
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_get_memory_stats(self):
+        """Get memory usage statistics."""
+        try:
+            from . import orphan_purge
+            stats = orphan_purge.get_memory_usage()
+            return {"status": "success", "stats": stats}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_reset_transforms(self, obj_name=None):
+        """Reset transforms for an object or all objects."""
+        try:
+            from . import transform_reset
+            if obj_name:
+                obj = bpy.data.objects.get(obj_name)
+                if not obj:
+                    return {"status": "error", "message": f"Object not found: {obj_name}"}
+                result = transform_reset.reset_all_transforms(obj)
+                return {"status": "success", "result": result}
+            else:
+                result = transform_reset.reset_scene_transforms()
+                return {"status": "success", "result": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_apply_transforms(self, obj_name=None):
+        """Apply all transforms for an object or all objects."""
+        try:
+            from . import transform_reset
+            if obj_name:
+                obj = bpy.data.objects.get(obj_name)
+                if not obj:
+                    return {"status": "error", "message": f"Object not found: {obj_name}"}
+                success = transform_reset.apply_all_transforms(obj)
+                return {"status": "success" if success else "error"}
+            else:
+                result = transform_reset.apply_scene_transforms()
+                return {"status": "success", "result": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: Phase 3 - Performance
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_optimize_scene(self):
+        """Optimize scene (merge verts, purge orphans)."""
+        try:
+            from . import memory_optimizer
+            result = memory_optimizer.optimize_scene()
+            return {"status": "success", "result": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_get_tool_count(self):
+        """Get MCP tool count and loaded categories."""
+        try:
+            from . import lazy_loader
+            count = lazy_loader.tool_registry.get_tool_count()
+            # Ensure count is a dict with expected keys
+            if not isinstance(count, dict):
+                count = {"loaded": 0, "total": 0, "categories_loaded": 0, "categories_total": 0}
+            return {"status": "success", "count": count}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_load_tool_category(self, category=""):
+        """Load a tool category for lazy loading."""
+        try:
+            from . import lazy_loader
+            success = lazy_loader.tool_registry.load_category(category)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: Phase 4 - New Capabilities
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_vlm_analyze(self, provider="ollama", prompt_type="overall"):
+        """Analyze scene using Vision-Language Model."""
+        try:
+            from . import vlm_visual
+            result = vlm_visual.visual_feedback_loop(prompt_type, provider, max_iterations=1)
+            return {"status": "success", "result": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_sculpt_preset(self, obj_name="", preset="smooth"):
+        """Apply sculpt preset to object."""
+        try:
+            from . import sculpt_advanced
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            success = sculpt_advanced.apply_sculpt_preset(obj, preset)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_remesh(self, obj_name="", voxel_size=0.05):
+        """Remesh object with voxel."""
+        try:
+            from . import sculpt_advanced
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            success = sculpt_advanced.remesh_voxel(obj, voxel_size)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_physics_preset(self, obj_name="", preset="rigid_heavy"):
+        """Apply physics preset to object."""
+        try:
+            from . import physics_realtime
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            success = physics_realtime.apply_physics_preset(obj, preset)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_create_rock(self, radius=0.5, roughness=0.3):
+        """Create procedural rock."""
+        try:
+            from . import sculpt_advanced
+            obj = sculpt_advanced.create_rock(radius, roughness)
+            if obj:
+                return {"status": "success", "object": obj.name}
+            return {"status": "error", "message": "Failed to create rock"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: Phase 5 - Advanced Features
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_collab_register(self, agent_id="", name=""):
+        """Register agent for collaborative editing."""
+        try:
+            from . import collaborative
+            success = collaborative.collab_manager.register_agent(agent_id, name)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_collab_lock(self, obj_name="", agent_id=""):
+        """Acquire lock on object for collaborative editing."""
+        try:
+            from . import collaborative
+            success = collaborative.collab_manager.acquire_lock(obj_name, agent_id)
+            return {"status": "success" if success else "error", "locked_by": obj_name}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_collab_unlock(self, obj_name="", agent_id=""):
+        """Release lock on object."""
+        try:
+            from . import collaborative
+            success = collaborative.collab_manager.release_lock(obj_name, agent_id)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_collab_status(self):
+        """Get collaborative editing status."""
+        try:
+            from . import collaborative
+            status = collaborative.get_collab_status()
+            return {"status": "success", "collab": status}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_version_create(self, label=None):
+        """Create version snapshot of scene."""
+        try:
+            from . import version_control
+            version_id = version_control.create_snapshot(label)
+            if version_id:
+                return {"status": "success", "version_id": version_id}
+            return {"status": "error", "message": "Failed to create version"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_version_restore(self, version_id=""):
+        """Restore a version snapshot."""
+        try:
+            from . import version_control
+            success = version_control.restore_snapshot(version_id)
+            return {"status": "success" if success else "error"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_version_list(self):
+        """List all version snapshots."""
+        try:
+            from . import version_control
+            versions = version_control.list_snapshots()
+            return {"status": "success", "versions": versions}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_export_ar_vr(self, target="webxr", filepath=None):
+        """Export scene for AR/VR platform."""
+        try:
+            from . import ar_vr_preview
+            result = ar_vr_preview.export_for_ar_vr(target, filepath)
+            return result
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # ═══════════════════════════════════════════════════════════
+    # NEW COMMANDS: Anti-Blockout Validation
+    # ═══════════════════════════════════════════════════════════
+
+    def cmd_check_blockout(self, obj_name=""):
+        """Check if an object is blockout (prohibited)."""
+        try:
+            from . import anti_blockout
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            result = anti_blockout.is_blockout(obj)
+            return {"status": "success", "result": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_validate_scene_blockout(self):
+        """Validate entire scene against blockout."""
+        try:
+            from . import anti_blockout
+            result = anti_blockout.validate_scene_blockout()
+            return {"status": "success", "result": result}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_get_blockout_report(self):
+        """Get human-readable blockout report."""
+        try:
+            from . import anti_blockout
+            report = anti_blockout.get_blockout_report()
+            return {"status": "success", "report": report}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_suggest_fixes(self, obj_name=""):
+        """Get fix suggestions for a blockout object."""
+        try:
+            from . import anti_blockout
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            suggestions = anti_blockout.suggest_fixes(obj)
+            return {"status": "success", "suggestions": suggestions}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def cmd_auto_fix_blockout(self, obj_name=""):
+        """Auto-fix a blockout object."""
+        try:
+            from . import anti_blockout
+            obj = bpy.data.objects.get(obj_name)
+            if not obj:
+                return {"status": "error", "message": f"Object not found: {obj_name}"}
+            result = anti_blockout.auto_fix_blockout(obj)
+            return {"status": "success", "result": result}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 

@@ -1,0 +1,42 @@
+# blender-mcp-ultra — Central Configuration
+# All settings in one place. Override with env vars: BLENDER_MCP_*
+
+blender:
+  host: localhost
+  port: 9876
+  timeout: 30
+  auto_start: true
+
+assets:
+  dir: ~/.local/share/blender-mcp/assets
+  cache_size_mb: 500
+  providers:
+    - polyhaven
+    - ambientcg
+
+security:
+  ast_mode: allowlist  # allowlist | blocklist
+  sandbox_enabled: true
+  sandbox_timeout: 10
+  rate_limit: 60  # requests per minute
+  blocked_ops:
+    - wm.quit_blender
+    - wm.read_factory_settings
+    - wm.read_factory_userpref
+    - wm.read_userpref
+
+logging:
+  level: INFO
+  audit_file: /tmp/blender-mcp-audit.json
+  max_audit_size_mb: 10
+
+performance:
+  max_objects: 10000
+  max_polygons: 1000000
+  auto_purge_threshold: 50
+  viewport_update_delay: 0.1
+
+tools:
+  version: "1.0.0"
+  lazy_loading: true
+  core_tools_count: 15

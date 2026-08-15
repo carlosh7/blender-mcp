@@ -1,1 +1,1 @@
-# Tests for blender-mcp
+# blender-mcp tests

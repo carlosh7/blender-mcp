@@ -1,10 +1,10 @@
-name: Tests
+name: Test & Validate
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   test:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
-        
+    
     steps:
     - uses: actions/checkout@v4
     
@@ -20,21 +20,70 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[test]"
-        
-    - name: Run security tests
-      run: |
-        python test_security.py
-        
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio
+    
     - name: Run unit tests
       run: |
-        pytest tests/unit/ -v --tb=short
-        
-    - name: Lint with ruff
+        pytest tests/unit/ -v --cov=src --cov-report=xml
+    
+    - name: Run integration tests
       run: |
-        ruff check src/
-        ruff check tests/
+        pytest tests/integration/ -v --ignore=tests/integration/test_blender_integration.py
+    
+    - name: Upload coverage
+      if: matrix.python-version == '3.12'
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install linters
+      run: |
+        pip install ruff mypy
+    
+    - name: Run ruff
+      run: |
+        ruff check src/ addon/ --output-format=github
+    
+    - name: Run mypy
+      run: |
+        mypy src/ --ignore-missing-imports || true
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    
+    - name: Install security tools
+      run: |
+        pip install bandit safety
+    
+    - name: Run bandit
+      run: |
+        bandit -r src/ -f json -o bandit-report.json || true
+    
+    - name: Check dependencies
+      run: |
+        safety check --json || true

@@ -11,8 +11,8 @@ import json
 import socket
 import threading
 import time
-from bpy.props import StringProperty, IntProperty, BoolProperty
-from bpy.types import Operator, Panel
+from bpy.props import StringProperty, IntProperty, BoolProperty, FloatProperty, EnumProperty, CollectionProperty
+from bpy.types import Operator, Panel, PropertyGroup
 
 bl_info = {
     "name": "blender-mcp-ultra",
@@ -24,6 +24,13 @@ bl_info = {
 }
 
 _port = 9876
+
+
+class AIChatMessage(PropertyGroup):
+    """Single chat message."""
+    role: StringProperty(default="user")
+    content: StringProperty(default="")
+    timestamp: StringProperty(default="")
 
 
 class MCPUltraProperties(bpy.types.PropertyGroup):
@@ -130,6 +137,31 @@ class MCPUltraProperties(bpy.types.PropertyGroup):
         description="Path to image file",
         subtype='FILE_PATH'
     )
+    
+    # ═══════════════════════════════════════════════════════════════
+    # AI ASSISTANT PROPERTIES
+    # ═══════════════════════════════════════════════════════════════
+    
+    # Chat
+    chat_messages: CollectionProperty(type=AIChatMessage)
+    chat_input: StringProperty(default="", name="Message")
+    
+    # Mode
+    ui_mode: EnumProperty(
+        name="Mode",
+        items=[
+            ('beginner', "Beginner", "Simple interface"),
+            ('expert', "Expert", "Full control"),
+        ],
+        default='beginner'
+    )
+    
+    # Voice
+    voice_enabled: BoolProperty(default=False, name="Voice")
+    
+    # Preview
+    preview_enabled: BoolProperty(default=True, name="Preview")
+    preview_opacity: FloatProperty(default=0.5, min=0.0, max=1.0, name="Opacity")
 
 
 class MCPUltraStartServer(Operator):
@@ -200,12 +232,25 @@ except ImportError:
     ui_unregister = None
 
 
+# Import and register AI Assistant
+try:
+    from .ui import ai_panel
+    ai_classes = ai_panel.classes
+    ai_register = ai_panel.register
+    ai_unregister = ai_panel.unregister
+except ImportError:
+    ai_classes = ()
+    ai_register = None
+    ai_unregister = None
+
+
 classes = (
+    AIChatMessage,
     MCPUltraProperties,
     MCPUltraStartServer,
     MCPUltraStopServer,
     MCPUltraPanel,
-) + ui_classes
+) + ui_classes + ai_classes
 
 
 def register():
@@ -213,7 +258,13 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.mcp_ultra = bpy.props.PointerProperty(type=MCPUltraProperties)
 
-    # NO llamar ui_register() - las clases ya están en classes tuple
+    # Register UI panels
+    if ui_register:
+        ui_register()
+    
+    # Register AI Assistant
+    if ai_register:
+        ai_register()
 
     try:
         from . import _axsock
@@ -224,13 +275,26 @@ def register():
 
 
 def unregister():
-    # NO llamar ui_unregister() - las clases ya están en classes tuple
-    
+    """Unregister addon classes."""
     try:
         from . import _axsock
         _axsock.stop_socket_server()
     except:
         pass
+    
+    # Unregister AI Assistant
+    if ai_unregister:
+        ai_unregister()
+    
+    # Unregister UI panels
+    if ui_unregister:
+        ui_unregister()
+    
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.mcp_ultra
+    
+    # Delete properties
+    try:
+        del bpy.types.Scene.mcp_ultra
+    except:
+        pass

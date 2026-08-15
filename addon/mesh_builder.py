@@ -43,8 +43,7 @@ def create_lathe_mesh(profile_points, segments=32, height=1.0, location=(0, 0, 0
     bm = bmesh.new()
     
     # Crear vértices por revolución
-    for i, (x, y) in enumerate(profile_points):
-        angle = (i / len(profile_points)) * math.pi * 2
+    for p_idx, (x, y) in enumerate(profile_points):
         for seg in range(segments):
             seg_angle = (seg / segments) * math.pi * 2
             vx = x * math.cos(seg_angle)
@@ -54,15 +53,20 @@ def create_lathe_mesh(profile_points, segments=32, height=1.0, location=(0, 0, 0
     
     bm.verts.ensure_lookup_table()
     
-    # Crear caras
+    # Crear caras (seg -> seg+1, p_idx -> p_idx+1)
+    num_p = len(profile_points)
     for seg in range(segments):
-        for i in range(len(profile_points) - 1):
-            v1 = seg * len(profile_points) + i
-            v2 = seg * len(profile_points) + i + 1
-            v3 = ((seg + 1) % segments) * len(profile_points) + i + 1
-            v4 = ((seg + 1) % segments) * len(profile_points) + i
+        next_seg = (seg + 1) % segments
+        for p in range(num_p - 1):
+            v1 = bm.verts[p * segments + seg]
+            v2 = bm.verts[(p + 1) * segments + seg]
+            v3 = bm.verts[(p + 1) * segments + next_seg]
+            v4 = bm.verts[p * segments + next_seg]
             
-            bm.faces.new([bm.verts[v1], bm.verts[v2], bm.verts[v3], bm.verts[v4]])
+            try:
+                bm.faces.new([v1, v2, v3, v4])
+            except ValueError:
+                pass  # Cara ya existe
     
     # Remover vértices duplicados y recalcular normales
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0001)

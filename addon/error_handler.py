@@ -253,7 +253,7 @@ def create_with_fallback(object_type, position, collection=None):
     
     Si la creación completa falla, intenta una versión simplificada.
     """
-    from . import creation_rules
+    import creation_rules
     
     # Intento 1: Creación completa
     try:
