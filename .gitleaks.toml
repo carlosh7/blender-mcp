@@ -14,4 +14,6 @@ regexes = [
     '''\*\*\*REMOVED\*\*\*''',
     '''default\s*=\s*""''',
     '''abc29832befb92983423abcaef93001''',
+    '''blendermcp_\w+_key''',
+    '''hyper3d/rodin/v1/''',
 ]

@@ -13,9 +13,10 @@ Prioridad P0 = esta semana · P1 = este mes · P2 = backlog. No incluye commits 
 - [x] 2. **Auth/token también en `_axsock.py` (9876)**: handshake con nonce o token en primer mensaje; documentar que debe quedar en localhost.
 - [x] 3. **Sandbox en el path principal**: `execute_blender_code` (`mcp_server.py:39`) debe usar `WeakSandboxForLLM` + `input_validator.validate()` por defecto (flag opt-out solo en dev).
 4. [x] **Secretos**: verificar que la clave demo Hyper3D (`k9TcfFoEhNd9…`) nunca vuelva al árbol; considerar `gitleaks protect` en CI y purga de historia si procede.
-   - Árbol actual: 0 leaks (gitleaks detect --no-git, 2026-08-24).
+   - Árbol actual: 0 leaks · **Historia completa: 0 leaks** (gitleaks detect, 2026-08-24).
+   - Los 4 hallazgos iniciales eran falsos positivos (nombres de propiedades `blendermcp_*_key` y URL de API en commits viejos; el texto ya estaba redactado con `***REMOVED***` por una limpieza anterior). Añadidos al allowlist → no se requiere purga.
    - CI: job `secrets` con `gitleaks/gitleaks-action@v2` (historia completa).
-   - ⚠ Historia: quedan 4 hallazgos en commits de mayo 2026 (`addon/properties.py`, `addon/handlers/hyper3d.py` — clave demo heredada del upstream). Purga definitiva con git-filter-repo pendiente de decisión del mantenedor (reescribe historia compartida).
+   - Nota: la clave demo real es pública del upstream; el prefijo truncado citado en docs es inutilizable y no dispara detección.
 
 ## P0 — Bugs que rompen el producto
 
