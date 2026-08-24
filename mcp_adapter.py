@@ -55,6 +55,25 @@ def check_rate_limit(client_id: str = "default") -> bool:
     return True
 
 
+def recv_json(sock, timeout=30.0):
+    """Recibir hasta tener un JSON completo (el socket puede fragmentar)."""
+    sock.settimeout(timeout)
+    buffer = b""
+    while True:
+        try:
+            chunk = sock.recv(65536)
+        except socket.timeout:
+            break
+        if not chunk:
+            break
+        buffer += chunk
+        try:
+            return json.loads(buffer.decode("utf-8"))
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
 def send_to_blender(command, params=None):
     """Send command to Blender via socket."""
     try:
@@ -63,10 +82,9 @@ def send_to_blender(command, params=None):
         sock.connect((BLENDER_HOST, BLENDER_PORT))
         cmd = json.dumps({"command": command, "params": params or {}})
         sock.sendall(cmd.encode())
-        time.sleep(0.1)
-        resp = sock.recv(65536)
+        resp = recv_json(sock, timeout=300.0)
         sock.close()
-        return json.loads(resp.decode()) if resp else {"error": "No response"}
+        return resp if resp is not None else {"error": "No response"}
     except Exception as e:
         return {"error": str(e)}
 

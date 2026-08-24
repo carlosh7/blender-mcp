@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import socket
+import subprocess
 import threading
 import time
 import traceback
@@ -42,7 +43,7 @@ class BlenderSocketServer:
             None  # caché del registry de src/ (None=intentar, False=no disponible)
         )
 
-    def start(self):
+    def start(self, blocking=False):
         """Start the socket server."""
         if self.running:
             return
@@ -68,9 +69,13 @@ class BlenderSocketServer:
             self.sock.listen(5)
             self.listening = True
             self.last_error = None
-            self.sock.settimeout(1.0)
-            self.thread = threading.Thread(target=self._loop, daemon=True)
-            self.thread.start()
+            if blocking:
+                # modo headless: sin hilo, sin timeout — el main loop acepta
+                self.sock.settimeout(None)
+            else:
+                self.sock.settimeout(1.0)
+                self.thread = threading.Thread(target=self._loop, daemon=True)
+                self.thread.start()
             print(f"[BLENDER SOCKET] Server on port {self.port}")
         except Exception as e:
             self.running = False
@@ -101,6 +106,37 @@ class BlenderSocketServer:
             except Exception as e:
                 if self.running:  # Only log if not intentionally stopped
                     print(f"[BLENDER SOCKET] Accept error: {e}")
+
+    def _serve_client_blocking(self, client):
+        """Atender un cliente SIN timers: ejecución directa (modo headless).
+
+        Solo válido cuando el hilo principal es este (blender --background
+        con script bloqueante): bpy es seguro porque somos el main loop.
+        """
+        buffer = b""
+        client.settimeout(300)
+        while True:
+            try:
+                data = client.recv(1024 * 1024)
+            except socket.timeout:
+                break
+            if not data:
+                break
+            buffer += data
+            try:
+                cmd = json.loads(buffer.decode("utf-8"))
+            except json.JSONDecodeError:
+                continue
+            buffer = b""
+            try:
+                resp = self._execute(cmd)
+            except Exception as e:
+                resp = {
+                    "status": "error",
+                    "message": f"{type(e).__name__}: {e}",
+                    "traceback": traceback.format_exc(),
+                }
+            client.sendall(json.dumps(resp).encode("utf-8"))
 
     def _handle(self, client):
         """Handle client connection with proper thread-safe execution."""
@@ -197,11 +233,10 @@ class BlenderSocketServer:
             import os
             import sys
 
-            src_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"
-            )
-            if src_path not in sys.path:
-                sys.path.insert(0, src_path)
+            # raíz del repo (PADRE del paquete src): es lo que permite `import src`
+            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if repo_root not in sys.path:
+                sys.path.insert(0, repo_root)
             from src.presentation.mcp_server import register_all_tools
             from src.tools import ToolRegistry
 
@@ -613,6 +648,144 @@ class BlenderSocketServer:
         t = threading.Thread(target=_run, daemon=True)
         t.start()
         return {"status": "starting"}
+
+    # ── Jobs de render en background (subprocess headless, no congela la GUI) ──
+
+    _render_jobs = {}
+
+    def cmd_render_start(self, filepath=None, engine=None, samples=None,
+                         resolution=None, frame=None, animation=False,
+                         frame_start=1, frame_end=250):
+        """Lanzar un render en una instancia headless aparte. Devuelve job_id.
+
+        La escena actual (con engine/samples/resolución aplicados) se guarda
+        como copia temporal; el subprocess renderiza sin bloquear Blender.
+        """
+        import os
+        import tempfile
+        import uuid
+
+        import bpy
+
+        job_id = uuid.uuid4().hex[:12]
+        scene = bpy.context.scene
+        if scene.camera is None:
+            cams = [o for o in scene.objects if o.type == "CAMERA"]
+            if cams:
+                scene.camera = cams[0]
+        if engine:
+            scene.render.engine = engine
+        if samples is not None:
+            try:
+                scene.cycles.samples = int(samples)
+                scene.eevee.taa_render_samples = int(samples)
+            except Exception:
+                pass
+        if resolution:
+            scene.render.resolution_x, scene.render.resolution_y = (
+                int(resolution[0]), int(resolution[1])
+            )
+        if filepath:
+            scene.render.filepath = filepath
+        if animation:
+            scene.render.image_settings.file_format = "FFMPEG" if filepath and filepath.endswith((".mp4", ".mkv")) else scene.render.image_settings.file_format
+            scene.frame_start = int(frame_start)
+            scene.frame_end = int(frame_end)
+
+        tx_dir = os.path.join(tempfile.gettempdir(), "blender_mcp_jobs")
+        os.makedirs(tx_dir, exist_ok=True)
+        job_blend = os.path.join(tx_dir, f"job_{job_id}.blend")
+        bpy.ops.wm.save_as_mainfile(filepath=job_blend, copy=True)
+
+        out_prefix = scene.render.filepath or os.path.join(tx_dir, f"render_{job_id}_")
+        args = [bpy.app.binary_path, "-b", job_blend]
+        args += ["-o", out_prefix if out_prefix.endswith(("/", "_")) else out_prefix + "_"]
+        args += ["-F", "PNG"] if not animation else []
+        args += ["-a"] if animation else ["-f", str(int(frame or scene.frame_current))]
+
+        proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self._render_jobs[job_id] = {
+            "proc": proc,
+            "out_prefix": out_prefix,
+            "animation": bool(animation),
+            "started": time.time(),
+            "blend": job_blend,
+        }
+        return {"job_id": job_id, "pid": proc.pid, "out_prefix": out_prefix}
+
+    def cmd_render_status(self, job_id=""):
+        """Estado de un job de render: running/done/error + archivos producidos."""
+        import glob
+        import os
+
+        job = self._render_jobs.get(job_id)
+        if not job:
+            return {"error": f"job desconocido: {job_id}"}
+        proc = job["proc"]
+        rc = proc.poll()
+        pattern = job["out_prefix"] + ("*" if job["animation"] else "*.png")
+        files = sorted(glob.glob(pattern))
+        return {
+            "job_id": job_id,
+            "state": "running" if rc is None else ("done" if rc == 0 else f"error({rc})"),
+            "elapsed": round(time.time() - job["started"], 1),
+            "files": files,
+        }
+
+    def cmd_render_list(self):
+        """Listar todos los jobs de render lanzados en esta sesión."""
+        return {
+            jid: {
+                "state": "running" if j["proc"].poll() is None else "finished",
+                "elapsed": round(time.time() - j["started"], 1),
+            }
+            for jid, j in self._render_jobs.items()
+        }
+
+    # ── Transacciones: snapshot / restore de escena ──
+
+    def _tx_dir(self):
+        import os
+        import tempfile
+
+        d = os.path.join(tempfile.gettempdir(), "blender_mcp_snapshots")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def cmd_scene_snapshot(self, label="snap"):
+        """Guardar snapshot completo de la escena (save copy). Devuelve ruta."""
+        import os
+
+        import bpy
+
+        path = os.path.join(self._tx_dir(), f"{label}.blend")
+        bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+        return {"label": label, "path": path}
+
+    def cmd_scene_restore(self, label="snap"):
+        """Restaurar la escena desde un snapshot (abre el .blend guardado)."""
+        import os
+
+        import bpy
+
+        path = os.path.join(self._tx_dir(), f"{label}.blend")
+        if not os.path.exists(path):
+            return {"error": f"snapshot inexistente: {label}"}
+        bpy.ops.wm.open_mainfile(filepath=path)
+        return {"restored": label, "objects": len(bpy.data.objects)}
+
+    def cmd_scene_snapshots(self):
+        """Listar snapshots disponibles."""
+        import glob
+        import os
+
+        return {
+            "snapshots": [
+                os.path.basename(p)[:-6]
+                for p in sorted(glob.glob(os.path.join(self._tx_dir(), "*.blend")))
+            ]
+        }
+
 
     def cmd_get_scene_property(self, prop=""):
         """Get a property value from the current Blender scene (for proxy/agent mode detection)."""
@@ -1254,6 +1427,43 @@ class BlenderSocketServer:
             return {"status": "success", "result": result}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+
+
+def serve_forever(host="localhost", port=None):
+    """Servidor bloqueante para `blender --background --python`.
+
+    Sin GUI no hay main loop y bpy.app.timers nunca dispara; este modo
+    atiende clientes de forma síncrona en el hilo principal. No retorna.
+    """
+    global _socket_server
+    _socket_server = BlenderSocketServer(
+        host=host,
+        port=port or SOCKET_PORT,
+    )
+    _socket_server.start(blocking=True)
+    if not _socket_server.listening:
+        raise RuntimeError(f"No se pudo abrir el socket: {_socket_server.last_error}")
+    print(
+        f"[BLENDER SOCKET] modo headless bloqueante en "
+        f"{_socket_server.host}:{_socket_server.port}",
+        flush=True,
+    )
+    while True:
+        try:
+            client, _addr = _socket_server.sock.accept()
+        except socket.timeout:
+            continue
+        except OSError:
+            break
+        try:
+            _socket_server._serve_client_blocking(client)
+        except Exception as e:
+            print(f"[BLENDER SOCKET] cliente headless: {e}", flush=True)
+        finally:
+            try:
+                client.close()
+            except Exception:
+                pass
 
 
 def start_socket_server():

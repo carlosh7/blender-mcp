@@ -54,9 +54,27 @@ BLOCKED_CALLS = {
     "popen",
 }
 
-# Métodos peligrosos SOLO cuando el receptor no pertenece al namespace de bpy
-# (p. ej. os.remove, Path.unlink); bpy.data.objects.remove() es legítimo.
+# Métodos peligrosos SOLO cuando la raíz del receptor es un módulo peligroso
+# (os, shutil, pathlib...). Los imports peligrosos ya están bloqueados, así que
+# .remove/.unlink sobre datos de bpy (directos o vía variables locales) es legítimo.
 BLOCKED_METHODS = {"remove", "unlink", "rmdir", "makedirs", "rmtree", "kill"}
+
+DANGEROUS_ROOTS = {
+    "os",
+    "shutil",
+    "pathlib",
+    "Path",
+    "PurePath",
+    "PosixPath",
+    "WindowsPath",
+    "subprocess",
+    "multiprocessing",
+    "tempfile",
+    "zipfile",
+    "tarfile",
+    "ftplib",
+    "socket",
+}
 
 ALLOWED_ROOTS = {"bpy", "C", "D", "ops"}
 
@@ -91,6 +109,19 @@ def _root_allowed(node) -> bool:
     return isinstance(node, ast.Name) and node.id in ALLOWED_ROOTS
 
 
+def _root_dangerous(node) -> bool:
+    """True si la cadena arranca en un módulo peligroso conocido.
+
+    Desciende también por llamadas intermedias: Path(p).unlink() tiene
+    como receptor ast.Call(func=Name('Path')).
+    """
+    while isinstance(node, ast.Attribute):
+        node = node.value
+    if isinstance(node, ast.Call):
+        return _root_dangerous(node.func)
+    return isinstance(node, ast.Name) and node.id in DANGEROUS_ROOTS
+
+
 def check_code(code: str) -> None:
     """Lanza CodeGuardError si el código contiene construcciones bloqueadas."""
     try:
@@ -113,7 +144,7 @@ def check_code(code: str) -> None:
             if isinstance(func, ast.Name) and func.id in BLOCKED_CALLS:
                 raise CodeGuardError(f"Llamada bloqueada: '{func.id}()'")
             if isinstance(func, ast.Attribute) and func.attr in BLOCKED_METHODS:
-                if not _root_allowed(func.value):
+                if _root_dangerous(func.value):
                     raise CodeGuardError(f"Llamada bloqueada: '.{func.attr}()'")
             if isinstance(func, ast.Attribute) and func.attr in BLOCKED_CALLS:
                 raise CodeGuardError(f"Llamada bloqueada: '.{func.attr}()'")
