@@ -7,6 +7,7 @@ import json
 import os
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -41,7 +42,7 @@ class HealthChecker:
         self.checks = {}
         self.last_check = None
 
-    def register_check(self, name: str, check_func: callable):
+    def register_check(self, name: str, check_func: Callable):
         """Register a health check function."""
         self.checks[name] = check_func
 

@@ -6,6 +6,7 @@ Validates and sanitizes user inputs to prevent injection attacks.
 import html
 import os
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -26,7 +27,7 @@ class ValidationRule:
     max_length: int | None = None
     allowed_chars: str | None = None
     blocked_chars: str | None = None
-    custom_validator: callable | None = None
+    custom_validator: Callable | None = None
 
 
 class InputValidator:

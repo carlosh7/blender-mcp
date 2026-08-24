@@ -4,6 +4,7 @@ Abstract interfaces (ports) for the application.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any, Dict, List, Optional
 
 from ..entities import Material, Object, Scene, Tool, ToolResult
@@ -106,7 +107,7 @@ class IToolRegistry(ABC):
     """Interface for tool registry."""
 
     @abstractmethod
-    def register_tool(self, tool: Tool, handler: callable) -> None:
+    def register_tool(self, tool: Tool, handler: Callable) -> None:
         """Register a tool."""
         pass
 
