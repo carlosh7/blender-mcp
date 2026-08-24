@@ -118,7 +118,7 @@ class BlenderSocketServer:
         while True:
             try:
                 data = client.recv(1024 * 1024)
-            except socket.timeout:
+            except TimeoutError:
                 break
             if not data:
                 break
@@ -653,9 +653,17 @@ class BlenderSocketServer:
 
     _render_jobs = {}
 
-    def cmd_render_start(self, filepath=None, engine=None, samples=None,
-                         resolution=None, frame=None, animation=False,
-                         frame_start=1, frame_end=250):
+    def cmd_render_start(
+        self,
+        filepath=None,
+        engine=None,
+        samples=None,
+        resolution=None,
+        frame=None,
+        animation=False,
+        frame_start=1,
+        frame_end=250,
+    ):
         """Lanzar un render en una instancia headless aparte. Devuelve job_id.
 
         La escena actual (con engine/samples/resolución aplicados) se guarda
@@ -683,12 +691,17 @@ class BlenderSocketServer:
                 pass
         if resolution:
             scene.render.resolution_x, scene.render.resolution_y = (
-                int(resolution[0]), int(resolution[1])
+                int(resolution[0]),
+                int(resolution[1]),
             )
         if filepath:
             scene.render.filepath = filepath
         if animation:
-            scene.render.image_settings.file_format = "FFMPEG" if filepath and filepath.endswith((".mp4", ".mkv")) else scene.render.image_settings.file_format
+            scene.render.image_settings.file_format = (
+                "FFMPEG"
+                if filepath and filepath.endswith((".mp4", ".mkv"))
+                else scene.render.image_settings.file_format
+            )
             scene.frame_start = int(frame_start)
             scene.frame_end = int(frame_end)
 
@@ -716,7 +729,6 @@ class BlenderSocketServer:
     def cmd_render_status(self, job_id=""):
         """Estado de un job de render: running/done/error + archivos producidos."""
         import glob
-        import os
 
         job = self._render_jobs.get(job_id)
         if not job:
@@ -785,7 +797,6 @@ class BlenderSocketServer:
                 for p in sorted(glob.glob(os.path.join(self._tx_dir(), "*.blend")))
             ]
         }
-
 
     def cmd_get_scene_property(self, prop=""):
         """Get a property value from the current Blender scene (for proxy/agent mode detection)."""
@@ -1444,14 +1455,13 @@ def serve_forever(host="localhost", port=None):
     if not _socket_server.listening:
         raise RuntimeError(f"No se pudo abrir el socket: {_socket_server.last_error}")
     print(
-        f"[BLENDER SOCKET] modo headless bloqueante en "
-        f"{_socket_server.host}:{_socket_server.port}",
+        f"[BLENDER SOCKET] modo headless bloqueante en {_socket_server.host}:{_socket_server.port}",
         flush=True,
     )
     while True:
         try:
             client, _addr = _socket_server.sock.accept()
-        except socket.timeout:
+        except TimeoutError:
             continue
         except OSError:
             break

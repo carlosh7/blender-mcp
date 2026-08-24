@@ -62,7 +62,7 @@ def recv_json(sock, timeout=30.0):
     while True:
         try:
             chunk = sock.recv(65536)
-        except socket.timeout:
+        except TimeoutError:
             break
         if not chunk:
             break
