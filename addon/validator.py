@@ -154,7 +154,7 @@ def measure_object(name):
         },
         "bounding_box": bbox,
         "volume": bbox["size"][0] * bbox["size"][1] * bbox["size"][2],
-        "materials": [m.name for m in obj.data.materials] if obj.data else [],
+        "materials": [m.name for m in obj.data.materials if m] if obj.data else [],
         "parent": obj.parent.name if obj.parent else None,
     }
 
