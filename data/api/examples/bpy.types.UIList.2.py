@@ -6,6 +6,7 @@ This script is an extended version of the ``UIList`` subclass used to show verte
 because iterating over all vertices in a 'draw' function is a very bad idea for UI performance! However, it's a good
 example of how to create/use filtering/reordering callbacks.
 """
+
 import bpy
 
 
@@ -43,11 +44,15 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
     # This allows us to have mutually exclusive options, which are also all disable-able!
     def _gen_order_update(name1, name2):
         def _u(self, ctxt):
-            if (getattr(self, name1)):
+            if getattr(self, name1):
                 setattr(self, name2, False)
+
         return _u
+
     use_order_name: bpy.props.BoolProperty(
-        name="Name", default=False, options=set(),
+        name="Name",
+        default=False,
+        options=set(),
         description="Sort groups by their name (case-insensitive)",
         update=_gen_order_update("use_order_name", "use_order_importance"),
     )
@@ -60,7 +65,9 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
     )
 
     # Usual draw item function.
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index, flt_flag):
+    def draw_item(
+        self, context, layout, data, item, icon, active_data, active_propname, index, flt_flag
+    ):
         # Just in case, we do not use it here!
         self.use_filter_invert = False
 
@@ -72,11 +79,11 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
         if flt_flag & self.VGROUP_EMPTY:
             col = layout.column()
             col.enabled = False
-            col.alignment = 'LEFT'
+            col.alignment = "LEFT"
             col.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
         else:
             layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
-        icon = 'LOCKED' if vgroup.lock_weight else 'UNLOCKED'
+        icon = "LOCKED" if vgroup.lock_weight else "UNLOCKED"
         layout.prop(vgroup, "lock_weight", text="", icon=icon, emboss=False)
 
     def draw_filter(self, context, layout):
@@ -85,19 +92,19 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
 
         subrow = row.row(align=True)
         subrow.prop(self, "filter_name", text="")
-        icon = 'ZOOM_OUT' if self.use_filter_name_reverse else 'ZOOM_IN'
+        icon = "ZOOM_OUT" if self.use_filter_name_reverse else "ZOOM_IN"
         subrow.prop(self, "use_filter_name_reverse", text="", icon=icon)
 
         subrow = row.row(align=True)
         subrow.prop(self, "use_filter_empty", toggle=True)
-        icon = 'ZOOM_OUT' if self.use_filter_empty_reverse else 'ZOOM_IN'
+        icon = "ZOOM_OUT" if self.use_filter_empty_reverse else "ZOOM_IN"
         subrow.prop(self, "use_filter_empty_reverse", text="", icon=icon)
 
         row = layout.row(align=True)
         row.label(text="Order by:")
         row.prop(self, "use_order_name", toggle=True)
         row.prop(self, "use_order_importance", toggle=True)
-        icon = 'TRIA_UP' if self.use_filter_orderby_invert else 'TRIA_DOWN'
+        icon = "TRIA_UP" if self.use_filter_orderby_invert else "TRIA_DOWN"
         row.prop(self, "use_filter_orderby_invert", text="", icon=icon)
 
     def filter_items_empty_vgroups(self, context, vgroups):
@@ -109,6 +116,7 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
         if hasattr(obj_data, "vertices"):  # Mesh data
             if obj_data.is_editmode:
                 import bmesh
+
                 bm = bmesh.from_edit_mesh(obj_data)
                 # only ever one deform weight layer
                 dvert_lay = bm.verts.layers.deform.active
@@ -156,8 +164,13 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
 
         # Filtering by name.
         if self.filter_name:
-            flt_flags = helper_funcs.filter_items_by_name(self.filter_name, self.bitflag_filter_item, vgroups, "name",
-                                                          reverse=self.use_filter_name_reverse)
+            flt_flags = helper_funcs.filter_items_by_name(
+                self.filter_name,
+                self.bitflag_filter_item,
+                vgroups,
+                "name",
+                reverse=self.use_filter_name_reverse,
+            )
         if not flt_flags:
             flt_flags = [self.bitflag_filter_item] * len(vgroups)
 
@@ -186,10 +199,11 @@ class MESH_UL_vgroups_slow(bpy.types.UIList):
 # Minimal code to use above UIList...
 class UIListPanelExample2(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
+
     bl_label = "UIList Example 2 Panel"
     bl_idname = "OBJECT_PT_ui_list_example_2"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
     bl_context = "object"
 
     def draw(self, context):
@@ -199,7 +213,9 @@ class UIListPanelExample2(bpy.types.Panel):
         # `template_list` now takes two new arguments.
         # The first one is the identifier of the registered UIList to use (if you want only the default list,
         # with no custom draw code, use "UI_UL_list").
-        layout.template_list("MESH_UL_vgroups_slow", "", obj, "vertex_groups", obj.vertex_groups, "active_index")
+        layout.template_list(
+            "MESH_UL_vgroups_slow", "", obj, "vertex_groups", obj.vertex_groups, "active_index"
+        )
 
 
 def register():

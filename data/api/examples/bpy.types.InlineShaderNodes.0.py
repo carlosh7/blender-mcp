@@ -2,6 +2,7 @@
 Inline Shader Nodes
 +++++++++++++++++++
 """
+
 import bpy
 
 # The materials should be retrieved from the evaluated object to make sure that

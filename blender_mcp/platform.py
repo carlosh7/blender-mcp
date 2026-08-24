@@ -2,11 +2,12 @@
 blender-mcp — Cross-platform utilities
 Centralizes OS-specific paths, detection, and process management.
 """
+
 import os
-import sys
 import platform
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 SYSTEM = platform.system()  # 'Windows', 'Darwin', 'Linux'
@@ -67,8 +68,10 @@ def find_blender() -> str | None:
 
     if SYSTEM == "Windows":
         # Program Files
-        for base in [os.environ.get("PROGRAMFILES", "C:\\Program Files"),
-                     os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)")]:
+        for base in [
+            os.environ.get("PROGRAMFILES", "C:\\Program Files"),
+            os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"),
+        ]:
             path = os.path.join(base, "Blender Foundation")
             if os.path.isdir(path):
                 for entry in os.listdir(path):

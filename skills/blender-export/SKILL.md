@@ -19,13 +19,13 @@ Export 3D models in various formats for web, game engines, and 3D printing.
 
 ### GLB (Web/Three.js)
 ```python
-bpy.ops.object.select_all(action='SELECT')
+bpy.ops.object.select_all(action="SELECT")
 bpy.ops.export_scene.gltf(
     filepath="/path/to/model.glb",
-    export_format='GLB',
+    export_format="GLB",
     export_texcoords=True,
     export_normals=True,
-    export_materials='EXPORT',
+    export_materials="EXPORT",
 )
 ```
 
@@ -34,7 +34,7 @@ bpy.ops.export_scene.gltf(
 bpy.ops.export_scene.fbx(
     filepath="/path/to/model.fbx",
     use_selection=True,
-    apply_scale_options='FBX_SCALE_UNITS',
+    apply_scale_options="FBX_SCALE_UNITS",
 )
 ```
 

@@ -1,38 +1,39 @@
 #!/usr/bin/env python3
 """blender-mcp — Complete Test Suite"""
-import sys
-import os
-import time
 
-sys.path.insert(0, '/home/carlosh/blender-mcp/addon')
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "addon"))
 
 
 def run_in_blender(code):
     """Execute code in Blender via socket"""
     import socket
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(25)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 20
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r:
+                if b"\n" in r:
                     break
-        except:
+        except Exception:
             continue
     s.close()
     if r:
-        return json.loads(r.decode().strip()).get('result', {})
+        return json.loads(r.decode().strip()).get("result", {})
     return {}
 
 
 import json
-
 
 # ═══════════════════════════════════════════════════════════════
 # TEST CATEGORIES
@@ -62,11 +63,11 @@ def test(name, test_func):
 # AI TESTS
 # ═══════════════════════════════════════════════════════════════
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("AI INTEGRATION TESTS")
-print("="*60)
+print("=" * 60)
 
-from ai.ai_integration import query_llm, parse_description_with_ai, test_connection
+from ai.ai_integration import parse_description_with_ai, query_llm, test_connection
 
 test("Ollama Connection", lambda: test_connection())
 
@@ -83,9 +84,9 @@ test("Parse: house", lambda: parse_description_with_ai("Una casa").get("type") =
 # VOICE CONTROL TESTS
 # ═══════════════════════════════════════════════════════════════
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("VOICE CONTROL TESTS")
-print("="*60)
+print("=" * 60)
 
 from ai.voice_control import parse_voice_command
 
@@ -102,17 +103,19 @@ test("Voice: export", lambda: parse_voice_command("Exportar modelo").get("action
 # REFERENCE COMPARE TESTS
 # ═══════════════════════════════════════════════════════════════
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("REFERENCE COMPARE TESTS")
-print("="*60)
+print("=" * 60)
 
 from perception.reference_compare import ReferenceComparator
+
 
 def test_reference():
     comp = ReferenceComparator()
     comp.add_reference("chair", "", "furniture", "red")
     results = comp.compare_with_scene()
     return len(results) == 1
+
 
 test("Reference Comparator", test_reference)
 
@@ -121,30 +124,33 @@ test("Reference Comparator", test_reference)
 # BLENDER TESTS (require running Blender)
 # ═══════════════════════════════════════════════════════════════
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("BLENDER TESTS")
-print("="*60)
+print("=" * 60)
+
 
 def test_blender_ping():
     r = run_in_blender('print("ping")')
-    return r.get('output', '') == 'ping'
+    return r.get("output", "") == "ping"
+
 
 test("Blender Ping", test_blender_ping)
 
 
 def test_blender_create():
-    r = run_in_blender('''
+    r = run_in_blender("""
 import bpy
 bpy.ops.mesh.primitive_cube_add(size=1, location=(0,0,0))
 print(bpy.context.active_object.name)
-''')
-    return "TestCube" in r.get('output', '') or "Cube" in r.get('output', '')
+""")
+    return "TestCube" in r.get("output", "") or "Cube" in r.get("output", "")
+
 
 test("Blender Create Cube", test_blender_create)
 
 
 def test_blender_material():
-    r = run_in_blender('''
+    r = run_in_blender("""
 import bpy
 obj = bpy.context.active_object
 if obj:
@@ -153,18 +159,20 @@ if obj:
     mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (1,0,0,1)
     obj.data.materials.append(mat)
     print("material_applied")
-''')
-    return "material_applied" in r.get('output', '')
+""")
+    return "material_applied" in r.get("output", "")
+
 
 test("Blender Apply Material", test_blender_material)
 
 
 def test_blender_scene_info():
-    r = run_in_blender('''
+    r = run_in_blender("""
 import bpy
 print(f"objects:{len(bpy.data.objects)}")
-''')
-    return "objects:" in r.get('output', '')
+""")
+    return "objects:" in r.get("output", "")
+
 
 test("Blender Scene Info", test_blender_scene_info)
 
@@ -173,12 +181,12 @@ test("Blender Scene Info", test_blender_scene_info)
 # SUMMARY
 # ═══════════════════════════════════════════════════════════════
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("TEST SUMMARY")
-print("="*60)
+print("=" * 60)
 print(f"  Passed: {results['passed']}")
 print(f"  Failed: {results['failed']}")
-if results['errors']:
+if results["errors"]:
     print(f"  Errors: {results['errors']}")
-print(f"  Rate: {results['passed']/(results['passed']+results['failed'])*100:.1f}%")
-print("="*60)
+print(f"  Rate: {results['passed'] / (results['passed'] + results['failed']) * 100:.1f}%")
+print("=" * 60)

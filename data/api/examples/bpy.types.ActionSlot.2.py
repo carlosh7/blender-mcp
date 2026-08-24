@@ -8,16 +8,17 @@ and ``MESuzanne`` and the name (``Suzanne``) can be shared between them. This is
 so that the slots and the datablocks can have the same name.
 
 """
+
 import bpy
 
 # Actions creation.
 action = bpy.data.actions.new("SuzanneAction")
 
 # Creation of slots requires an ID type and a name.
-slot = action.slots.new(id_type='OBJECT', name="Suzanne")
-print(f"slot type={slot.target_id_type!r} "
-      f"name={slot.name_display!r} "
-      f"identifier={slot.identifier!r}")
+slot = action.slots.new(id_type="OBJECT", name="Suzanne")
+print(
+    f"slot type={slot.target_id_type!r} name={slot.name_display!r} identifier={slot.identifier!r}"
+)
 
 # Output:
 #   slot type=OBJECT name=Suzanne identifier=OBSuzanne

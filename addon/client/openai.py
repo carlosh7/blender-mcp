@@ -2,9 +2,11 @@
 blender-mcp — OpenAI-compatible Provider (DeepSeek, OpenRouter, etc.)
 Full implementation with streaming, tool calls, multi-turn conversation.
 """
+
 import json
-import urllib.request
 import logging
+import urllib.request
+
 from . import MCPClientBase
 
 logger = logging.getLogger("blender-mcp-openai")
@@ -19,7 +21,6 @@ class MCPClientOpenAI(MCPClientBase):
     api_base = ""
 
     def __init__(self, api_base="", default_model="", server_url=None):
-        import os
         super().__init__(server_url)
         if api_base:
             self.api_base = api_base
@@ -42,16 +43,17 @@ class MCPClientOpenAI(MCPClientBase):
 
         # Build tool descriptions from the embedded MCP server tools
         tools_payload = []
-        from mcp.server.fastmcp import FastMCP as _unused
         for t in self._tools:
-            tools_payload.append({
-                "type": "function",
-                "function": {
-                    "name": t["name"],
-                    "description": t["description"],
-                    "parameters": t["schema"],
-                },
-            })
+            tools_payload.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t["description"],
+                        "parameters": t["schema"],
+                    },
+                }
+            )
 
         body = {
             "model": model,
@@ -68,7 +70,6 @@ class MCPClientOpenAI(MCPClientBase):
 
         full_content = ""
         tool_calls = {}
-        current_tool = None
 
         try:
             resp = urllib.request.urlopen(req, timeout=120)

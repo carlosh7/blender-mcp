@@ -3,11 +3,12 @@ blender-mcp — Embedded MCP Client Base
 Manages async event loop, SSE connection to embedded MCP server,
 and tool call dispatch via Blender timers.
 """
+
+import asyncio
 import json
+import logging
 import queue
 import threading
-import asyncio
-import logging
 import time
 from contextlib import suppress
 
@@ -24,7 +25,10 @@ class MCPClientBase:
 
     def __init__(self, server_url=None):
         import os
-        self.server_url = server_url or os.environ.get("OPENCODE_SSE_URL", "http://localhost:45677/sse")
+
+        self.server_url = server_url or os.environ.get(
+            "OPENCODE_SSE_URL", "http://localhost:45677/sse"
+        )
         self.command_queue = queue.Queue()
         self.response_queue = queue.Queue()
         self.running = False
@@ -59,9 +63,12 @@ class MCPClientBase:
         async with sse_client(self.server_url) as streams:
             async with ClientSession(*streams) as session:
                 self._session = session
-                result = await session.initialize()
+                await session.initialize()
                 tools_result = await session.list_tools()
-                self._tools = [{"name": t.name, "description": t.description, "schema": t.inputSchema} for t in tools_result.tools]
+                self._tools = [
+                    {"name": t.name, "description": t.description, "schema": t.inputSchema}
+                    for t in tools_result.tools
+                ]
                 logger.info(f"Connected to embedded MCP, {len(self._tools)} tools available")
 
                 while self.running:
@@ -96,15 +103,20 @@ class MCPClientBase:
 
     def send_message(self, model, api_key, messages, stream_callback=None):
         """Thread-safe: queue a message for processing and wait for response."""
-        self.command_queue.put({
-            "model": model,
-            "api_key": api_key,
-            "messages": messages,
-            "stream_callback": stream_callback,
-        })
+        self.command_queue.put(
+            {
+                "model": model,
+                "api_key": api_key,
+                "messages": messages,
+                "stream_callback": stream_callback,
+            }
+        )
         return self.response_queue.get(timeout=180)
 
     async def _execute_tool(self, session, tool_name, arguments):
         """Execute a tool via the MCP session."""
         result = await session.call_tool(tool_name, arguments)
-        return {"tool": tool_name, "result": result.content if hasattr(result, 'content') else str(result)}
+        return {
+            "tool": tool_name,
+            "result": result.content if hasattr(result, "content") else str(result),
+        }

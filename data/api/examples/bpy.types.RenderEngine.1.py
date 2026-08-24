@@ -3,8 +3,9 @@ Simple Render Engine
 ++++++++++++++++++++
 """
 
-import bpy
 import array
+
+import bpy
 
 
 class CustomRenderEngine(bpy.types.RenderEngine):
@@ -61,12 +62,8 @@ class CustomRenderEngine(bpy.types.RenderEngine):
     # should be read from Blender in the same thread. Typically a render
     # thread will be started to do the work while keeping Blender responsive.
     def view_update(self, context, depsgraph):
-        region = context.region
-        view3d = context.space_data
-        scene = depsgraph.scene
 
         # Get viewport dimensions
-        dimensions = region.width, region.height
 
         if not self.scene_data:
             # First time initialization
@@ -84,11 +81,11 @@ class CustomRenderEngine(bpy.types.RenderEngine):
                 print("Datablock updated: ", update.id.name)
 
             # Test if any material was added, removed or changed.
-            if depsgraph.id_type_updated('MATERIAL'):
+            if depsgraph.id_type_updated("MATERIAL"):
                 print("Materials updated")
 
         # Loop over all object instances in the scene.
-        if first_time or depsgraph.id_type_updated('OBJECT'):
+        if first_time or depsgraph.id_type_updated("OBJECT"):
             for instance in depsgraph.object_instances:
                 pass
 
@@ -109,7 +106,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         dimensions = region.width, region.height
 
         # Bind shader that converts from scene linear to display space,
-        gpu.state.blend_set('ALPHA_PREMULT')
+        gpu.state.blend_set("ALPHA_PREMULT")
         self.bind_display_space_shader(scene)
 
         if not self.draw_data or self.draw_data.dimensions != dimensions:
@@ -118,7 +115,7 @@ class CustomRenderEngine(bpy.types.RenderEngine):
         self.draw_data.draw()
 
         self.unbind_display_space_shader()
-        gpu.state.blend_set('NONE')
+        gpu.state.blend_set("NONE")
 
 
 class CustomDrawData:
@@ -129,11 +126,11 @@ class CustomDrawData:
         self.dimensions = dimensions
         width, height = dimensions
 
-        pixels = width * height * array.array('f', [0.1, 0.2, 0.1, 1.0])
-        pixels = gpu.types.Buffer('FLOAT', width * height * 4, pixels)
+        pixels = width * height * array.array("f", [0.1, 0.2, 0.1, 1.0])
+        pixels = gpu.types.Buffer("FLOAT", width * height * 4, pixels)
 
         # Generate texture.
-        self.texture = gpu.types.GPUTexture((width, height), format='RGBA16F', data=pixels)
+        self.texture = gpu.types.GPUTexture((width, height), format="RGBA16F", data=pixels)
 
         # Note: This is just a didactic example.
         # In this case it would be more convenient to fill the texture with:
@@ -144,6 +141,7 @@ class CustomDrawData:
 
     def draw(self):
         from gpu_extras.presets import draw_texture_2d
+
         draw_texture_2d(self.texture, (0, 0), self.texture.width, self.texture.height)
 
 
@@ -153,13 +151,13 @@ class CustomDrawData:
 # render engine, or that are not supported.
 def get_panels():
     exclude_panels = {
-        'VIEWLAYER_PT_filter',
-        'VIEWLAYER_PT_layer_passes',
+        "VIEWLAYER_PT_filter",
+        "VIEWLAYER_PT_layer_passes",
     }
 
     panels = []
     for panel in bpy.types.Panel.__subclasses__():
-        if hasattr(panel, 'COMPAT_ENGINES') and 'BLENDER_RENDER' in panel.COMPAT_ENGINES:
+        if hasattr(panel, "COMPAT_ENGINES") and "BLENDER_RENDER" in panel.COMPAT_ENGINES:
             if panel.__name__ not in exclude_panels:
                 panels.append(panel)
 
@@ -171,15 +169,15 @@ def register():
     bpy.utils.register_class(CustomRenderEngine)
 
     for panel in get_panels():
-        panel.COMPAT_ENGINES.add('CUSTOM')
+        panel.COMPAT_ENGINES.add("CUSTOM")
 
 
 def unregister():
     bpy.utils.unregister_class(CustomRenderEngine)
 
     for panel in get_panels():
-        if 'CUSTOM' in panel.COMPAT_ENGINES:
-            panel.COMPAT_ENGINES.remove('CUSTOM')
+        if "CUSTOM" in panel.COMPAT_ENGINES:
+            panel.COMPAT_ENGINES.remove("CUSTOM")
 
 
 if __name__ == "__main__":

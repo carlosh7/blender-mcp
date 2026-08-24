@@ -2,6 +2,7 @@
 Only works for 'basic type' properties (bool, int and float)!
 seq must be uni-dimensional, multi-dimensional arrays (like array of vectors) will be re-created from it.
 """
+
 import bpy
 
 mesh = bpy.context.object.data

@@ -40,13 +40,13 @@ def register_keymaps():
         return  # Can be None in background mode.
 
     # Target the 3D View; name must match Blender's built-in keymap exactly.
-    km = kc.keymaps.new(name="3D View", space_type='VIEW_3D')
+    km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
 
     # Bind Shift+Alt+K to frame selected objects.
     kmi = km.keymap_items.new(
         idname="view3d.view_selected",
-        type='K',
-        value='PRESS',
+        type="K",
+        value="PRESS",
         shift=True,
         alt=True,
     )

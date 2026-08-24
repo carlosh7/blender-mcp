@@ -2,8 +2,8 @@
 blender-mcp — Weak sandbox for LLM-generated code execution.
 Blocks dangerous operations that could crash Blender or corrupt the scene.
 """
+
 import sys
-from typing import Any
 
 __all__ = ("WeakSandboxForLLM",)
 
@@ -12,9 +12,7 @@ def _blocked_exit(*args, **kwargs):
     raise RuntimeError("sys.exit() is not allowed in LLM-generated code")
 
 
-_OVERRIDES = (
-    (sys, "exit", _blocked_exit),
-)
+_OVERRIDES = ((sys, "exit", _blocked_exit),)
 
 _BLOCKED_OPS = (
     ("wm.quit_blender", "Terminates Blender, use bpy.app.quit() if you must"),
@@ -45,12 +43,14 @@ class WeakSandboxForLLM:
     @staticmethod
     def ops_blocked_store():
         import bpy.ops as _bpy_ops
+
         original = _bpy_ops._op_create_function
 
         def _filtered_op_create_function(module, func):
             key = f"{module}.{func}"
             if key in _BLOCKED_OPS_SET:
                 reason = next(r for op, r in _BLOCKED_OPS if op == key)
+
                 def _blocked(*args, **kwargs):
                     args_str = ", ".join(
                         [repr(a) for a in args] + [f"{k}={v!r}" for k, v in kwargs.items()]
@@ -58,6 +58,7 @@ class WeakSandboxForLLM:
                     raise RuntimeError(
                         f"Operator 'bpy.ops.{key}({args_str})' is blocked in LLM code: {reason}"
                     )
+
                 return _blocked
             return original(module, func)
 

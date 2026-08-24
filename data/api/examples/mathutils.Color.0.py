@@ -27,7 +27,7 @@ col += mathutils.Color((0.25, 0.0, 0.0))
 print("Color: {:d}, {:d}, {:d}".format(*(int(c) for c in (col * 255.0))))
 
 # This example prints the color as hexadecimal.
-print("Hexadecimal: {:02x}{:02x}{:02x}".format(int(col.r * 255), int(col.g * 255), int(col.b * 255)))
+print(f"Hexadecimal: {int(col.r * 255):02x}{int(col.g * 255):02x}{int(col.b * 255):02x}")
 
 # Direct buffer access is supported.
 print(memoryview(col).tobytes())

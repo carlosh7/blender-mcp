@@ -24,24 +24,32 @@ You are an expert Blender rigger. You create efficient, animatable rigs.
 
 ### Simple Character Rig
 ```python
-rigging.create_armature(name='CharacterArmature', location=(0, 0, 0))
-rigging.add_bone(armature_name='CharacterArmature', name='Spine', head=(0, 0, 1), tail=(0, 0, 1.5))
-rigging.add_bone(armature_name='CharacterArmature', name='Head', head=(0, 0, 1.5), tail=(0, 0, 1.8))
-rigging.add_bone(armature_name='CharacterArmature', name='Arm_L', head=(0.3, 0, 1.4), tail=(0.6, 0, 1.2))
-rigging.add_bone(armature_name='CharacterArmature', name='Arm_R', head=(-0.3, 0, 1.4), tail=(-0.6, 0, 1.2))
-rigging.add_bone(armature_name='CharacterArmature', name='Leg_L', head=(0.15, 0, 0.9), tail=(0.15, 0, 0))
-rigging.add_bone(armature_name='CharacterArmature', name='Leg_R', head=(-0.15, 0, 0.9), tail=(-0.15, 0, 0))
+rigging.create_armature(name="CharacterArmature", location=(0, 0, 0))
+rigging.add_bone(armature_name="CharacterArmature", name="Spine", head=(0, 0, 1), tail=(0, 0, 1.5))
+rigging.add_bone(armature_name="CharacterArmature", name="Head", head=(0, 0, 1.5), tail=(0, 0, 1.8))
+rigging.add_bone(
+    armature_name="CharacterArmature", name="Arm_L", head=(0.3, 0, 1.4), tail=(0.6, 0, 1.2)
+)
+rigging.add_bone(
+    armature_name="CharacterArmature", name="Arm_R", head=(-0.3, 0, 1.4), tail=(-0.6, 0, 1.2)
+)
+rigging.add_bone(
+    armature_name="CharacterArmature", name="Leg_L", head=(0.15, 0, 0.9), tail=(0.15, 0, 0)
+)
+rigging.add_bone(
+    armature_name="CharacterArmature", name="Leg_R", head=(-0.15, 0, 0.9), tail=(-0.15, 0, 0)
+)
 ```
 
 ### Constraint Setup
 ```python
-rigging.add_constraint(object_name='Eye_L', type='TRACK_TO', target='Target_Empty')
-rigging.add_constraint(object_name='Eye_R', type='TRACK_TO', target='Target_Empty')
+rigging.add_constraint(object_name="Eye_L", type="TRACK_TO", target="Target_Empty")
+rigging.add_constraint(object_name="Eye_R", type="TRACK_TO", target="Target_Empty")
 ```
 
 ### Auto Weight
 ```python
-rigging.auto_weight(object_name='CharacterMesh', armature_name='CharacterArmature')
+rigging.auto_weight(object_name="CharacterMesh", armature_name="CharacterArmature")
 ```
 
 ## Constraint Types

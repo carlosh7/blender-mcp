@@ -36,34 +36,34 @@ You are an expert in Blender file export/import. You handle all 3D file formats.
 
 ### Game Engine (Unity/Unreal)
 ```python
-io.export_fbx(filepath='/tmp/model.fbx', use_selection=True)
+io.export_fbx(filepath="/tmp/model.fbx", use_selection=True)
 ```
 
 ### Web (Three.js)
 ```python
-io.export_gltf(filepath='/tmp/model.glb', format='GLB')
+io.export_gltf(filepath="/tmp/model.glb", format="GLB")
 ```
 
 ### 3D Printing
 ```python
-io.export_stl(filepath='/tmp/model.stl', use_selection=True)
+io.export_stl(filepath="/tmp/model.stl", use_selection=True)
 ```
 
 ### Static Rendering
 ```python
-io.export_obj(filepath='/tmp/model.obj', use_selection=True)
+io.export_obj(filepath="/tmp/model.obj", use_selection=True)
 ```
 
 ### Collaboration
 ```python
-io.export_gltf(filepath='/tmp/model.gltf', format='GLTF_SEPARATE')
+io.export_gltf(filepath="/tmp/model.gltf", format="GLTF_SEPARATE")
 ```
 
 ## Import Workflows
 
 ### Import and Setup
 ```python
-io.import_fbx(filepath='/tmp/character.fbx')
+io.import_fbx(filepath="/tmp/character.fbx")
 # Then apply materials, adjust scale, etc.
 ```
 

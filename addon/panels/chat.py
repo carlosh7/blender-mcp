@@ -2,15 +2,17 @@
 blender-mcp — Chat Panel
 3D View Sidebar — Axiom tab chat interface.
 """
-import bpy
-import json
-import os
-import time
-import webbrowser
-from bpy.props import StringProperty, CollectionProperty, BoolProperty, IntProperty, PointerProperty, EnumProperty
-from bpy.types import Panel, UIList, PropertyGroup, Operator
 
-from .. import _axsock as bsock
+import webbrowser
+
+import bpy
+from bpy.props import (
+    BoolProperty,
+    CollectionProperty,
+    IntProperty,
+    StringProperty,
+)
+from bpy.types import Operator, Panel, PropertyGroup, UIList
 
 
 class ChatMsg(PropertyGroup):
@@ -26,20 +28,20 @@ class ChatData(PropertyGroup):
     def add(self, r, t, is_update=False, scene=None):
         was_at_bottom = False
         if scene:
-            was_at_bottom = (scene.aimcp_chat_index >= len(self.msgs) - 1)
+            was_at_bottom = scene.aimcp_chat_index >= len(self.msgs) - 1
         if is_update:
             while len(self.msgs) > 0 and self.msgs[-1].role == r and not self.msgs[-1].is_new:
                 self.msgs.remove(len(self.msgs) - 1)
             if len(self.msgs) > 0 and self.msgs[-1].role == r and self.msgs[-1].is_new:
                 self.msgs.remove(len(self.msgs) - 1)
         lines = self._wrap(t)
-        for i, l in enumerate(lines):
+        for i, line in enumerate(lines):
             m = self.msgs.add()
             m.role = r
-            m.text = l
-            m.is_new = (i == 0)
+            m.text = line
+            m.is_new = i == 0
         self.count = len(self.msgs)
-        if scene and (was_at_bottom or r == 'user' or (not is_update and r == 'assistant')):
+        if scene and (was_at_bottom or r == "user" or (not is_update and r == "assistant")):
             scene.aimcp_chat_index = self.count - 1
 
     @staticmethod
@@ -90,7 +92,7 @@ class BLENDERMCP_OT_OpenWeb(Operator):
 
     def execute(self, context):
         webbrowser.open("http://127.0.0.1:9877/")
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 _AKB_COMMANDS = {
@@ -115,7 +117,7 @@ _AKB_CMD_MAP = {
 class BLENDERMCP_OT_InsertCommand(Operator):
     bl_idname = "blendermcp.insert_command"
     bl_label = "Insert Command"
-    
+
     command: StringProperty()
 
     @classmethod
@@ -126,52 +128,62 @@ class BLENDERMCP_OT_InsertCommand(Operator):
         context.scene.aimcp_input = _AKB_CMD_MAP.get(self.command, "!" + self.command)
         if context.area:
             context.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 class PN_PT_Chat(Panel):
     bl_label = "AXIOM Chat"
     bl_idname = "PN_PT_Chat"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'Axiom'
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Axiom"
 
     def draw(self, ctx):
         L = self.layout
         c = ctx.scene
 
         # ── Show warning if no model configured ──
-        if not c.aimcp_model and not getattr(ctx.scene, 'aimcp_waiting', False):
+        if not c.aimcp_model and not getattr(ctx.scene, "aimcp_waiting", False):
             box = L.box()
-            box.label(text="⚠️ No AI model selected", icon='ERROR')
+            box.label(text="⚠️ No AI model selected", icon="ERROR")
             box.label(text="Go to Scene Properties → Axiom Engine Config")
             row = box.row(align=True)
-            row.operator("aimcp.refresh", text="Refresh Models", icon='FILE_REFRESH')
+            row.operator("aimcp.refresh", text="Refresh Models", icon="FILE_REFRESH")
             L.separator()
 
         # ── Status + Actions ──
         conn = c.aimcp_connection_status or "Listo"
-        icon = 'CHECKBOX_HLT' if "✅" in conn else 'ERROR' if "🔴" in conn else 'SORTTIME' if "🟡" in conn else 'CHECKBOX_DEHLT'
+        icon = (
+            "CHECKBOX_HLT"
+            if "✅" in conn
+            else "ERROR"
+            if "🔴" in conn
+            else "SORTTIME"
+            if "🟡" in conn
+            else "CHECKBOX_DEHLT"
+        )
         row = L.row(align=True)
         if c.aimcp_waiting:
-            row.operator("aimcp.stop_agent", text="STOP", icon='CANCEL')
-            row.label(text="Working...", icon='SORTTIME')
+            row.operator("aimcp.stop_agent", text="STOP", icon="CANCEL")
+            row.label(text="Working...", icon="SORTTIME")
         else:
             row.label(text=conn[:28], icon=icon)
-        row.operator("blendermcp.open_web", text="", icon='URL')
+        row.operator("blendermcp.open_web", text="", icon="URL")
 
         row = L.row(align=True)
-        row.operator("blendermcp.copy_chat", text="Copy", icon='COPYDOWN')
-        row.operator("blendermcp.export_log", text="Log", icon='TEXT')
+        row.operator("blendermcp.copy_chat", text="Copy", icon="COPYDOWN")
+        row.operator("blendermcp.export_log", text="Log", icon="TEXT")
 
         L.separator()
         col = L.column(align=True)
         num = len(c.aimcp_chat.msgs)
         rows_count = min(max(num, 3), 14)
-        col.template_list("MCP_UL_Chat", "", c.aimcp_chat, "msgs", c, "aimcp_chat_index", rows=rows_count)
+        col.template_list(
+            "MCP_UL_Chat", "", c.aimcp_chat, "msgs", c, "aimcp_chat_index", rows=rows_count
+        )
         L.separator()
         L.prop(c, "aimcp_input", text="")
         row = L.row(align=True)
         row.scale_y = 1.2
-        row.operator("aimcp.send", text="Send", icon='PLAY')
-        row.operator("aimcp.clear_chat", text="Clear", icon='X')
+        row.operator("aimcp.send", text="Send", icon="PLAY")
+        row.operator("aimcp.clear_chat", text="Clear", icon="X")

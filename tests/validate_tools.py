@@ -3,8 +3,8 @@
 validate_tools.py — Valida todas las herramientas MCP en Blender.
 Ejecuta cada comando vía socket y reporta éxito/fracaso.
 """
+
 import json
-import sys
 import os
 
 BLENDER = "/usr/bin/blender"
@@ -171,9 +171,9 @@ print("---END---")
 
 # Run in Blender
 import subprocess
+
 result = subprocess.run(
-    [BLENDER, "-b", "--python-expr", SCRIPT],
-    capture_output=True, text=True, timeout=60
+    [BLENDER, "-b", "--python-expr", SCRIPT], capture_output=True, text=True, timeout=60
 )
 
 output = result.stdout
@@ -181,11 +181,11 @@ if "---RESULTS---" in output:
     data = output.split("---RESULTS---")[1].split("---END---")[0].strip()
     r = json.loads(data)
 
-    print(f"\n{'='*50}")
-    print(f"  VALIDACIÖN DE TOOLS")
-    print(f"{'='*50}")
+    print(f"\n{'=' * 50}")
+    print("  VALIDACIÖN DE TOOLS")
+    print(f"{'=' * 50}")
     print(f"  Total: {r['total']} | {PASS} {r['pass']} | {FAIL} {r['fail']}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 
     # Group by category
     cats = {}
@@ -211,7 +211,7 @@ if "---RESULTS---" in output:
                 print(f"    - {d['cmd']}: {d['status']}")
     else:
         print(f"  {PASS} TODAS LAS TOOLS FUNCIONAN")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 else:
-    print(f"ERROR: No se encontraron resultados")
+    print("ERROR: No se encontraron resultados")
     print(output[:1000])

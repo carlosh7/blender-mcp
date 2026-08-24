@@ -4,14 +4,12 @@ Gestión de múltiples agentes: locks, merge, communication.
 
 Regla de oro: COORDINAR agentes para evitar conflictos.
 """
-import bpy
-import json
-import os
-import time
-import threading
-from pathlib import Path
-from datetime import datetime
 
+import json
+import threading
+import time
+from datetime import datetime
+from pathlib import Path
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
@@ -38,19 +36,19 @@ def _ensure_agent_dir():
 def acquire_lock(agent_id, resource, timeout=30):
     """
     Adquirir un lock sobre un recurso.
-    
+
     Args:
         agent_id: ID del agente
         resource: Nombre del recurso (objeto, colección, etc.)
         timeout: Tiempo máximo de espera (segundos)
-    
+
     Returns:
         bool si se adquirió el lock
     """
     _ensure_agent_dir()
-    
+
     start_time = time.time()
-    
+
     while time.time() - start_time < timeout:
         with _lock_mutex:
             # Verificar si el recurso está libre
@@ -62,7 +60,7 @@ def acquire_lock(agent_id, resource, timeout=30):
                 _save_locks()
                 print(f"[multi] Lock adquirido: {resource} por {agent_id}")
                 return True
-            
+
             # Verificar si el lock expiró (más de 60 segundos)
             lock_info = _agent_locks[resource]
             lock_time = datetime.fromisoformat(lock_info["acquired_at"])
@@ -70,12 +68,12 @@ def acquire_lock(agent_id, resource, timeout=30):
                 print(f"[multi] Lock expirado: {resource}")
                 _agent_locks.pop(resource)
                 continue
-            
+
             # Otro agente tiene el lock
             print(f"[multi] Lock en uso: {resource} por {lock_info['agent']}")
-        
+
         time.sleep(1)
-    
+
     print(f"[multi] Timeout adquiriendo lock: {resource}")
     return False
 
@@ -83,11 +81,11 @@ def acquire_lock(agent_id, resource, timeout=30):
 def release_lock(agent_id, resource):
     """
     Liberar un lock.
-    
+
     Args:
         agent_id: ID del agente
         resource: Nombre del recurso
-    
+
     Returns:
         bool si se liberó
     """
@@ -102,7 +100,7 @@ def release_lock(agent_id, resource):
             else:
                 print(f"[multi] No puedes liberar lock de otro agente: {resource}")
                 return False
-    
+
     return True
 
 
@@ -112,11 +110,11 @@ def release_all_locks(agent_id):
         to_remove = [r for r, info in _agent_locks.items() if info["agent"] == agent_id]
         for resource in to_remove:
             _agent_locks.pop(resource)
-        
+
         if to_remove:
             _save_locks()
             print(f"[multi] Locks liberados: {len(to_remove)}")
-    
+
     return True
 
 
@@ -128,14 +126,14 @@ def get_locks():
 def _save_locks():
     """Guardar locks a archivo."""
     _ensure_agent_dir()
-    with open(LOCKS_FILE, 'w') as f:
+    with open(LOCKS_FILE, "w") as f:
         json.dump(_agent_locks, f, indent=2)
 
 
 def _load_locks():
     """Cargar locks desde archivo."""
     if LOCKS_FILE.exists():
-        with open(LOCKS_FILE, 'r') as f:
+        with open(LOCKS_FILE) as f:
             _agent_locks.update(json.load(f))
 
 
@@ -149,13 +147,13 @@ _message_queue = []
 def send_message(sender_id, receiver_id, message_type, content):
     """
     Enviar un mensaje a otro agente.
-    
+
     Args:
         sender_id: ID del remitente
         receiver_id: ID del destinatario (o "broadcast")
         message_type: Tipo de mensaje (task, status, request, response)
         content: Contenido del mensaje
-    
+
     Returns:
         dict con el mensaje enviado
     """
@@ -168,10 +166,10 @@ def send_message(sender_id, receiver_id, message_type, content):
         "timestamp": datetime.now().isoformat(),
         "read": False,
     }
-    
+
     _message_queue.append(message)
     _save_messages()
-    
+
     print(f"[multi] Mensaje enviado: {sender_id} → {receiver_id} ({message_type})")
     return message
 
@@ -179,21 +177,21 @@ def send_message(sender_id, receiver_id, message_type, content):
 def get_messages(agent_id, unread_only=True):
     """
     Obtener mensajes para un agente.
-    
+
     Args:
         agent_id: ID del agente
         unread_only: Solo mensajes no leídos
-    
+
     Returns:
         Lista de mensajes
     """
     messages = []
-    
+
     for msg in _message_queue:
         if msg["receiver"] == agent_id or msg["receiver"] == "broadcast":
             if not unread_only or not msg["read"]:
                 messages.append(msg)
-    
+
     return messages
 
 
@@ -215,7 +213,7 @@ def broadcast_message(sender_id, message_type, content):
 def _save_messages():
     """Guardar mensajes a archivo."""
     _ensure_agent_dir()
-    with open(MESSAGES_FILE, 'w') as f:
+    with open(MESSAGES_FILE, "w") as f:
         json.dump(_message_queue[-100:], f, indent=2)  # Últimos 100
 
 
@@ -223,7 +221,7 @@ def _load_messages():
     """Cargar mensajes desde archivo."""
     global _message_queue
     if MESSAGES_FILE.exists():
-        with open(MESSAGES_FILE, 'r') as f:
+        with open(MESSAGES_FILE) as f:
             _message_queue = json.load(f)
 
 
@@ -237,12 +235,12 @@ _task_registry = {}
 def register_task(task_id, description, assigned_to=None):
     """
     Registrar una tarea.
-    
+
     Args:
         task_id: ID de la tarea
         description: Descripción
         assigned_to: Agente asignado (opcional)
-    
+
     Returns:
         dict con la tarea
     """
@@ -254,7 +252,7 @@ def register_task(task_id, description, assigned_to=None):
         "created_at": datetime.now().isoformat(),
         "completed_at": None,
     }
-    
+
     _task_registry[task_id] = task
     print(f"[multi] Tarea registrada: {task_id} - {description}")
     return task
@@ -296,7 +294,7 @@ def get_task_status():
     pending = sum(1 for t in _task_registry.values() if t["status"] == "pending")
     assigned = sum(1 for t in _task_registry.values() if t["status"] == "assigned")
     completed = sum(1 for t in _task_registry.values() if t["status"] == "completed")
-    
+
     return {
         "total": len(_task_registry),
         "pending": pending,
@@ -309,14 +307,15 @@ def get_task_status():
 # ORQUESTACIÓN
 # ═══════════════════════════════════════════════════════════════
 
+
 def create_workflow(name, steps):
     """
     Crear un workflow con pasos dependentes.
-    
+
     Args:
         name: Nombre del workflow
         steps: Lista de pasos [{id, description, dependencies}]
-    
+
     Returns:
         dict con el workflow
     """
@@ -327,7 +326,7 @@ def create_workflow(name, steps):
         "current_step": 0,
         "created_at": datetime.now().isoformat(),
     }
-    
+
     print(f"[multi] Workflow creado: {name} ({len(steps)} pasos)")
     return workflow
 
@@ -335,38 +334,37 @@ def create_workflow(name, steps):
 def execute_workflow(workflow, agent_id):
     """
     Ejecutar un workflow paso a paso.
-    
+
     Args:
         workflow: Workflow a ejecutar
         agent_id: ID del agente ejecutor
-    
+
     Returns:
         dict con resultados
     """
     results = {"success": [], "failed": []}
-    
+
     for i, step in enumerate(workflow["steps"]):
         # Verificar dependencias
         deps = step.get("dependencies", [])
         deps_met = all(
-            any(r["step"] == dep and r["success"] for r in results["success"])
-            for dep in deps
+            any(r["step"] == dep and r["success"] for r in results["success"]) for dep in deps
         )
-        
+
         if not deps_met:
-            print(f"[multi] Saltando paso {i+1}: dependencias no cumplidas")
+            print(f"[multi] Saltando paso {i + 1}: dependencias no cumplidas")
             continue
-        
+
         # Ejecutar paso
-        print(f"[multi] Ejecutando paso {i+1}: {step['description']}")
-        
+        print(f"[multi] Ejecutando paso {i + 1}: {step['description']}")
+
         # Aquí se ejecutaría la lógica específica del paso
         # Por ahora solo registramos
         results["success"].append({"step": step["id"], "result": "executed"})
-    
+
     workflow["status"] = "completed"
     print(f"[multi] Workflow completado: {workflow['name']}")
-    
+
     return results
 
 
@@ -374,12 +372,13 @@ def execute_workflow(workflow, agent_id):
 # UTILIDADES
 # ═══════════════════════════════════════════════════════════════
 
+
 def get_agent_status(agent_id):
     """Obtener estado de un agente."""
     locks = {r: info for r, info in _agent_locks.items() if info["agent"] == agent_id}
     messages = get_messages(agent_id)
     tasks = get_pending_tasks(agent_id)
-    
+
     return {
         "agent_id": agent_id,
         "locks": locks,
@@ -390,23 +389,23 @@ def get_agent_status(agent_id):
 
 def print_system_status():
     """Imprimir estado del sistema multi-agente."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SISTEMA MULTI-AGENTE")
-    print("="*60)
-    
+    print("=" * 60)
+
     print(f"\n🔒 Locks activos: {len(_agent_locks)}")
     for resource, info in _agent_locks.items():
         print(f"   {resource} → {info['agent']}")
-    
+
     print(f"\n📨 Cola de mensajes: {len(_message_queue)}")
-    
+
     task_status = get_task_status()
     print(f"\n📋 Tareas: {task_status['total']} total")
     print(f"   Pendientes: {task_status['pending']}")
     print(f"   Asignadas: {task_status['assigned']}")
     print(f"   Completadas: {task_status['completed']}")
-    
-    print("="*60)
+
+    print("=" * 60)
 
 
 def cleanup():

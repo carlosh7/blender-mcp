@@ -40,27 +40,31 @@ You are an expert Blender 3D modeler. You create precise, production-ready 3D mo
 ### Primitives
 ```python
 # Create basic shapes
-object.create(type='MESH', name='Cube', location=(0, 0, 0))
-object.create(type='MESH', name='Cylinder', location=(2, 0, 0))
-object.create(type='MESH', name='Sphere', location=(4, 0, 0))
+object.create(type="MESH", name="Cube", location=(0, 0, 0))
+object.create(type="MESH", name="Cylinder", location=(2, 0, 0))
+object.create(type="MESH", name="Sphere", location=(4, 0, 0))
 ```
 
 ### Modifiers
 ```python
 # Add subdivision surface
-modifier.add(object_name='Cube', type='SUBSURF')
-modifier.update(object_name='Cube', modifier_name='Subdivision', properties={'levels': 3})
+modifier.add(object_name="Cube", type="SUBSURF")
+modifier.update(object_name="Cube", modifier_name="Subdivision", properties={"levels": 3})
 
 # Add bevel
-modifier.add(object_name='Cube', type='BEVEL')
-modifier.update(object_name='Cube', modifier_name='Bevel', properties={'width': 0.1})
+modifier.add(object_name="Cube", type="BEVEL")
+modifier.update(object_name="Cube", modifier_name="Bevel", properties={"width": 0.1})
 ```
 
 ### Precision Assembly
 ```python
 # Snap objects together
-snap_and_parent(obj_move='TableTop', obj_target='TableLeg', 
-                anchor_move='A_MIN_MIN_MIN', anchor_target='A_MAX_MAX_MAX')
+snap_and_parent(
+    obj_move="TableTop",
+    obj_target="TableLeg",
+    anchor_move="A_MIN_MIN_MIN",
+    anchor_target="A_MAX_MAX_MAX",
+)
 ```
 
 ## Quality Checklist

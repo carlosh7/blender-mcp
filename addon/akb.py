@@ -3,9 +3,9 @@ blender-mcp — AKB (Axiom Knowledge Base) Manager
 Almacena y consulta blueprints de objetos reales con schema v0.4.0.
 Organizado por categorías: av/, furniture/, vehicles/, structural/, etc.
 """
-import os
+
 import json
-import math
+import os
 from pathlib import Path
 
 _AKB_DIR = Path(__file__).parent / "data" / "akb"
@@ -23,7 +23,7 @@ def _load_index():
     if _INDEX_FILE.exists():
         try:
             return json.loads(_INDEX_FILE.read_text())
-        except:
+        except Exception:
             pass
     return []
 
@@ -91,7 +91,8 @@ def save_blueprint(data, category, name):
         else:
             ridx = []
         entry_r = {
-            "name": name, "category": category,
+            "name": name,
+            "category": category,
             "display_name": data.get("name", name),
             "dimensions": data.get("dimensions", [1, 1, 1]),
             "source": data.get("source", "manual"),
@@ -99,12 +100,13 @@ def save_blueprint(data, category, name):
         if not any(e["name"] == name and e["category"] == category for e in ridx):
             ridx.append(entry_r)
         repo_idx.write_text(json.dumps(ridx, indent=2))
-    except:
+    except Exception:
         pass
 
     index = _load_index()
     entry = {
-        "name": name, "category": category,
+        "name": name,
+        "category": category,
         "display_name": data.get("name", name),
         "dimensions": data.get("dimensions", [1, 1, 1]),
         "source": data.get("source", "manual"),
@@ -148,7 +150,11 @@ def get_specs(query):
     results = []
     index = _load_index()
     for entry in index:
-        if q in entry["name"].lower() or q in entry["category"].lower() or q in entry["display_name"].lower():
+        if (
+            q in entry["name"].lower()
+            or q in entry["category"].lower()
+            or q in entry["display_name"].lower()
+        ):
             fp = _AKB_DIR / entry["category"] / f"{entry['name']}.json"
             if fp.exists():
                 bp = json.loads(fp.read_text())

@@ -2,15 +2,24 @@
 blender-mcp — Cross-platform utilities (inside Blender)
 Duplicated from src/blender_mcp/platform.py for ZIP self-containment.
 """
+
 import os
 import sys
 from pathlib import Path
 
 SYSTEM = sys.platform  # 'win32', 'darwin', 'linux'
 
-def _is_windows(): return SYSTEM == "win32"
-def _is_mac(): return SYSTEM == "darwin"
-def _is_linux(): return SYSTEM.startswith("linux")
+
+def _is_windows():
+    return SYSTEM == "win32"
+
+
+def _is_mac():
+    return SYSTEM == "darwin"
+
+
+def _is_linux():
+    return SYSTEM.startswith("linux")
 
 
 def get_config_dir() -> Path:

@@ -4,11 +4,12 @@ Exportación automática: glTF, FBX, OBJ, STL, render.
 
 Regla de oro: SIEMPRE ofrecer exportación al finalizar.
 """
-import bpy
-import os
-from pathlib import Path
-from datetime import datetime
 
+import os
+from datetime import datetime
+from pathlib import Path
+
+import bpy
 
 # ═══════════════════════════════════════════════════════════════
 # EXPORTACIÓN
@@ -20,11 +21,11 @@ EXPORT_DIR = Path("/tmp/blender_exports")
 def export_glTF(filepath=None, selection_only=False):
     """
     Exportar escena a glTF/GLB.
-    
+
     Args:
         filepath: Ruta de salida (default: auto-generada)
         selection_only: Exportar solo selección
-    
+
     Returns:
         dict con resultado
     """
@@ -32,23 +33,16 @@ def export_glTF(filepath=None, selection_only=False):
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = str(EXPORT_DIR / f"scene_{timestamp}.glb")
-    
+
     try:
         if selection_only:
-            bpy.ops.export_scene.gltf(
-                filepath=filepath,
-                export_format='GLB',
-                use_selection=True
-            )
+            bpy.ops.export_scene.gltf(filepath=filepath, export_format="GLB", use_selection=True)
         else:
-            bpy.ops.export_scene.gltf(
-                filepath=filepath,
-                export_format='GLB'
-            )
-        
+            bpy.ops.export_scene.gltf(filepath=filepath, export_format="GLB")
+
         size = os.path.getsize(filepath)
-        print(f"[export] glTF exportado: {filepath} ({size/1024:.1f} KB)")
-        
+        print(f"[export] glTF exportado: {filepath} ({size / 1024:.1f} KB)")
+
         return {
             "success": True,
             "filepath": filepath,
@@ -62,11 +56,11 @@ def export_glTF(filepath=None, selection_only=False):
 def export_FBX(filepath=None, selection_only=False):
     """
     Exportar escena a FBX.
-    
+
     Args:
         filepath: Ruta de salida
         selection_only: Exportar solo selección
-    
+
     Returns:
         dict con resultado
     """
@@ -74,17 +68,15 @@ def export_FBX(filepath=None, selection_only=False):
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = str(EXPORT_DIR / f"scene_{timestamp}.fbx")
-    
+
     try:
         bpy.ops.export_scene.fbx(
-            filepath=filepath,
-            use_selection=selection_only,
-            apply_scale_options='FBX_SCALE_ALL'
+            filepath=filepath, use_selection=selection_only, apply_scale_options="FBX_SCALE_ALL"
         )
-        
+
         size = os.path.getsize(filepath)
-        print(f"[export] FBX exportado: {filepath} ({size/1024:.1f} KB)")
-        
+        print(f"[export] FBX exportado: {filepath} ({size / 1024:.1f} KB)")
+
         return {
             "success": True,
             "filepath": filepath,
@@ -98,11 +90,11 @@ def export_FBX(filepath=None, selection_only=False):
 def export_OBJ(filepath=None, selection_only=False):
     """
     Exportar escena a OBJ.
-    
+
     Args:
         filepath: Ruta de salida
         selection_only: Exportar solo selección
-    
+
     Returns:
         dict con resultado
     """
@@ -110,16 +102,13 @@ def export_OBJ(filepath=None, selection_only=False):
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = str(EXPORT_DIR / f"scene_{timestamp}.obj")
-    
+
     try:
-        bpy.ops.export_scene.obj(
-            filepath=filepath,
-            use_selection=selection_only
-        )
-        
+        bpy.ops.export_scene.obj(filepath=filepath, use_selection=selection_only)
+
         size = os.path.getsize(filepath)
-        print(f"[export] OBJ exportado: {filepath} ({size/1024:.1f} KB)")
-        
+        print(f"[export] OBJ exportado: {filepath} ({size / 1024:.1f} KB)")
+
         return {
             "success": True,
             "filepath": filepath,
@@ -133,11 +122,11 @@ def export_OBJ(filepath=None, selection_only=False):
 def export_STL(filepath=None, selection_only=False):
     """
     Exportar escena a STL (para impresión 3D).
-    
+
     Args:
         filepath: Ruta de salida
         selection_only: Exportar solo selección
-    
+
     Returns:
         dict con resultado
     """
@@ -145,16 +134,13 @@ def export_STL(filepath=None, selection_only=False):
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = str(EXPORT_DIR / f"scene_{timestamp}.stl")
-    
+
     try:
-        bpy.ops.export_mesh.stl(
-            filepath=filepath,
-            use_selection=selection_only
-        )
-        
+        bpy.ops.export_mesh.stl(filepath=filepath, use_selection=selection_only)
+
         size = os.path.getsize(filepath)
-        print(f"[export] STL exportado: {filepath} ({size/1024:.1f} KB)")
-        
+        print(f"[export] STL exportado: {filepath} ({size / 1024:.1f} KB)")
+
         return {
             "success": True,
             "filepath": filepath,
@@ -168,11 +154,11 @@ def export_STL(filepath=None, selection_only=False):
 def export_all_formats(directory=None, selection_only=False):
     """
     Exportar a todos los formatos disponibles.
-    
+
     Args:
         directory: Directorio de salida
         selection_only: Exportar solo selección
-    
+
     Returns:
         dict con resultados de cada formato
     """
@@ -180,40 +166,28 @@ def export_all_formats(directory=None, selection_only=False):
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         directory = str(EXPORT_DIR / f"export_{timestamp}")
-    
+
     os.makedirs(directory, exist_ok=True)
-    
+
     results = {}
-    
+
     # glTF
-    results["glTF"] = export_glTF(
-        os.path.join(directory, "scene.glb"),
-        selection_only
-    )
-    
+    results["glTF"] = export_glTF(os.path.join(directory, "scene.glb"), selection_only)
+
     # FBX
-    results["FBX"] = export_FBX(
-        os.path.join(directory, "scene.fbx"),
-        selection_only
-    )
-    
+    results["FBX"] = export_FBX(os.path.join(directory, "scene.fbx"), selection_only)
+
     # OBJ
-    results["OBJ"] = export_OBJ(
-        os.path.join(directory, "scene.obj"),
-        selection_only
-    )
-    
+    results["OBJ"] = export_OBJ(os.path.join(directory, "scene.obj"), selection_only)
+
     # STL
-    results["STL"] = export_STL(
-        os.path.join(directory, "scene.stl"),
-        selection_only
-    )
-    
+    results["STL"] = export_STL(os.path.join(directory, "scene.stl"), selection_only)
+
     print(f"\n[export] Exportación completa: {directory}")
     for fmt, result in results.items():
         status = "✅" if result.get("success") else "❌"
         print(f"  {status} {fmt}")
-    
+
     return results
 
 
@@ -221,44 +195,45 @@ def export_all_formats(directory=None, selection_only=False):
 # RENDER
 # ═══════════════════════════════════════════════════════════════
 
+
 def render_image(filepath=None, engine=None, resolution=None):
     """
     Renderizar la escena actual.
-    
+
     Args:
         filepath: Ruta de salida (default: auto-generada)
         engine: Motor de render (default: actual)
         resolution: Tupla (width, height)
-    
+
     Returns:
         dict con resultado
     """
     scene = bpy.context.scene
-    
+
     if not filepath:
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = str(EXPORT_DIR / f"render_{timestamp}.png")
-    
+
     # Configurar motor
     if engine:
         scene.render.engine = engine
-    
+
     # Configurar resolución
     if resolution:
         scene.render.resolution_x = resolution[0]
         scene.render.resolution_y = resolution[1]
-    
+
     # Renderizar
     scene.render.filepath = filepath
-    scene.render.image_settings.file_format = 'PNG'
-    
+    scene.render.image_settings.file_format = "PNG"
+
     try:
         bpy.ops.render.render(write_still=True)
-        
+
         size = os.path.getsize(filepath)
-        print(f"[render] Imagen renderizada: {filepath} ({size/1024:.1f} KB)")
-        
+        print(f"[render] Imagen renderizada: {filepath} ({size / 1024:.1f} KB)")
+
         return {
             "success": True,
             "filepath": filepath,
@@ -273,11 +248,11 @@ def render_image(filepath=None, engine=None, resolution=None):
 def render_preview(filepath=None, max_size=800):
     """
     Renderizar preview rápido del viewport.
-    
+
     Args:
         filepath: Ruta de salida
         max_size: Tamaño máximo en píxeles
-    
+
     Returns:
         dict con resultado
     """
@@ -285,14 +260,14 @@ def render_preview(filepath=None, max_size=800):
         EXPORT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filepath = str(EXPORT_DIR / f"preview_{timestamp}.png")
-    
+
     try:
         # Tomar screenshot del viewport
         bpy.ops.screen.screenshot_area(filepath=filepath)
-        
+
         size = os.path.getsize(filepath)
-        print(f"[render] Preview guardado: {filepath} ({size/1024:.1f} KB)")
-        
+        print(f"[render] Preview guardado: {filepath} ({size / 1024:.1f} KB)")
+
         return {
             "success": True,
             "filepath": filepath,
@@ -305,15 +280,15 @@ def render_preview(filepath=None, max_size=800):
 def set_render_preset(preset):
     """
     Aplicar preset de render.
-    
+
     Args:
         preset: Nombre del preset (preview, standard, high, ultra)
-    
+
     Returns:
         dict con configuración aplicada
     """
     scene = bpy.context.scene
-    
+
     presets = {
         "preview": {
             "engine": "BLENDER_EEVEE_NEXT",
@@ -336,26 +311,26 @@ def set_render_preset(preset):
             "samples": 128,
         },
     }
-    
+
     if preset not in presets:
         return {"error": f"Preset no encontrado: {preset}"}
-    
+
     config = presets[preset]
-    
+
     scene.render.engine = config["engine"]
     scene.render.resolution_x = config["resolution"][0]
     scene.render.resolution_y = config["resolution"][1]
-    
+
     if config["engine"] == "CYCLES":
         scene.cycles.samples = config["samples"]
     else:
         scene.eevee.taa_render_samples = config["samples"]
-    
+
     print(f"[render] Preset aplicado: {preset}")
     print(f"  Motor: {config['engine']}")
     print(f"  Resolución: {config['resolution'][0]}x{config['resolution'][1]}")
     print(f"  Samples: {config['samples']}")
-    
+
     return {
         "preset": preset,
         "config": config,
@@ -365,6 +340,7 @@ def set_render_preset(preset):
 # ═══════════════════════════════════════════════════════════════
 # UTILIDADES
 # ═══════════════════════════════════════════════════════════════
+
 
 def get_export_formats():
     """Obtener formatos de exportación disponibles."""
@@ -381,16 +357,18 @@ def list_exports():
     if not EXPORT_DIR.exists():
         print("[export] No hay exportaciones")
         return []
-    
+
     exports = []
     for f in sorted(EXPORT_DIR.iterdir()):
         if f.is_file():
             size = f.stat().st_size / 1024
-            exports.append({
-                "name": f.name,
-                "path": str(f),
-                "size_kb": size,
-            })
+            exports.append(
+                {
+                    "name": f.name,
+                    "path": str(f),
+                    "size_kb": size,
+                }
+            )
             print(f"  📄 {f.name} ({size:.1f} KB)")
-    
+
     return exports

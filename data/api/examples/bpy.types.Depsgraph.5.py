@@ -20,11 +20,13 @@ consistency of the main database.
 
 .. note:: If object does not have geometry (i.e. camera) the functions returns None.
 """
+
 import bpy
 
 
 class OBJECT_OT_mesh_from_object(bpy.types.Operator):
     """Convert selected object to mesh and show number of vertices"""
+
     bl_label = "DEG Mesh From Object"
     bl_idname = "object.mesh_from_object"
 
@@ -32,17 +34,17 @@ class OBJECT_OT_mesh_from_object(bpy.types.Operator):
         # Access input original object.
         obj = context.object
         if obj is None:
-            self.report({'INFO'}, "No active mesh object to convert to mesh")
-            return {'CANCELLED'}
+            self.report({"INFO"}, "No active mesh object to convert to mesh")
+            return {"CANCELLED"}
         # Avoid annoying None checks later on.
-        if obj.type not in {'MESH', 'CURVE', 'SURFACE', 'FONT', 'META'}:
-            self.report({'INFO'}, "Object cannot be converted to mesh")
-            return {'CANCELLED'}
+        if obj.type not in {"MESH", "CURVE", "SURFACE", "FONT", "META"}:
+            self.report({"INFO"}, "Object cannot be converted to mesh")
+            return {"CANCELLED"}
         depsgraph = context.evaluated_depsgraph_get()
         object_eval = obj.evaluated_get(depsgraph)
         mesh_from_eval = bpy.data.meshes.new_from_object(object_eval)
-        self.report({'INFO'}, f"{len(mesh_from_eval.vertices)} in new mesh, and is ready for use!")
-        return {'FINISHED'}
+        self.report({"INFO"}, f"{len(mesh_from_eval.vertices)} in new mesh, and is ready for use!")
+        return {"FINISHED"}
 
 
 def register():

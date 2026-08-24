@@ -18,11 +18,12 @@ import bpy
 
 def dump(obj, text):
     for attr in dir(obj):
-        print("{!r}.{:s} = {!s}".format(obj, attr, getattr(obj, attr)))
+        print(f"{obj!r}.{attr:s} = {getattr(obj, attr)!s}")
 
 
 class WM_OT_button_context_test(bpy.types.Operator):
     """Right click entry test"""
+
     bl_idname = "wm.button_context_test"
     bl_label = "Run Context Test"
 
@@ -43,7 +44,7 @@ class WM_OT_button_context_test(bpy.types.Operator):
         if value is not None:
             dump(value, "button_operator")
 
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 def draw_menu(self, context):

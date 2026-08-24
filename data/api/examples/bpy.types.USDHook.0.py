@@ -185,28 +185,28 @@ bl_info = {
     "blender": (4, 4, 0),
 }
 
+import textwrap
+
 import bpy
 import bpy.types
-import textwrap
 
 # Make `pxr` module available, for running as `bpy` PIP package.
 bpy.utils.expose_bundled_modules()
 
 import pxr.Gf as Gf
 import pxr.Sdf as Sdf
-import pxr.Usd as Usd
 import pxr.UsdShade as UsdShade
 
 
 class USDHookExample(bpy.types.USDHook):
     """Example implementation of USD IO hooks"""
+
     bl_idname = "usd_hook_example"
     bl_label = "Example"
 
     @staticmethod
     def on_export(export_context):
-        """ Include the Blender filepath in the root layer custom data.
-        """
+        """Include the Blender filepath in the root layer custom data."""
 
         stage = export_context.get_stage()
 
@@ -226,8 +226,7 @@ class USDHookExample(bpy.types.USDHook):
 
     @staticmethod
     def on_material_export(export_context, bl_material, usd_material):
-        """ Create a simple MaterialX shader on the exported material.
-        """
+        """Create a simple MaterialX shader on the exported material."""
 
         stage = export_context.get_stage()
 
@@ -241,14 +240,15 @@ class USDHookExample(bpy.types.USDHook):
 
         # Set the color to the Blender material's viewport display color.
         col = bl_material.diffuse_color
-        shader.CreateInput("base_color", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(col[0], col[1], col[2]))
+        shader.CreateInput("base_color", Sdf.ValueTypeNames.Color3f).Set(
+            Gf.Vec3f(col[0], col[1], col[2])
+        )
 
         return True
 
     @staticmethod
     def on_import(import_context):
-        """Inspect the imported stage & objects to set some custom data
-        """
+        """Inspect the imported stage & objects to set some custom data"""
 
         ###########################################################
         # Store some USD metadata on each imported data-block.
@@ -257,7 +257,6 @@ class USDHookExample(bpy.types.USDHook):
 
         # Store prim path as a string on each data-block created.
         for prim_path, data_blocks in prim_map.items():
-
             # Type hints for prim map.
             prim_path: Sdf.Path
             data_blocks: list[bpy.types.ID]
@@ -296,8 +295,8 @@ class USDHookExample(bpy.types.USDHook):
         # Append key/value strings, enforcing text wrapping.
         for item in customData.items():
             print(item)
-            text += '\n'
-            line = str(item[0]) + ': ' + str(item[1])
+            text += "\n"
+            line = str(item[0]) + ": " + str(item[1])
             text += textwrap.fill(line, width=80)
 
         ob.data.body = text
@@ -347,7 +346,7 @@ class USDHookExample(bpy.types.USDHook):
         bsdf = nodes.new(type="ShaderNodeBsdfPrincipled")
         bsdf.location[0] -= 1.5 * bsdf.width
         bl_material.node_tree.links.new(output.inputs["Surface"], bsdf.outputs["BSDF"])
-        bsdf_base_color_input = bsdf.inputs['Base Color']
+        bsdf_base_color_input = bsdf.inputs["Base Color"]
 
         # Try to set the default color value.
         # Get the authored default value

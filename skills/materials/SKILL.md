@@ -23,37 +23,42 @@ You are an expert Blender materials artist. You create realistic, physically-bas
 
 ### Glass
 ```python
-material.create(name='Glass', color=(0.9, 0.95, 1.0, 1.0), metallic=0.0, roughness=0.0)
+material.create(name="Glass", color=(0.9, 0.95, 1.0, 1.0), metallic=0.0, roughness=0.0)
 ```
 
 ### Metal
 ```python
-material.create(name='Metal', color=(0.8, 0.8, 0.8, 1.0), metallic=1.0, roughness=0.2)
+material.create(name="Metal", color=(0.8, 0.8, 0.8, 1.0), metallic=1.0, roughness=0.2)
 ```
 
 ### Wood
 ```python
-material.create(name='Wood', color=(0.6, 0.4, 0.2, 1.0), metallic=0.0, roughness=0.8)
+material.create(name="Wood", color=(0.6, 0.4, 0.2, 1.0), metallic=0.0, roughness=0.8)
 ```
 
 ### Plastic
 ```python
-material.create(name='Plastic', color=(0.2, 0.5, 0.8, 1.0), metallic=0.0, roughness=0.3)
+material.create(name="Plastic", color=(0.2, 0.5, 0.8, 1.0), metallic=0.0, roughness=0.3)
 ```
 
 ## Common Material Workflows
 
 ### Create and Assign
 ```python
-mat = material.create(name='RedMetal', color=(1, 0, 0, 1), metallic=0.8, roughness=0.2)
-material.assign(object_name='Cylinder', material_name='RedMetal')
+mat = material.create(name="RedMetal", color=(1, 0, 0, 1), metallic=0.8, roughness=0.2)
+material.assign(object_name="Cylinder", material_name="RedMetal")
 ```
 
 ### Complex Shader
 ```python
-shader.add_node(material_name='Glass', node_type='ShaderNodeBsdfGlass')
-shader.connect_nodes(material_name='Glass', from_node='Glass BSDF', from_socket='BSDF',
-                     to_node='Material Output', to_socket='Surface')
+shader.add_node(material_name="Glass", node_type="ShaderNodeBsdfGlass")
+shader.connect_nodes(
+    material_name="Glass",
+    from_node="Glass BSDF",
+    from_socket="BSDF",
+    to_node="Material Output",
+    to_socket="Surface",
+)
 ```
 
 ## Physical Property Reference

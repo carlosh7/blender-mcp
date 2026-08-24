@@ -24,30 +24,32 @@ You are an expert in procedural 3D creation. You build parametric, adjustable sy
 ### Parametric Building
 ```python
 # Base floor
-object.create(type='MESH', name='Floor', location=(0, 0, 0))
-modifier.add(object_name='Floor', type='ARRAY')
-modifier.update(object_name='Floor', modifier_name='Array', 
-                properties={'count': 5, 'relative_offset_displace': (0, 0, 1)})
+object.create(type="MESH", name="Floor", location=(0, 0, 0))
+modifier.add(object_name="Floor", type="ARRAY")
+modifier.update(
+    object_name="Floor",
+    modifier_name="Array",
+    properties={"count": 5, "relative_offset_displace": (0, 0, 1)},
+)
 
 # Walls
-object.create(type='MESH', name='Wall', location=(5, 0, 1.5))
-modifier.add(object_name='Wall', type='SOLIDIFY')
-modifier.update(object_name='Wall', modifier_name='Solidify', 
-                properties={'thickness': 0.2})
+object.create(type="MESH", name="Wall", location=(5, 0, 1.5))
+modifier.add(object_name="Wall", type="SOLIDIFY")
+modifier.update(object_name="Wall", modifier_name="Solidify", properties={"thickness": 0.2})
 ```
 
 ### Procedural Vegetation
 ```python
-geonodes.create_group(name='TreeGenerator')
-geonodes.add_node(group_name='TreeGenerator', node_type='GeometryNodeMeshCylinder')
-geonodes.add_node(group_name='TreeGenerator', node_type='GeometryNodeDistributePointsOnFaces')
-geonodes.add_node(group_name='TreeGenerator', node_type='GeometryNodeInstanceOnPoints')
+geonodes.create_group(name="TreeGenerator")
+geonodes.add_node(group_name="TreeGenerator", node_type="GeometryNodeMeshCylinder")
+geonodes.add_node(group_name="TreeGenerator", node_type="GeometryNodeDistributePointsOnFaces")
+geonodes.add_node(group_name="TreeGenerator", node_type="GeometryNodeInstanceOnPoints")
 ```
 
 ### Parametric Furniture
 ```python
 # Table with adjustable dimensions
-object.create(type='MESH', name='TableTop', location=(0, 0, 0.75))
+object.create(type="MESH", name="TableTop", location=(0, 0, 0.75))
 # Use scale to adjust size
 # Add legs with array modifier
 ```

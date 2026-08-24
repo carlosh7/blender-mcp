@@ -24,30 +24,31 @@ class CurveTextImport(bpy.types.Operator):
     """
     Creates a text object from a text file.
     """
+
     bl_idname = "curve.text_import"
     bl_label = "Import a text file as text object"
 
     # This Operator supports processing one `.txt` file at a time. The following file-path
     # property must be defined.
-    filepath: bpy.props.StringProperty(subtype='FILE_PATH', options={'SKIP_SAVE'})
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE"})
 
     @classmethod
     def poll(cls, context):
-        return (context.area and context.area.type == "VIEW_3D")
+        return context.area and context.area.type == "VIEW_3D"
 
     def execute(self, context):
         # Direct calls to this Operator may use unsupported file-paths. Ensure the incoming
         # file-path is one that is supported.
         if not self.filepath or not self.filepath.endswith(".txt"):
-            return {'CANCELLED'}
+            return {"CANCELLED"}
 
         # Create a Blender Text object from the contents of the provided file.
         with open(self.filepath) as file:
             text_curve = bpy.data.curves.new(type="FONT", name="Text")
-            text_curve.body = ''.join(file.readlines())
+            text_curve.body = "".join(file.readlines())
             text_object = bpy.data.objects.new(name="Text", object_data=text_curve)
             bpy.context.scene.collection.objects.link(text_object)
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     # By default the file handler invokes the operator with the file-path property set. If the
     # operator also supports being invoked with no file-path set, and allows the user to pick from a
@@ -60,7 +61,7 @@ class CurveTextImport(bpy.types.Operator):
         if self.filepath:
             return self.execute(context)
         context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
 
 # Define a file handler that supports the following set of conditions:
@@ -74,7 +75,7 @@ class CURVE_FH_text_import(bpy.types.FileHandler):
 
     @classmethod
     def poll_drop(cls, context):
-        return (context.area and context.area.type == 'VIEW_3D')
+        return context.area and context.area.type == "VIEW_3D"
 
 
 bpy.utils.register_class(CurveTextImport)

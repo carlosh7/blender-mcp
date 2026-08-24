@@ -5,11 +5,10 @@ Auto-detects Blender version and installs the addon.
 """
 
 import os
-import sys
-import shutil
 import platform
+import shutil
 import subprocess
-import json
+import sys
 from pathlib import Path
 
 SYSTEM = platform.system()
@@ -27,10 +26,11 @@ def find_blender_version() -> str | None:
         for line in result.stdout.split("\n"):
             if "Blender" in line:
                 import re
+
                 m = re.search(r"Blender\s+(\d+\.\d+)", line)
                 if m:
                     return m.group(1)
-    except:
+    except Exception:
         pass
     return None
 
@@ -47,7 +47,16 @@ def get_addon_dir(version: str) -> Path | None:
         return home / ".config" / "blender" / version / "scripts" / "addons" / "ai_assistant"
 
     elif SYSTEM == "Darwin":
-        return home / "Library" / "Application Support" / "Blender" / version / "scripts" / "addons" / "ai_assistant"
+        return (
+            home
+            / "Library"
+            / "Application Support"
+            / "Blender"
+            / version
+            / "scripts"
+            / "addons"
+            / "ai_assistant"
+        )
 
     return None
 
@@ -58,17 +67,17 @@ def install():
     # Check source
     if not ADDON_SRC.exists():
         print(f"  ❌ Addon source not found: {ADDON_SRC}")
-        print(f"     Run this script from the blender-mcp root directory.")
+        print("     Run this script from the blender-mcp root directory.")
         sys.exit(1)
 
     # Detect Blender
     version = find_blender_version()
     if not version:
-        print(f"  ❌ Blender not found.")
+        print("  ❌ Blender not found.")
         if SYSTEM == "Windows":
-            print(f"     Download from: https://www.blender.org/download/")
+            print("     Download from: https://www.blender.org/download/")
         elif SYSTEM == "Linux":
-            print(f"     Install: sudo apt install blender")
+            print("     Install: sudo apt install blender")
         sys.exit(1)
 
     addon_dir = get_addon_dir(version)
@@ -85,16 +94,16 @@ def install():
         else:
             shutil.copy2(item, dst)
 
-    print(f"  ✅ Addon installed!")
+    print("  ✅ Addon installed!")
     print(f"     Location: {addon_dir}")
     print(f"     Blender:  {version}")
     print()
-    print(f"     Next steps:")
-    print(f"     1. Open Blender")
-    print(f"     2. Edit → Preferences → Add-ons")
-    print(f"     3. Search for 'AI Assistant'")
-    print(f"     4. Enable it")
-    print(f"     5. In 3D Viewport, open the Sidebar (N) → AI tab")
+    print("     Next steps:")
+    print("     1. Open Blender")
+    print("     2. Edit → Preferences → Add-ons")
+    print("     3. Search for 'AI Assistant'")
+    print("     4. Enable it")
+    print("     5. In 3D Viewport, open the Sidebar (N) → AI tab")
     print()
 
 

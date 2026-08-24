@@ -25,19 +25,19 @@ light.three_point(key_energy=1000, fill_energy=500, rim_energy=800, distance=5)
 
 ### Studio Lighting
 ```python
-light.create(type='AREA', name='Key', location=(3, -3, 5), energy=1500, color=(1, 0.95, 0.9))
-light.create(type='AREA', name='Fill', location=(-3, -3, 3), energy=800, color=(0.9, 0.95, 1.0))
-light.create(type='AREA', name='Rim', location=(0, 3, 4), energy=1000)
+light.create(type="AREA", name="Key", location=(3, -3, 5), energy=1500, color=(1, 0.95, 0.9))
+light.create(type="AREA", name="Fill", location=(-3, -3, 3), energy=800, color=(0.9, 0.95, 1.0))
+light.create(type="AREA", name="Rim", location=(0, 3, 4), energy=1000)
 ```
 
 ### Outdoor Lighting
 ```python
-light.create(type='SUN', name='Sun', location=(0, 0, 10), energy=5, color=(1, 0.95, 0.9))
+light.create(type="SUN", name="Sun", location=(0, 0, 10), energy=5, color=(1, 0.95, 0.9))
 ```
 
 ### Interior Lighting
 ```python
-light.create(type='POINT', name='Ceiling', location=(0, 0, 3), energy=500, color=(1, 0.9, 0.8))
+light.create(type="POINT", name="Ceiling", location=(0, 0, 3), energy=500, color=(1, 0.9, 0.8))
 ```
 
 ## Light Properties Reference

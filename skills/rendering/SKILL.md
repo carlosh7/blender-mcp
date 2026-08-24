@@ -24,19 +24,19 @@ You are an expert Blender render artist. You produce high-quality renders effici
 
 ### Quick Preview (EEVEE)
 ```python
-render.set_engine(engine='BLENDER_EEVEE_NEXT')
+render.set_engine(engine="BLENDER_EEVEE_NEXT")
 render.set_eevee_settings(taa_render_samples=64, use_ssr=True)
 render.setResolution(width=1280, height=720)
-render.render(filepath='/tmp/preview.png', engine='BLENDER_EEVEE_NEXT')
+render.render(filepath="/tmp/preview.png", engine="BLENDER_EEVEE_NEXT")
 ```
 
 ### Production Render (Cycles)
 ```python
-render.set_engine(engine='CYCLES')
+render.set_engine(engine="CYCLES")
 render.set_cycles_settings(samples=512, denoising=True, use_gpu=True)
 render.setResolution(width=3840, height=2160)
-render.set_filmic(look='Medium High Contrast')
-render.render(filepath='/tmp/final.png', engine='CYCLES')
+render.set_filmic(look="Medium High Contrast")
+render.render(filepath="/tmp/final.png", engine="CYCLES")
 ```
 
 ### Batch Renders
@@ -44,7 +44,7 @@ render.render(filepath='/tmp/final.png', engine='CYCLES')
 # Multiple angles
 for i, angle in enumerate([0, 90, 180, 270]):
     # Set camera angle
-    render.render(filepath=f'/tmp/render_{i}.png')
+    render.render(filepath=f"/tmp/render_{i}.png")
 ```
 
 ## Engine Comparison

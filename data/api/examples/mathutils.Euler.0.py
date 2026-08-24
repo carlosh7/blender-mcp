@@ -1,11 +1,12 @@
-import mathutils
 import math
 
+import mathutils
+
 # Create a new euler with default axis rotation order.
-eul = mathutils.Euler((0.0, math.radians(45.0), 0.0), 'XYZ')
+eul = mathutils.Euler((0.0, math.radians(45.0), 0.0), "XYZ")
 
 # Rotate the euler.
-eul.rotate_axis('Z', math.radians(10.0))
+eul.rotate_axis("Z", math.radians(10.0))
 
 # You can access its components by attribute or index.
 print("Euler X", eul.x)
@@ -19,7 +20,7 @@ eul[:] = 1.0, 2.0, 3.0
 print("Values: {:f}, {:f}, {:f}".format(*eul))
 
 # The order can be set at any time too.
-eul.order = 'ZYX'
+eul.order = "ZYX"
 
 # Eulers can be used to rotate vectors.
 vec = mathutils.Vector((0.0, 0.0, 1.0))

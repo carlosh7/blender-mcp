@@ -1,17 +1,16 @@
 """
 blender-mcp — Model Selection Operators (cross-platform)
 """
-import bpy
+
 import json
-import sys
 import os
 import threading
 import traceback
 import urllib.request
-from pathlib import Path
-from bpy.types import Operator
+
+import bpy
 from bpy.props import StringProperty
-from .. import _axsock as bsock
+from bpy.types import Operator
 
 from ..platform_utils import get_opencode_auth_path, get_opencode_config_paths
 
@@ -25,8 +24,11 @@ _PROVIDER_API = {
 
 PROVIDER_ORDER = ["google", "anthropic", "deepseek", "opencode-go", "openrouter"]
 PROVIDER_LABELS = {
-    "google": "Google Gemini", "anthropic": "Anthropic Claude",
-    "deepseek": "DeepSeek", "opencode-go": "OpenCode Go", "openrouter": "OpenRouter",
+    "google": "Google Gemini",
+    "anthropic": "Anthropic Claude",
+    "deepseek": "DeepSeek",
+    "opencode-go": "OpenCode Go",
+    "openrouter": "OpenRouter",
 }
 
 
@@ -38,10 +40,14 @@ def _get_api_key(provider_id):
             entry = auth.get(provider_id)
             if isinstance(entry, dict) and entry.get("key"):
                 return entry["key"]
-        except:
+        except Exception:
             pass
-    env_map = {"deepseek": "DEEPSEEK_API_KEY", "openrouter": "OPENROUTER_API_KEY",
-               "google": "GOOGLE_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+    env_map = {
+        "deepseek": "DEEPSEEK_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+    }
     return os.environ.get(env_map.get(provider_id, ""))
 
 
@@ -62,7 +68,7 @@ class OP_Refresh(Operator):
                     if d.get("model"):
                         model = d["model"]
                         break
-                except:
+                except Exception:
                     pass
 
         auth_path = get_opencode_auth_path()
@@ -74,7 +80,7 @@ class OP_Refresh(Operator):
                     entry = auth[prov_id]
                     if isinstance(entry, dict) and entry.get("key"):
                         providers.append(prov_id)
-            except:
+            except Exception:
                 pass
 
         def fetch_all():
@@ -99,12 +105,15 @@ class OP_Refresh(Operator):
                             mid = m.get("id", "")
                             if not mid:
                                 continue
-                            all_models.append({
-                                "id": mid,
-                                "name": m.get("name") or mid.split("/")[-1].replace("-", " ").title(),
-                                "provider": prov_id,
-                            })
-                except:
+                            all_models.append(
+                                {
+                                    "id": mid,
+                                    "name": m.get("name")
+                                    or mid.split("/")[-1].replace("-", " ").title(),
+                                    "provider": prov_id,
+                                }
+                            )
+                except Exception:
                     pass
 
             def update():
@@ -122,7 +131,7 @@ class OP_Refresh(Operator):
             bpy.app.timers.register(update, first_interval=0.01)
 
         threading.Thread(target=fetch_all, daemon=True).start()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 def _detect_provider(model_id):
@@ -140,24 +149,28 @@ def _detect_provider(model_id):
 _pending_status = []
 _pending_lock = threading.Lock()
 
+
 def _save_selected_model(model_id):
     """Save selected model to config_cache and opencode.json."""
     try:
         from ..config_cache import set_last_model
+
         set_last_model(model_id)
-    except:
+    except Exception:
         pass
     # Also write to opencode.json if it exists
     try:
-        from ..platform_utils import get_opencode_config_paths
         import json
+
+        from ..platform_utils import get_opencode_config_paths
+
         for p in get_opencode_config_paths():
             if p.exists():
                 d = json.loads(p.read_text())
                 d["model"] = model_id
                 p.write_text(json.dumps(d, indent=2))
                 break
-    except:
+    except Exception:
         pass
 
 
@@ -165,6 +178,7 @@ def _queue_status(scene_name, msg):
     """Thread-safe: queue status update for main thread timer."""
     with _pending_lock:
         _pending_status.append((scene_name, msg))
+
 
 def _status_ticker():
     """Timer callback: flush pending status updates to scene."""
@@ -180,7 +194,7 @@ def _status_ticker():
                             if bpy.context.screen:
                                 for area in bpy.context.screen.areas:
                                     area.tag_redraw()
-                        except:
+                        except Exception:
                             pass
                         break
     except Exception as e:
@@ -202,7 +216,7 @@ class OP_SelectModel(Operator):
         # Save selected model to persistent cache + opencode config
         _save_selected_model(self.model_id)
         threading.Thread(target=self._verify, args=(ctx,), daemon=True).start()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     def _verify(self, ctx):
         model_id = self.model_id  # guardar antes del thread (StructRNA se elimina en thread)
@@ -228,7 +242,7 @@ class OP_SelectModel(Operator):
             print(f"[VERIFY] HTTP Error {e.code}")
             _queue_status(ctx.scene.name, f"🔴 Key inválida ({e.code})")
         except urllib.error.URLError:
-            print(f"[VERIFY] URL Error - no se pudo contactar")
+            print("[VERIFY] URL Error - no se pudo contactar")
             _queue_status(ctx.scene.name, "🔴 No se pudo contactar servidor")
         except Exception as e:
             print(f"[VERIFY] Error: {traceback.format_exc()}")
@@ -257,11 +271,11 @@ class OP_ApplyModel(Operator):
                     open(p, "w").write(json.dumps(d, indent=2) + "\n")
                     ctx.scene.aimcp_status = f"Saved to {os.path.basename(p)}"
                     break
-                except:
+                except Exception:
                     pass
         if ctx.area:
             ctx.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 class OP_ClearSearch(Operator):
@@ -274,7 +288,7 @@ class OP_ClearSearch(Operator):
             setattr(ctx.scene, self.search_prop, "")
         if ctx.area:
             ctx.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 MODEL_OPERATORS = [OP_Refresh, OP_SelectModel, OP_ApplyModel, OP_ClearSearch]
@@ -282,12 +296,16 @@ MODEL_OPERATORS = [OP_Refresh, OP_SelectModel, OP_ApplyModel, OP_ClearSearch]
 
 def register_model_operators():
     from bpy.utils import register_class
+
     for cls in MODEL_OPERATORS:
-        try: register_class(cls)
-        except: pass
+        try:
+            register_class(cls)
+        except Exception:
+            pass
 
 
 def unregister_model_operators():
     from bpy.utils import unregister_class
+
     for cls in reversed(MODEL_OPERATORS):
         unregister_class(cls)

@@ -2,10 +2,9 @@
 blender-mcp — Hybrid Headless Fallback Launcher
 Si Blender no está corriendo, lanza blender --background para ejecutar comandos.
 """
-import json
+
 import os
 import subprocess
-import tempfile
 
 _SOCKET_HOST = "localhost"
 _SOCKET_PORT = 9876
@@ -19,13 +18,14 @@ def _get_blender():
 
 def _socket_available():
     import socket
+
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(2)
         s.connect((_SOCKET_HOST, _SOCKET_PORT))
         s.close()
         return True
-    except (ConnectionRefusedError, OSError, socket.timeout):
+    except (TimeoutError, ConnectionRefusedError, OSError):
         return False
 
 
@@ -33,6 +33,7 @@ def execute(code, blend_file=None):
     """Execute code. Tries socket first, falls back to blender --background."""
     if _socket_available():
         from blender_connection import get_blender
+
         b = get_blender()
         return b.send_command("execute_code", {"code": code})
     return _run_headless(code, blend_file)
@@ -46,7 +47,7 @@ def _run_headless(code, blend_file=None):
         "import io\n"
         "buf = io.StringIO()\n"
         "try:\n"
-        "    ns = {}\n"
+        "    ns = {{}}\n"
         "    exec({!r}, ns)\n"
         "    print('OK')\n"
         "except Exception as e:\n"
@@ -61,10 +62,15 @@ def _run_headless(code, blend_file=None):
     try:
         proc = subprocess.run(
             cmd,
-            capture_output=True, text=True, timeout=_TIMEOUT,
+            capture_output=True,
+            text=True,
+            timeout=_TIMEOUT,
         )
-        return {"status": "success" if proc.returncode == 0 else "error",
-                "output": proc.stdout[:2000], "stderr": proc.stderr[:500]}
+        return {
+            "status": "success" if proc.returncode == 0 else "error",
+            "output": proc.stdout[:2000],
+            "stderr": proc.stderr[:500],
+        }
     except subprocess.TimeoutExpired:
         return {"status": "error", "output": "Timeout"}
     except FileNotFoundError:

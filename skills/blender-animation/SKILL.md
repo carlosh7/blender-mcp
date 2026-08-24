@@ -26,6 +26,7 @@ bpy.context.scene.frame_end = 60
 
 ```python
 import math
+
 obj = bpy.data.objects["GEO_Wheel"]
 
 bpy.context.scene.frame_set(1)
@@ -56,7 +57,7 @@ obj.keyframe_insert(data_path="scale")
 if obj.animation_data and obj.animation_data.action:
     for fcurve in obj.animation_data.action.fcurves:
         for kp in fcurve.keyframe_points:
-            kp.interpolation = 'BEZIER'  # or 'LINEAR', 'CONSTANT'
+            kp.interpolation = "BEZIER"  # or 'LINEAR', 'CONSTANT'
 ```
 
 ## Action Management

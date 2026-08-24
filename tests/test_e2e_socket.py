@@ -3,14 +3,17 @@ blender-mcp — E2E Socket Connection Tests
 Tests Blender socket connection and command execution.
 Requires Blender running with the addon active.
 """
+
 import os
 import sys
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from helpers import skip_without_blender
-from blender_connection import get_blender, BlenderConnection
+
+from blender_connection import BlenderConnection, get_blender
 
 
 @skip_without_blender
@@ -26,7 +29,7 @@ class TestSocketConnection:
         """Test ping/pong with Blender."""
         b = get_blender()
         result = b.send_command("ping")
-        assert result.get("pong") == True, "Should receive pong"
+        assert result.get("pong"), "Should receive pong"
 
     def test_get_scene_info(self):
         """Test get_scene_info command."""

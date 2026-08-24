@@ -1,12 +1,21 @@
 # blender-mcp — Socket server for Blender (ahujasid-compatible)
 # Runs inside Blender, listens on port 9876 for JSON commands via TCP socket.
 # Thread-safe: Uses ExecutionQueue for bpy operations.
-import bpy, json, socket, threading, time, io, traceback, importlib
-import sys, os
+import io
+import json
+import os
+import secrets
+import socket
+import threading
+import time
+import traceback
 from contextlib import redirect_stdout
+
+import bpy
 
 SOCKET_PORT = 9876
 _socket_server = None
+_auth_token_cache = None
 _chat_queue = []
 _chat_responses = {}
 _chat_lock = threading.Lock()
@@ -17,10 +26,11 @@ mcp_status = "idle"
 mcp_error = ""
 _mcp_process = None  # true if ping received in last 15s
 
+
 class BlenderSocketServer:
     """TCP socket server inside Blender for receiving MCP commands."""
 
-    def __init__(self, host='localhost', port=SOCKET_PORT):
+    def __init__(self, host="localhost", port=SOCKET_PORT):
         self.host = host
         self.port = port
         self.running = False
@@ -28,6 +38,9 @@ class BlenderSocketServer:
         self.thread = None
         self.listening = False
         self.last_error = None
+        self._tool_registry = (
+            None  # caché del registry de src/ (None=intentar, False=no disponible)
+        )
 
     def start(self):
         """Start the socket server."""
@@ -41,7 +54,7 @@ class BlenderSocketServer:
                     self.sock.close()
                 except Exception:
                     pass
-            
+
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # SO_REUSEADDR + SO_REUSEPORT for quick port release
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -50,7 +63,7 @@ class BlenderSocketServer:
             except (AttributeError, OSError):
                 # SO_REUSEPORT not available on all platforms
                 pass
-            
+
             self.sock.bind((self.host, self.port))
             self.sock.listen(5)
             self.listening = True
@@ -83,7 +96,7 @@ class BlenderSocketServer:
             try:
                 client, addr = self.sock.accept()
                 threading.Thread(target=self._handle, args=(client,), daemon=True).start()
-            except socket.timeout:
+            except TimeoutError:
                 continue
             except Exception as e:
                 if self.running:  # Only log if not intentionally stopped
@@ -91,7 +104,7 @@ class BlenderSocketServer:
 
     def _handle(self, client):
         """Handle client connection with proper thread-safe execution."""
-        buffer = b''
+        buffer = b""
         try:
             while self.running:
                 data = client.recv(1024 * 1024)
@@ -100,25 +113,29 @@ class BlenderSocketServer:
                 buffer += data
                 try:
                     # Try to find complete JSON
-                    raw_data = buffer.decode('utf-8')
+                    raw_data = buffer.decode("utf-8")
                     cmd = json.loads(raw_data)
-                    buffer = b''
-                    
+                    buffer = b""
+
                     # Execute via bpy.app.timers for thread safety
                     def execute():
                         try:
                             resp = self._execute(cmd)
-                            client.sendall(json.dumps(resp).encode('utf-8'))
+                            client.sendall(json.dumps(resp).encode("utf-8"))
                         except Exception as e:
                             try:
-                                client.sendall(json.dumps({
-                                    "status": "error", 
-                                    "message": f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
-                                }).encode('utf-8'))
+                                client.sendall(
+                                    json.dumps(
+                                        {
+                                            "status": "error",
+                                            "message": f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}",
+                                        }
+                                    ).encode("utf-8")
+                                )
                             except Exception:
                                 pass
                         return None
-                    
+
                     # Register in main thread via timers
                     bpy.app.timers.register(execute, first_interval=0.0)
                 except json.JSONDecodeError:
@@ -132,10 +149,31 @@ class BlenderSocketServer:
             except Exception:
                 pass
 
+    def _get_auth_token(self):
+        """Token opcional del socket: env BLENDER_MCP_TOKEN > Scene.mcp_ultra_socket_token."""
+        global _auth_token_cache
+        if _auth_token_cache is not None:
+            return _auth_token_cache
+        import os
+
+        token = os.environ.get("BLENDER_MCP_TOKEN", "")
+        if not token:
+            try:
+                token = bpy.context.scene.get("mcp_ultra_socket_token", "") or ""
+            except Exception:
+                token = ""
+        _auth_token_cache = token
+        return _auth_token_cache
+
     def _execute(self, cmd):
         cmd_type = cmd.get("type") or cmd.get("command")
         params = cmd.get("params") or cmd.get("args") or {}
-        
+
+        # Auth opcional: si hay token configurado, exigirlo en cada comando
+        expected = self._get_auth_token()
+        if expected and not secrets.compare_digest(str(cmd.get("token", "")), expected):
+            return {"status": "error", "message": "unauthorized: invalid or missing token"}
+
         # Try direct method on self first (legacy commands)
         handler = getattr(self, f"cmd_{cmd_type}", None)
         if handler:
@@ -147,26 +185,80 @@ class BlenderSocketServer:
 
         return {"status": "error", "message": f"Unknown command: {cmd_type}"}
 
+    def _get_tool_registry(self):
+        """Cargar (una vez) el ToolRegistry de src/ si el repo está disponible.
+
+        Los handlers de src/tools se ejecutan in-process dentro de Blender,
+        por lo que necesitan bpy: este puente solo funciona con Blender vivo.
+        """
+        if self._tool_registry is not None:
+            return self._tool_registry or None
+        try:
+            import os
+            import sys
+
+            src_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"
+            )
+            if src_path not in sys.path:
+                sys.path.insert(0, src_path)
+            from src.presentation.mcp_server import register_all_tools
+            from src.tools import ToolRegistry
+
+            registry = ToolRegistry(use_cache=False)
+            register_all_tools(registry)
+            self._tool_registry = registry
+            print(f"[BLENDER SOCKET] Registry cargado: {len(registry.list_tools())} tools")
+        except Exception as e:
+            self._tool_registry = False
+            print(f"[BLENDER SOCKET] Registry de src/ no disponible: {e}")
+            return None
+        return self._tool_registry
+
+    def cmd_list_tools(self):
+        """Listar los 118+ tools del registry de src/ (para MCP stdio)."""
+        registry = self._get_tool_registry()
+        if registry is None:
+            return {"tools": [], "error": "registry no disponible"}
+        return {"tools": [tool.to_dict() for tool in registry.list_tools()]}
+
+    def cmd_tool(self, tool_name="", params=None):
+        """Ejecutar un tool del registry de src/ por nombre."""
+        registry = self._get_tool_registry()
+        if registry is None:
+            return {
+                "success": False,
+                "error": "ToolRegistry no disponible (se requiere repo completo)",
+            }
+        result = registry.execute_tool(tool_name, params or {})
+        payload = {"success": result.success, "data": result.data}
+        if result.error:
+            payload["error"] = result.error
+        return payload
+
     def cmd_get_viewport_screenshot(self, filepath=None, max_size=800):
         """Captura una imagen del viewport actual para validación Axiom."""
         if not filepath:
             import tempfile
+
             temp_dir = tempfile.gettempdir()
             filepath = os.path.join(temp_dir, f"axiom_vision_{int(time.time())}.png")
-        
+
         try:
             # Buscar una ventana y pantalla válidas (Blender 4.2+ requiere contexto explícito)
-            window = bpy.context.window if bpy.context.window else bpy.context.window_manager.windows[0]
+            window = (
+                bpy.context.window if bpy.context.window else bpy.context.window_manager.windows[0]
+            )
             screen = window.screen
-            area = next((a for a in screen.areas if a.type == 'VIEW_3D'), None)
-            
+            area = next((a for a in screen.areas if a.type == "VIEW_3D"), None)
+
             if not area:
                 return {"error": "No se encontró un viewport 3D activo en la ventana principal"}
-            
+
             # Forzar el renderizado de la captura con el contexto completo
             with bpy.context.temp_override(window=window, screen=screen, area=area):
                 bpy.ops.screen.screenshot_area(filepath=filepath)
-            
+
             # Cargar y redimensionar
             if os.path.exists(filepath):
                 img = bpy.data.images.load(filepath)
@@ -174,12 +266,12 @@ class BlenderSocketServer:
                     scale = max_size / max(img.size)
                     img.scale(int(img.size[0] * scale), int(img.size[1] * scale))
                     img.save()
-                
+
                 return {
-                    "success": True, 
-                    "filepath": filepath, 
-                    "width": img.size[0], 
-                    "height": img.size[1]
+                    "success": True,
+                    "filepath": filepath,
+                    "width": img.size[0],
+                    "height": img.size[1],
                 }
             return {"error": "Falló la creación del archivo de captura"}
         except Exception as e:
@@ -187,6 +279,7 @@ class BlenderSocketServer:
 
     def cmd_search_assets(self, provider="polyhaven", query="", asset_type="textures"):
         from . import assets
+
         if provider == "polyhaven":
             return {"results": assets.AssetManager.search_polyhaven(asset_type, query)}
         elif provider == "sketchfab":
@@ -195,13 +288,14 @@ class BlenderSocketServer:
 
     def cmd_generate_3d(self, prompt=""):
         from . import assets
+
         return assets.AssetManager.rodin_generate(prompt)
 
     def cmd_analyze_performance(self):
         """Analiza el conteo de polígonos y sugiere optimizaciones."""
         report = []
         for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH':
+            if obj.type == "MESH":
                 poly_count = len(obj.data.polygons)
                 if poly_count > 50000:
                     report.append(f"⚠️ {obj.name}: {poly_count} polígonos (Crítico)")
@@ -216,23 +310,36 @@ class BlenderSocketServer:
         # Normalizar nombres (ejemplo básico)
         for obj in bpy.context.scene.objects:
             if "." in obj.name:
-                base = obj.name.split(".")[0]
+                obj.name.split(".")[0]
                 # (Lógica opcional de renombrado aquí)
         return {"status": "success", "message": "Limpieza profunda de Axiom completada."}
 
     def cmd_get_scene_info(self):
-        info = {"name": bpy.context.scene.name, "object_count": len(bpy.context.scene.objects), "objects": []}
+        info = {
+            "name": bpy.context.scene.name,
+            "object_count": len(bpy.context.scene.objects),
+            "objects": [],
+        }
         for i, obj in enumerate(bpy.context.scene.objects):
-            if i >= 20: break
-            info["objects"].append({
-                "name": obj.name, "type": obj.type,
-                "location": [round(float(obj.location.x), 2), round(float(obj.location.y), 2), round(float(obj.location.z), 2)],
-            })
+            if i >= 20:
+                break
+            info["objects"].append(
+                {
+                    "name": obj.name,
+                    "type": obj.type,
+                    "location": [
+                        round(float(obj.location.x), 2),
+                        round(float(obj.location.y), 2),
+                        round(float(obj.location.z), 2),
+                    ],
+                }
+            )
         return info
 
     def cmd_get_object_anchors(self, obj_name=""):
         try:
             from . import spatial
+
             return {"anchors": spatial.get_object_anchors(obj_name)}
         except Exception as e:
             return {"error": str(e)}
@@ -240,32 +347,16 @@ class BlenderSocketServer:
     def cmd_get_model_blueprint(self, obj_name=""):
         try:
             from . import scanner
+
             obj = bpy.data.objects.get(obj_name) or bpy.context.active_object
             return {"blueprint": scanner.GeometryScanner.get_blueprint(obj)}
-        except Exception as e:
-            return {"error": str(e)}
-
-    def cmd_snap_to_anchor(self, obj_move="", obj_target="", anchor_move="", anchor_target=""):
-        try:
-            from . import assembly
-            o_move = bpy.data.objects.get(obj_move)
-            o_target = bpy.data.objects.get(obj_target)
-            return assembly.AssemblyEngine.snap_to_anchor(o_move, o_target, anchor_move, anchor_target)
-        except Exception as e:
-            return {"error": str(e)}
-
-    def cmd_snap_and_parent(self, obj_move="", obj_target="", anchor_move="", anchor_target=""):
-        try:
-            from . import assembly
-            o_move = bpy.data.objects.get(obj_move)
-            o_target = bpy.data.objects.get(obj_target)
-            return assembly.AssemblyEngine.snap_and_parent(o_move, o_target, anchor_move, anchor_target)
         except Exception as e:
             return {"error": str(e)}
 
     def cmd_apply_symmetry(self, obj_name="", axes=["X", "Y"]):
         try:
             from . import assembly
+
             obj = bpy.data.objects.get(obj_name) or bpy.context.active_object
             return assembly.AssemblyEngine.apply_symmetry(obj, axes)
         except Exception as e:
@@ -274,6 +365,7 @@ class BlenderSocketServer:
     def cmd_fix_normals(self, obj_name=""):
         try:
             from . import assembly
+
             obj = bpy.data.objects.get(obj_name) or bpy.context.active_object
             return assembly.AssemblyEngine.fix_normals(obj)
         except Exception as e:
@@ -282,6 +374,7 @@ class BlenderSocketServer:
     def cmd_get_spatial_visual(self):
         try:
             from . import spatial
+
             return {"summary": spatial.get_spatial_summary()}
         except Exception as e:
             return {"error": str(e)}
@@ -289,6 +382,7 @@ class BlenderSocketServer:
     def cmd_validate_geometry(self):
         try:
             from . import spatial
+
             report = spatial.GeometryValidator.get_report()
             # Ensure report is a string and not too large
             if len(report) > 10000:
@@ -305,29 +399,51 @@ class BlenderSocketServer:
 
     def _strip_bad_code(self, code):
         import re
-        code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
-        code = re.sub(r'^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+
+        code = re.sub(
+            r"^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n",
+            "",
+            code,
+            flags=re.MULTILINE,
+        )
+        code = re.sub(
+            r"^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n",
+            "",
+            code,
+            flags=re.MULTILINE,
+        )
+
         def _fix_scale(m):
             inner = m.group(1)
-            inner = re.sub(r'\s*/\s*2\s*', '', inner)
-            return '.scale = (' + inner + ')'
-        code = re.sub(r'\.scale\s*=\s*\(([^)]*)\)', _fix_scale, code)
+            inner = re.sub(r"\s*/\s*2\s*", "", inner)
+            return ".scale = (" + inner + ")"
+
+        code = re.sub(r"\.scale\s*=\s*\(([^)]*)\)", _fix_scale, code)
         return code
 
     def cmd_execute_code(self, code=""):
         """Execute Python code in Blender with safety measures."""
         code = self._strip_bad_code(code)
-        win = bpy.context.window if bpy.context.window else (bpy.context.window_manager.windows[0] if bpy.context.window_manager.windows else None)
+        win = (
+            bpy.context.window
+            if bpy.context.window
+            else (
+                bpy.context.window_manager.windows[0]
+                if bpy.context.window_manager.windows
+                else None
+            )
+        )
         ns = {
-            "bpy": bpy, 
-            "C": bpy.context, 
-            "D": bpy.data, 
+            "bpy": bpy,
+            "C": bpy.context,
+            "D": bpy.data,
             "ops": bpy.ops,
             "window": win,
             "screen": win.screen if win else None,
         }
-        
+
         import signal
+
         def handler(signum, frame):
             raise TimeoutError("AXIOM TIMEOUT: La ejecución superó los 10.0 segundos de límite.")
 
@@ -338,12 +454,20 @@ class BlenderSocketServer:
                 bpy.ops.ed.undo_push(message="Axiom Precision Task")
             except Exception:
                 pass
-        
+
         buf = io.StringIO()
         with redirect_stdout(buf):
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(10)
             try:
+                # Expresión única → eval y devolver valor; si no, exec normal
+                try:
+                    compiled_eval = compile(code, "<blender_code>", "eval")
+                except SyntaxError:
+                    compiled_eval = None
+                if compiled_eval is not None:
+                    value = eval(compiled_eval, ns)
+                    return {"output": buf.getvalue(), "result": repr(value)}
                 compiled = compile(code, "<blender_code>", "exec")
                 exec(compiled, ns)
             except TimeoutError as e:
@@ -369,12 +493,12 @@ class BlenderSocketServer:
                 return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
             finally:
                 signal.alarm(0)
-        
+
         return {"output": buf.getvalue()}
 
     def cmd_chat_send(self, message="", model=""):
         global _stop_agent
-        _stop_agent = False # Resetear parada al enviar nuevo mensaje
+        _stop_agent = False  # Resetear parada al enviar nuevo mensaje
         msg_id = str(time.time())
         with _chat_lock:
             _chat_queue.append({"id": msg_id, "message": message, "timestamp": time.time()})
@@ -433,6 +557,7 @@ class BlenderSocketServer:
     def cmd_search_api_docs(self, query=""):
         try:
             from .rst_search import search_api_docs
+
             return search_api_docs(query)
         except Exception as e:
             return {"query": query, "results": [], "total": 0, "error": str(e), "source": "error"}
@@ -440,6 +565,7 @@ class BlenderSocketServer:
     def cmd_get_python_api_docs(self, topic=""):
         try:
             from .rst_search import get_python_api_docs
+
             return get_python_api_docs(topic)
         except Exception as e:
             return {"topic": topic, "error": str(e), "source": "error"}
@@ -447,38 +573,43 @@ class BlenderSocketServer:
     def cmd_diagnose(self):
         """Diagnose socket and MCP connections."""
         import socket
+
         result = {"socket": False, "mcp": False}
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(1)
         try:
-            s.connect(('127.0.0.1', 9876))
+            s.connect(("127.0.0.1", 9876))
             result["socket"] = True
         except (ConnectionRefusedError, OSError):
             pass
         finally:
             s.close()
-        
+
         try:
             s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s2.settimeout(1)
-            s2.connect(('127.0.0.1', 9879))
+            s2.connect(("127.0.0.1", 9879))
             result["mcp"] = True
             s2.close()
         except (ConnectionRefusedError, OSError):
             pass
-        
+
         return result
 
     def cmd_start_mcp(self):
         import threading
+
         def _run():
             try:
                 import uvicorn
+
                 import mcp_server
+
                 app = mcp_server.mcp.sse_app()
                 uvicorn.run(app, host="127.0.0.1", port=9879, log_level="warning")
             except Exception:
                 pass
+
         t = threading.Thread(target=_run, daemon=True)
         t.start()
         return {"status": "starting"}
@@ -486,6 +617,7 @@ class BlenderSocketServer:
     def cmd_get_scene_property(self, prop=""):
         """Get a property value from the current Blender scene (for proxy/agent mode detection)."""
         import bpy
+
         val = getattr(bpy.context.scene, prop, None)
         if val is None:
             return {"value": None}
@@ -498,8 +630,8 @@ class BlenderSocketServer:
             return {"status": "error", "message": "filepath required"}
         try:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            bpy.ops.object.select_all(action='SELECT')
-            bpy.ops.export_scene.gltf(filepath=filepath, export_format='GLB')
+            bpy.ops.object.select_all(action="SELECT")
+            bpy.ops.export_scene.gltf(filepath=filepath, export_format="GLB")
             size = os.path.getsize(filepath)
             return {"status": "success", "filepath": filepath, "size": size}
         except Exception as e:
@@ -513,6 +645,7 @@ class BlenderSocketServer:
         """Save Blender project with name."""
         try:
             from . import state_manager
+
             if name:
                 filepath = state_manager.save_project(name)
             else:
@@ -525,6 +658,7 @@ class BlenderSocketServer:
         """Get file save status."""
         try:
             from . import state_manager
+
             return state_manager.get_file_status()
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -533,6 +667,7 @@ class BlenderSocketServer:
         """Create backup of current file."""
         try:
             from . import state_manager
+
             filepath = state_manager.create_backup(label)
             return {"status": "success", "filepath": filepath}
         except Exception as e:
@@ -542,6 +677,7 @@ class BlenderSocketServer:
         """Validate all objects in scene."""
         try:
             from . import validator
+
             result = validator.full_validation(collection)
             return result
         except Exception as e:
@@ -551,6 +687,7 @@ class BlenderSocketServer:
         """Validate a specific object."""
         try:
             from . import validator
+
             result = validator.validate_object(name)
             measurements = validator.measure_object(name)
             return {"validation": result, "measurements": measurements}
@@ -561,24 +698,29 @@ class BlenderSocketServer:
         """Create a collection."""
         try:
             from . import creation_rules
+
             col = creation_rules.create_collection(name)
             return {"status": "success", "collection": col.name}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def cmd_create_object(self, object_type, position=(0,0,0), collection=None, material=None):
+    def cmd_create_object(self, object_type, position=(0, 0, 0), collection=None, material=None):
         """Create a standard object with all rules applied."""
         try:
             from . import creation_rules, state_manager
+
             result = creation_rules.create_object(object_type, position, collection, material)
             # Register created objects
             for obj in result.values():
                 state_manager.register_object(obj.name)
-            state_manager.log_action("create_object", {
-                "type": object_type,
-                "position": position,
-                "objects": list(result.keys()),
-            })
+            state_manager.log_action(
+                "create_object",
+                {
+                    "type": object_type,
+                    "position": position,
+                    "objects": list(result.keys()),
+                },
+            )
             return {"status": "success", "objects": list(result.keys())}
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -587,6 +729,7 @@ class BlenderSocketServer:
         """Get detailed scene summary with collections."""
         try:
             from . import creation_rules
+
             hierarchy = creation_rules.get_collection_hierarchy()
             total = len(bpy.data.objects)
             materials = len(bpy.data.materials)
@@ -602,6 +745,7 @@ class BlenderSocketServer:
         """Get agent state."""
         try:
             from . import state_manager
+
             return state_manager.get_state()
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -610,6 +754,7 @@ class BlenderSocketServer:
         """Check if action is in loop."""
         try:
             from . import state_manager
+
             return state_manager.check_loop(action_name)
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -618,6 +763,7 @@ class BlenderSocketServer:
         """List available backups."""
         try:
             from . import state_manager
+
             backups = state_manager.list_backups()
             return {"backups": [b.name for b in backups]}
         except Exception as e:
@@ -627,6 +773,7 @@ class BlenderSocketServer:
         """Initialize agent state."""
         try:
             from . import state_manager
+
             state_manager.init_state(project_name)
             return {"status": "success"}
         except Exception as e:
@@ -640,6 +787,7 @@ class BlenderSocketServer:
         """Create advanced primitive"""
         try:
             from .core import mesh_engine
+
             obj = mesh_engine.create_advanced_primitive(primitive_type, params or {})
             return {"status": "success", "object": obj.name}
         except Exception as e:
@@ -649,6 +797,7 @@ class BlenderSocketServer:
         """Apply PBR material from library"""
         try:
             from .core import texture_engine
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -662,6 +811,7 @@ class BlenderSocketServer:
         """Create armature from template"""
         try:
             from .core import rig_engine
+
             if rig_type == "humanoid":
                 obj = rig_engine.create_humanoid_rig()
             elif rig_type == "quadruped":
@@ -676,16 +826,17 @@ class BlenderSocketServer:
         """Create animation on object"""
         try:
             from .core import animation_engine
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 # Try to find armature by type
                 for o in bpy.data.objects:
-                    if o.type == 'ARMATURE':
+                    if o.type == "ARMATURE":
                         obj = o
                         break
                 if not obj:
                     return {"status": "error", "message": f"Object not found: {obj_name}"}
-            
+
             if anim_type == "walk":
                 animation_engine.create_walk_cycle(obj)
             elif anim_type == "run":
@@ -696,7 +847,7 @@ class BlenderSocketServer:
                 animation_engine.create_jump_animation(obj)
             elif anim_type == "spin":
                 animation_engine.create_spin_animation(obj)
-            
+
             return {"status": "success", "animation": anim_type, "object": obj.name}
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -705,6 +856,7 @@ class BlenderSocketServer:
         """Create character from template"""
         try:
             from .organic import character_gen
+
             parts = character_gen.create_character(character_type, params or {})
             return {"status": "success", "parts": list(parts.keys())}
         except Exception as e:
@@ -714,12 +866,13 @@ class BlenderSocketServer:
         """Analyze scene using perception system"""
         try:
             from .perception import perception_system
+
             result = perception_system.analyze_scene()
             # Return minimal summary to avoid JSON serialization issues
             scan = result.get("scan", {})
             quality = result.get("quality", {})
             decision = result.get("decision", {})
-            
+
             return {
                 "status": "success",
                 "total_objects": len(scan.get("objects", [])),
@@ -734,6 +887,7 @@ class BlenderSocketServer:
         """Export scene to specified format"""
         try:
             from .export import export_engine
+
             result = export_engine.smart_export(filepath, target)
             return result
         except Exception as e:
@@ -743,6 +897,7 @@ class BlenderSocketServer:
         """Create 3D model from text description"""
         try:
             from .ai import ai_assistant
+
             obj = ai_assistant.text_to_3d(description)
             if obj:
                 return {"status": "success", "object": obj.name}
@@ -758,6 +913,7 @@ class BlenderSocketServer:
         """Get 27 anchor points for an object."""
         try:
             from . import anchor_system
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -770,6 +926,7 @@ class BlenderSocketServer:
         """Snap object to anchor point of another object."""
         try:
             from . import anchor_system
+
             o_move = bpy.data.objects.get(obj_move)
             o_target = bpy.data.objects.get(obj_target)
             if not o_move or not o_target:
@@ -783,6 +940,7 @@ class BlenderSocketServer:
         """Snap and parent object to another."""
         try:
             from . import anchor_system
+
             o_move = bpy.data.objects.get(obj_move)
             o_target = bpy.data.objects.get(obj_target)
             if not o_move or not o_target:
@@ -796,6 +954,7 @@ class BlenderSocketServer:
         """Purge orphan data blocks from memory."""
         try:
             from . import orphan_purge
+
             result = orphan_purge.purge_orphans()
             return result
         except Exception as e:
@@ -805,6 +964,7 @@ class BlenderSocketServer:
         """Get memory usage statistics."""
         try:
             from . import orphan_purge
+
             stats = orphan_purge.get_memory_usage()
             return {"status": "success", "stats": stats}
         except Exception as e:
@@ -814,6 +974,7 @@ class BlenderSocketServer:
         """Reset transforms for an object or all objects."""
         try:
             from . import transform_reset
+
             if obj_name:
                 obj = bpy.data.objects.get(obj_name)
                 if not obj:
@@ -830,6 +991,7 @@ class BlenderSocketServer:
         """Apply all transforms for an object or all objects."""
         try:
             from . import transform_reset
+
             if obj_name:
                 obj = bpy.data.objects.get(obj_name)
                 if not obj:
@@ -850,6 +1012,7 @@ class BlenderSocketServer:
         """Optimize scene (merge verts, purge orphans)."""
         try:
             from . import memory_optimizer
+
             result = memory_optimizer.optimize_scene()
             return {"status": "success", "result": result}
         except Exception as e:
@@ -859,6 +1022,7 @@ class BlenderSocketServer:
         """Get MCP tool count and loaded categories."""
         try:
             from . import lazy_loader
+
             count = lazy_loader.tool_registry.get_tool_count()
             # Ensure count is a dict with expected keys
             if not isinstance(count, dict):
@@ -871,6 +1035,7 @@ class BlenderSocketServer:
         """Load a tool category for lazy loading."""
         try:
             from . import lazy_loader
+
             success = lazy_loader.tool_registry.load_category(category)
             return {"status": "success" if success else "error"}
         except Exception as e:
@@ -884,6 +1049,7 @@ class BlenderSocketServer:
         """Analyze scene using Vision-Language Model."""
         try:
             from . import vlm_visual
+
             result = vlm_visual.visual_feedback_loop(prompt_type, provider, max_iterations=1)
             return {"status": "success", "result": result}
         except Exception as e:
@@ -893,6 +1059,7 @@ class BlenderSocketServer:
         """Apply sculpt preset to object."""
         try:
             from . import sculpt_advanced
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -905,6 +1072,7 @@ class BlenderSocketServer:
         """Remesh object with voxel."""
         try:
             from . import sculpt_advanced
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -917,6 +1085,7 @@ class BlenderSocketServer:
         """Apply physics preset to object."""
         try:
             from . import physics_realtime
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -929,6 +1098,7 @@ class BlenderSocketServer:
         """Create procedural rock."""
         try:
             from . import sculpt_advanced
+
             obj = sculpt_advanced.create_rock(radius, roughness)
             if obj:
                 return {"status": "success", "object": obj.name}
@@ -944,6 +1114,7 @@ class BlenderSocketServer:
         """Register agent for collaborative editing."""
         try:
             from . import collaborative
+
             success = collaborative.collab_manager.register_agent(agent_id, name)
             return {"status": "success" if success else "error"}
         except Exception as e:
@@ -953,6 +1124,7 @@ class BlenderSocketServer:
         """Acquire lock on object for collaborative editing."""
         try:
             from . import collaborative
+
             success = collaborative.collab_manager.acquire_lock(obj_name, agent_id)
             return {"status": "success" if success else "error", "locked_by": obj_name}
         except Exception as e:
@@ -962,6 +1134,7 @@ class BlenderSocketServer:
         """Release lock on object."""
         try:
             from . import collaborative
+
             success = collaborative.collab_manager.release_lock(obj_name, agent_id)
             return {"status": "success" if success else "error"}
         except Exception as e:
@@ -971,6 +1144,7 @@ class BlenderSocketServer:
         """Get collaborative editing status."""
         try:
             from . import collaborative
+
             status = collaborative.get_collab_status()
             return {"status": "success", "collab": status}
         except Exception as e:
@@ -980,6 +1154,7 @@ class BlenderSocketServer:
         """Create version snapshot of scene."""
         try:
             from . import version_control
+
             version_id = version_control.create_snapshot(label)
             if version_id:
                 return {"status": "success", "version_id": version_id}
@@ -991,6 +1166,7 @@ class BlenderSocketServer:
         """Restore a version snapshot."""
         try:
             from . import version_control
+
             success = version_control.restore_snapshot(version_id)
             return {"status": "success" if success else "error"}
         except Exception as e:
@@ -1000,6 +1176,7 @@ class BlenderSocketServer:
         """List all version snapshots."""
         try:
             from . import version_control
+
             versions = version_control.list_snapshots()
             return {"status": "success", "versions": versions}
         except Exception as e:
@@ -1009,6 +1186,7 @@ class BlenderSocketServer:
         """Export scene for AR/VR platform."""
         try:
             from . import ar_vr_preview
+
             result = ar_vr_preview.export_for_ar_vr(target, filepath)
             return result
         except Exception as e:
@@ -1022,6 +1200,7 @@ class BlenderSocketServer:
         """Check if an object is blockout (prohibited)."""
         try:
             from . import anti_blockout
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -1034,6 +1213,7 @@ class BlenderSocketServer:
         """Validate entire scene against blockout."""
         try:
             from . import anti_blockout
+
             result = anti_blockout.validate_scene_blockout()
             return {"status": "success", "result": result}
         except Exception as e:
@@ -1043,6 +1223,7 @@ class BlenderSocketServer:
         """Get human-readable blockout report."""
         try:
             from . import anti_blockout
+
             report = anti_blockout.get_blockout_report()
             return {"status": "success", "report": report}
         except Exception as e:
@@ -1052,6 +1233,7 @@ class BlenderSocketServer:
         """Get fix suggestions for a blockout object."""
         try:
             from . import anti_blockout
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -1064,6 +1246,7 @@ class BlenderSocketServer:
         """Auto-fix a blockout object."""
         try:
             from . import anti_blockout
+
             obj = bpy.data.objects.get(obj_name)
             if not obj:
                 return {"status": "error", "message": f"Object not found: {obj_name}"}
@@ -1080,6 +1263,7 @@ def start_socket_server():
     if not _socket_server.running:
         _socket_server.start()
     return _socket_server
+
 
 def stop_socket_server():
     global _socket_server

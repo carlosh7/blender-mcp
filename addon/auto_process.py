@@ -3,16 +3,19 @@ auto_process.py — Procesa la cola de chat dentro de Blender.
 Timer que cada 0.5s revisa mensajes y los envía al LLM configurado.
 Sin procesos externos. Sin mcp_server.py. Sin agent_host.py.
 """
-import bpy
+
 import json
+import logging
 import os
 import re
-import time
 import threading
+import time
 import traceback
 import urllib.request
-import logging
 from datetime import datetime
+
+import bpy
+
 from . import _axsock as bsock
 
 logger = logging.getLogger("blender-mcp-auto")
@@ -99,26 +102,32 @@ def _detect_provider(model_id):
 
 
 def _get_api_key(provider):
-    env_map = {"opencode-go": "OPENAI_API_KEY", "deepseek": "DEEPSEEK_API_KEY",
-               "openrouter": "OPENROUTER_API_KEY", "anthropic": "ANTHROPIC_API_KEY",
-               "google": "GOOGLE_API_KEY"}
+    env_map = {
+        "opencode-go": "OPENAI_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "google": "GOOGLE_API_KEY",
+    }
     key = os.environ.get(env_map.get(provider, ""), "")
     if key:
         return key
     try:
         from .platform_utils import get_opencode_auth_path
+
         p = get_opencode_auth_path()
         if p.exists():
             auth = json.loads(p.read_text())
             entry = auth.get(provider, {})
             if isinstance(entry, dict) and entry.get("key"):
                 return entry["key"]
-    except:
+    except Exception:
         pass
     try:
         from .config_cache import get_provider_config
+
         return get_provider_config(provider).get("api_key", "")
-    except:
+    except Exception:
         pass
     return ""
 
@@ -173,12 +182,13 @@ Ejemplo:
 
 # ─── Helpers para código generado ───
 
+
 def _make_bezier_curve(name, points, bevel_depth=0.05, location=(0, 0, 0)):
-    curve_data = bpy.data.curves.new(name=name + "Data", type='CURVE')
-    curve_data.dimensions = '2D'
+    curve_data = bpy.data.curves.new(name=name + "Data", type="CURVE")
+    curve_data.dimensions = "2D"
     curve_data.resolution_u = 12
     curve_data.bevel_depth = bevel_depth
-    spline = curve_data.splines.new('BEZIER')
+    spline = curve_data.splines.new("BEZIER")
     spline.bezier_points.add(len(points) - 1)
     for i, co in enumerate(points):
         spline.bezier_points[i].co = co
@@ -199,10 +209,10 @@ def _make_lathe(profile, name="LatheObj", location=(0, 0, 0), axis="Y", steps=64
         pts = [(x, y, 0) for x, y in profile]
     else:
         pts = [(0, x, y) for x, y in profile]
-    curve_data = bpy.data.curves.new(name=name + "Curve", type='CURVE')
-    curve_data.dimensions = '2D'
+    curve_data = bpy.data.curves.new(name=name + "Curve", type="CURVE")
+    curve_data.dimensions = "2D"
     curve_data.resolution_u = steps
-    spline = curve_data.splines.new('POLY')
+    spline = curve_data.splines.new("POLY")
     spline.points.add(len(pts) - 1)
     for i, p in enumerate(pts):
         spline.points[i].co = (p[0], p[1], p[2], 1)
@@ -210,15 +220,15 @@ def _make_lathe(profile, name="LatheObj", location=(0, 0, 0), axis="Y", steps=64
     obj.location = location
     bpy.context.collection.objects.link(obj)
     bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
-    bpy.ops.object.convert(target='MESH')
-    bpy.ops.object.modifier_add(type='SCREW')
+    bpy.ops.object.convert(target="MESH")
+    bpy.ops.object.modifier_add(type="SCREW")
     mod = obj.modifiers[-1]
     if axis == "Y":
-        mod.axis = 'Y'
+        mod.axis = "Y"
     else:
-        mod.axis = 'X'
+        mod.axis = "X"
     mod.steps = steps // 2
     mod.render_steps = steps // 2
     mod.use_merge_vertices = True
@@ -249,12 +259,16 @@ def _render_preview():
     bpy.context.scene.render.resolution_y = 600
     bpy.ops.render.render(write_still=True)
     import base64
+
     with open(fp, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 
 _HELPER_NAMESPACE = {
-    "bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops,
+    "bpy": bpy,
+    "C": bpy.context,
+    "D": bpy.data,
+    "ops": bpy.ops,
     "make_curve": _make_bezier_curve,
     "make_collection": _make_collection,
     "make_lathe": _make_lathe,
@@ -266,6 +280,7 @@ _HELPER_NAMESPACE = {
 # Cargar el motor de ensamblaje al namespace para que el LLM pueda usarlo
 try:
     from .assembly import AssemblyEngine
+
     _HELPER_NAMESPACE["AssemblyEngine"] = AssemblyEngine
     _HELPER_NAMESPACE["snap_to_anchor"] = AssemblyEngine.snap_to_anchor
     _HELPER_NAMESPACE["snap_and_parent"] = AssemblyEngine.snap_and_parent
@@ -276,12 +291,14 @@ except ImportError:
 
 try:
     from .spatial import GeometryValidator
+
     _HELPER_NAMESPACE["validate_geometry"] = GeometryValidator.get_report
 except ImportError:
     pass
 
 try:
     from .scanner import GeometryScanner
+
     _HELPER_NAMESPACE["get_model_blueprint"] = GeometryScanner.get_blueprint
 except ImportError:
     pass
@@ -289,6 +306,7 @@ except ImportError:
 # Buscador de documentación — la IA puede consultarlo desde código generado
 try:
     from . import rst_search as _rst
+
     _HELPER_NAMESPACE["search_api_docs"] = _rst.search_api_docs
     _HELPER_NAMESPACE["get_python_api_docs"] = _rst.get_python_api_docs
 except ImportError:
@@ -297,24 +315,38 @@ except ImportError:
 
 # ─── Sesión: preferencias del usuario ───
 
+
 def _parse_preferences(text, content):
     global _session_prefs
     text_lower = (text + " " + content).lower()
     color_keywords = {
-        "rojo": (1, 0, 0, 1), "red": (1, 0, 0, 1),
-        "azul": (0, 0, 1, 1), "blue": (0, 0, 1, 1),
-        "verde": (0, 1, 0, 1), "green": (0, 1, 0, 1),
-        "negro": (0, 0, 0, 1), "black": (0, 0, 0, 1),
-        "blanco": (1, 1, 1, 1), "white": (1, 1, 1, 1),
-        "amarillo": (1, 1, 0, 1), "yellow": (1, 1, 0, 1),
-        "naranja": (1, 0.6, 0, 1), "orange": (1, 0.6, 0, 1),
-        "morado": (0.5, 0, 1, 1), "purple": (0.5, 0, 1, 1),
-        "rosa": (1, 0.4, 0.7, 1), "pink": (1, 0.4, 0.7, 1),
-        "marrón": (0.5, 0.25, 0.1, 1), "brown": (0.5, 0.25, 0.1, 1),
-        "gris": (0.5, 0.5, 0.5, 1), "gray": (0.5, 0.5, 0.5, 1),
+        "rojo": (1, 0, 0, 1),
+        "red": (1, 0, 0, 1),
+        "azul": (0, 0, 1, 1),
+        "blue": (0, 0, 1, 1),
+        "verde": (0, 1, 0, 1),
+        "green": (0, 1, 0, 1),
+        "negro": (0, 0, 0, 1),
+        "black": (0, 0, 0, 1),
+        "blanco": (1, 1, 1, 1),
+        "white": (1, 1, 1, 1),
+        "amarillo": (1, 1, 0, 1),
+        "yellow": (1, 1, 0, 1),
+        "naranja": (1, 0.6, 0, 1),
+        "orange": (1, 0.6, 0, 1),
+        "morado": (0.5, 0, 1, 1),
+        "purple": (0.5, 0, 1, 1),
+        "rosa": (1, 0.4, 0.7, 1),
+        "pink": (1, 0.4, 0.7, 1),
+        "marrón": (0.5, 0.25, 0.1, 1),
+        "brown": (0.5, 0.25, 0.1, 1),
+        "gris": (0.5, 0.5, 0.5, 1),
+        "gray": (0.5, 0.5, 0.5, 1),
     }
     for word, rgba in color_keywords.items():
-        if word in text_lower and ("me gusta" in text_lower or "prefiero" in text_lower or "color" in text_lower):
+        if word in text_lower and (
+            "me gusta" in text_lower or "prefiero" in text_lower or "color" in text_lower
+        ):
             _session_prefs["color"] = rgba
             _session_prefs["color_name"] = word
             break
@@ -333,23 +365,40 @@ def _get_prefs_context():
 
 # ─── Ejecución de código en main thread ───
 
+
 def _strip_bad_code(code):
     import re
-    code = re.sub(r'^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
-    code = re.sub(r'^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n', '', code, flags=re.MULTILINE)
+
+    code = re.sub(
+        r"^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n",
+        "",
+        code,
+        flags=re.MULTILINE,
+    )
+    code = re.sub(
+        r"^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n",
+        "",
+        code,
+        flags=re.MULTILINE,
+    )
+
     def _fix_scale(m):
         inner = m.group(1)
-        inner = re.sub(r'\s*/\s*2\s*', '', inner)
-        return '.scale = (' + inner + ')'
-    code = re.sub(r'\.scale\s*=\s*\(([^)]*)\)', _fix_scale, code)
+        inner = re.sub(r"\s*/\s*2\s*", "", inner)
+        return ".scale = (" + inner + ")"
+
+    code = re.sub(r"\.scale\s*=\s*\(([^)]*)\)", _fix_scale, code)
     return code
+
 
 def _validate_code(code):
     try:
         from blender_mcp.utils.validator import validate
+
         return validate(code)
-    except:
+    except Exception:
         return []
+
 
 def _exec_code_main(code_blocks):
     results = []
@@ -357,6 +406,7 @@ def _exec_code_main(code_blocks):
 
     def execute():
         from .weak_sandbox import WeakSandboxForLLM
+
         for code in code_blocks:
             code = _strip_bad_code(code)
             errors = _validate_code(code)
@@ -367,6 +417,7 @@ def _exec_code_main(code_blocks):
             try:
                 import io
                 from contextlib import redirect_stdout
+
                 bpy.ops.ed.undo_push(message="AI ACTION")
                 compiled = compile(code, "<blender_code>", "exec")
                 buf = io.StringIO()
@@ -386,7 +437,7 @@ def _exec_code_main(code_blocks):
             try:
                 b64 = _render_preview()
                 results.insert(0, "__PREVIEW__:" + b64)
-            except:
+            except Exception:
                 pass
         done.set()
         return None
@@ -402,7 +453,7 @@ def _append_to_log(text, tag="AI"):
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
         with open(log_path, "a") as f:
             f.write(f"[{datetime.now().strftime('%H:%M')}] {tag}: {text}\n\n")
-    except:
+    except Exception:
         pass
 
 
@@ -412,7 +463,9 @@ def _get_scene_context():
     for obj in bpy.context.scene.objects:
         loc = obj.location
         dims = obj.dimensions
-        lines.append(f"- {obj.name} | {obj.type} | ({loc.x:.2f}, {loc.y:.2f}, {loc.z:.2f}) | ({dims.x:.2f}, {dims.y:.2f}, {dims.z:.2f})")
+        lines.append(
+            f"- {obj.name} | {obj.type} | ({loc.x:.2f}, {loc.y:.2f}, {loc.z:.2f}) | ({dims.x:.2f}, {dims.y:.2f}, {dims.z:.2f})"
+        )
         names.append(obj.name)
     ctx = "Estado actual de la escena:\n" + "\n".join(lines) if lines else "Escena vacía."
     ctx += f"\nNombres ocupados: {', '.join(names) if names else '(ninguno)'}"
@@ -421,17 +474,34 @@ def _get_scene_context():
 
 
 def _get_timeout(text):
-    if len(text) > 50 or any(w in text.lower() for w in ("detalle", "detallado", "completo", "complej", "carro", "vehículo", "edificio", "mueble", "organico", "escena")):
+    if len(text) > 50 or any(
+        w in text.lower()
+        for w in (
+            "detalle",
+            "detallado",
+            "completo",
+            "complej",
+            "carro",
+            "vehículo",
+            "edificio",
+            "mueble",
+            "organico",
+            "escena",
+        )
+    ):
         return 90
     return 60
 
+
 def _call_llm(url, headers, model, messages, text=""):
-    body = json.dumps({
-        "model": model,
-        "messages": messages,
-        "max_tokens": 8192,
-        "temperature": 0.4,
-    }).encode()
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": messages,
+            "max_tokens": 8192,
+            "temperature": 0.4,
+        }
+    ).encode()
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=_get_timeout(text)) as resp:
         return json.loads(resp.read())
@@ -445,13 +515,15 @@ def _call_anthropic(url, headers, api_key, model, messages, text=""):
             system += m["content"] + "\n"
         elif m["role"] in ("user", "assistant"):
             msgs.append({"role": m["role"], "content": m["content"]})
-    body = json.dumps({
-        "model": model,
-        "max_tokens": 8192,
-        "system": system.strip(),
-        "messages": msgs,
-        "temperature": 0.4,
-    }).encode()
+    body = json.dumps(
+        {
+            "model": model,
+            "max_tokens": 8192,
+            "system": system.strip(),
+            "messages": msgs,
+            "temperature": 0.4,
+        }
+    ).encode()
     hdrs = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -464,11 +536,13 @@ def _call_anthropic(url, headers, api_key, model, messages, text=""):
 
 _VISION_PROVIDERS = {"opencode-go", "openai", "openrouter", "google", "anthropic"}
 
+
 def _capture_screenshot_b64():
     try:
         from .handlers.analysis import AnalysisHandler
+
         return AnalysisHandler.cmd_get_screenshot_as_base64()
-    except:
+    except Exception:
         return None
 
 
@@ -496,6 +570,7 @@ def _handle_command(mid, text):
     if cmd == "!akb_list":
         try:
             from .akb import list_categories
+
             cats = list_categories()
             msg = "📋 **AKB Blueprints:**\n"
             for c in cats:
@@ -509,6 +584,7 @@ def _handle_command(mid, text):
     if cmd == "!akb_specs" and args:
         try:
             from .akb import get_specs
+
             results = get_specs(" ".join(args))
             if results:
                 msg = f"🔍 **{len(results)} resultados para '{' '.join(args)}':**\n"
@@ -528,23 +604,29 @@ def _handle_command(mid, text):
         return True
 
     if cmd == "!feed_category":
-        _VALID_CATS = {"av":["av","audio","audivisual","audiovisual","video","sonido","a/v"],
-                       "furniture":["furniture","muebles","mueble","furni"],
-                       "vehicles":["vehicles","vehiculos","autos","carros"],
-                       "structural":["structural","estructura","construccion"]}
+        _VALID_CATS = {
+            "av": ["av", "audio", "audivisual", "audiovisual", "video", "sonido", "a/v"],
+            "furniture": ["furniture", "muebles", "mueble", "furni"],
+            "vehicles": ["vehicles", "vehiculos", "autos", "carros"],
+            "structural": ["structural", "estructura", "construccion"],
+        }
+
         def _resolve_cat(name):
             name = name.lower().strip()
             for cat, syns in _VALID_CATS.items():
                 if name in syns:
                     return cat
             return name
-        
+
         if not args:
             cats = ", ".join(_VALID_CATS.keys())
-            _respond(mid, f"⚠️ Uso: !feed_category <categoria>, <keyword1>, <keyword2>...\nCategorías válidas: {cats}\nEj: !feed_category av, truss, speaker")
+            _respond(
+                mid,
+                f"⚠️ Uso: !feed_category <categoria>, <keyword1>, <keyword2>...\nCategorías válidas: {cats}\nEj: !feed_category av, truss, speaker",
+            )
             _cleanup(mid)
             return True
-        
+
         full = " ".join(args)
         parts = [p.strip() for p in full.split(",")]
         raw_cat = parts[0]
@@ -552,22 +634,26 @@ def _handle_command(mid, text):
         if category != raw_cat:
             _respond(mid, f"🔀 '{raw_cat}' → categoría '{category}'", is_status=True)
         keywords = parts[1:] if len(parts) > 1 else [category]
-        
+
         # Validate category exists
-        from .akb import _ensure_dirs
         from pathlib import Path
+
         akb_base = Path(__file__).parent / "data" / "akb"
         if not (akb_base / category).exists():
             cats = ", ".join(_VALID_CATS.keys())
-            _respond(mid, f"❌ Categoría '{category}' no existe. Válidas: {cats}\nEj: !feed_category av, truss, speaker")
+            _respond(
+                mid,
+                f"❌ Categoría '{category}' no existe. Válidas: {cats}\nEj: !feed_category av, truss, speaker",
+            )
             _cleanup(mid)
             return True
-        
+
         _respond(mid, f"⏳ Buscando {keywords} en {category}...", is_status=True)
-        
+
         def feed():
             try:
                 from .akb_fetcher import feed_from_polyhaven
+
                 result = feed_from_polyhaven(category, keywords)
                 total = result.get("feeded", 0)
                 if total == 0:
@@ -581,19 +667,27 @@ def _handle_command(mid, text):
             except Exception as e:
                 _respond(mid, f"❌ Error: {e}")
             _cleanup(mid)
+
         threading.Thread(target=feed, daemon=True).start()
         return True
 
     if cmd == "!feed_all":
-        _respond(mid, "⏳ Alimentando todas las categorías... (puede tomar varios minutos)", is_status=True)
-        
+        _respond(
+            mid,
+            "⏳ Alimentando todas las categorías... (puede tomar varios minutos)",
+            is_status=True,
+        )
+
         def feed_all():
             try:
                 from .akb_fetcher import feed_from_polyhaven
-                cats = {"av": ["truss", "speaker", "microphone", "camera", "monitor"],
-                         "furniture": ["table", "chair", "desk", "shelf", "cabinet"],
-                         "vehicles": ["car", "truck", "bicycle"],
-                         "structural": ["door", "window", "beam"]}
+
+                cats = {
+                    "av": ["truss", "speaker", "microphone", "camera", "monitor"],
+                    "furniture": ["table", "chair", "desk", "shelf", "cabinet"],
+                    "vehicles": ["car", "truck", "bicycle"],
+                    "structural": ["door", "window", "beam"],
+                }
                 total = 0
                 msg = "✅ **Alimentación global completada:**\n"
                 for cat, kws in cats.items():
@@ -609,6 +703,7 @@ def _handle_command(mid, text):
             except Exception as e:
                 _respond(mid, f"❌ Error: {e}")
             _cleanup(mid)
+
         threading.Thread(target=feed_all, daemon=True).start()
         return True
 
@@ -616,6 +711,7 @@ def _handle_command(mid, text):
         _respond(mid, "🧹 Limpiando objetos de prueba...", is_status=True)
         try:
             import bpy
+
             count = 0
             for obj in list(bpy.data.objects):
                 if obj.name not in ("Cube", "Camera", "Light", "tx"):
@@ -668,6 +764,8 @@ def _process_with_client(mid, text):
 
     def process():
         nonlocal text
+        text_original = text
+        errors = []
         is_timeout_retry = False
 
         for retry in range(_RETRY_LIMIT + 1):
@@ -677,7 +775,7 @@ def _process_with_client(mid, text):
                 return
             if retry > 0:
                 if is_timeout_retry:
-                    print(f"[AUTO] Reintento por timeout, prompt simplificado...")
+                    print("[AUTO] Reintento por timeout, prompt simplificado...")
                     text = f"{text_original}. Genera código CORTO, solo las partes más importantes, máximo 30 líneas."
                 else:
                     print(f"[AUTO] Reintento {retry}/{_RETRY_LIMIT} con feedback de error...")
@@ -689,7 +787,12 @@ def _process_with_client(mid, text):
             ctx = _get_scene_context()
             messages.append({"role": "system", "content": ctx})
             if retry > 0 and not is_timeout_retry:
-                messages.append({"role": "system", "content": f"El intento anterior falló. Error: {errors[0]}. Escena actualizada arriba. Corrige el código."})
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": f"El intento anterior falló. Error: {errors[0]}. Escena actualizada arriba. Corrige el código.",
+                    }
+                )
 
             prefs = _get_prefs_context()
             if prefs:
@@ -702,7 +805,10 @@ def _process_with_client(mid, text):
                 if shot and "base64" in shot:
                     user_msg = [
                         {"type": "text", "text": text},
-                        {"type": "image_url", "image_url": {"url": f"data:{shot['mime']};base64,{shot['base64']}"}},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:{shot['mime']};base64,{shot['base64']}"},
+                        },
                     ]
 
             messages.append({"role": "user", "content": user_msg})
@@ -749,7 +855,7 @@ def _process_with_client(mid, text):
 
             _parse_preferences(text, content)
 
-            code_blocks = re.findall(r'```python\n(.*?)```', content, re.DOTALL)
+            code_blocks = re.findall(r"```python\n(.*?)```", content, re.DOTALL)
             errors = []
             if code_blocks:
                 print(f"[AUTO] Ejecutando {len(code_blocks)} bloque(s) de código en main thread...")
@@ -809,6 +915,7 @@ def _respond(mid, text, is_status=False, is_update=False):
             if not is_status:
                 _append_to_log(text)
         return None
+
     bpy.app.timers.register(update, first_interval=0.0)
 
 
@@ -835,19 +942,23 @@ def _diagnose():
 
     try:
         from .operators.embedded import _embedded_client
+
         if _embedded_client:
             lines.append("✅ Local AI activo")
         else:
             lines.append("ℹ️  Local AI no iniciado → click botón SYSTEM en el panel")
-    except:
+    except Exception:
         pass
 
     try:
         import urllib.request
-        req = urllib.request.Request(os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/version")
+
+        req = urllib.request.Request(
+            os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/version"
+        )
         with urllib.request.urlopen(req, timeout=2):
             lines.append("✅ Ollama detectado (pero no activo) → Integrations → Local AI")
-    except:
+    except Exception:
         pass
 
     return "\n".join(lines)

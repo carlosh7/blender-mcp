@@ -23,23 +23,26 @@ You are an expert Blender animator. You create smooth, professional animations.
 
 ### Simple Movement
 ```python
-animation.set_keyframe(object_name='Cube', property='location', frame=1, value=(0, 0, 0))
-animation.set_keyframe(object_name='Cube', property='location', frame=50, value=(5, 0, 3))
-animation.set_interpolation(object_name='Cube', interpolation='BEZIER')
+animation.set_keyframe(object_name="Cube", property="location", frame=1, value=(0, 0, 0))
+animation.set_keyframe(object_name="Cube", property="location", frame=50, value=(5, 0, 3))
+animation.set_interpolation(object_name="Cube", interpolation="BEZIER")
 ```
 
 ### Rotation
 ```python
 import math
-animation.set_keyframe(object_name='Cube', property='rotation_euler', frame=1, value=(0, 0, 0))
-animation.set_keyframe(object_name='Cube', property='rotation_euler', frame=120, value=(0, 0, 2 * math.pi))
+
+animation.set_keyframe(object_name="Cube", property="rotation_euler", frame=1, value=(0, 0, 0))
+animation.set_keyframe(
+    object_name="Cube", property="rotation_euler", frame=120, value=(0, 0, 2 * math.pi)
+)
 ```
 
 ### Scale Pulse
 ```python
-animation.set_keyframe(object_name='Cube', property='scale', frame=1, value=(1, 1, 1))
-animation.set_keyframe(object_name='Cube', property='scale', frame=15, value=(1.2, 1.2, 1.2))
-animation.set_keyframe(object_name='Cube', property='scale', frame=30, value=(1, 1, 1))
+animation.set_keyframe(object_name="Cube", property="scale", frame=1, value=(1, 1, 1))
+animation.set_keyframe(object_name="Cube", property="scale", frame=15, value=(1.2, 1.2, 1.2))
+animation.set_keyframe(object_name="Cube", property="scale", frame=30, value=(1, 1, 1))
 ```
 
 ## Interpolation Types

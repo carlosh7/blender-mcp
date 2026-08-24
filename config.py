@@ -1,12 +1,12 @@
-import os
-import sys
-import platform
 import json
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
-
-
-from blender_mcp.platform import get_opencode_config_paths, get_opencode_auth_path, find_blender as _find_platform, SYSTEM
+from blender_mcp.platform import SYSTEM, get_opencode_auth_path, get_opencode_config_paths
+from blender_mcp.platform import find_blender as _find_platform
 
 # ─── Paths ───
 PLANNER_MODELS_DIR = Path.home() / "check-3d-planner" / "public" / "models"
@@ -72,11 +72,14 @@ def read_opencode_config() -> dict:
             for prov_id in auth_data:
                 if isinstance(auth_data[prov_id], dict) and auth_data[prov_id].get("key"):
                     detected_providers[prov_id] = True
-        except: pass
+        except Exception:
+            pass
 
     # 2. Check opencode.json for explicit provider configs
     for prov_id in PROVIDER_API_CONFIG:
-        key = data.get(prov_id, {}).get("api_key") or data.get("provider", {}).get(prov_id, {}).get("api_key")
+        key = data.get(prov_id, {}).get("api_key") or data.get("provider", {}).get(prov_id, {}).get(
+            "api_key"
+        )
         if key:
             detected_providers[prov_id] = True
 
@@ -94,13 +97,15 @@ def read_opencode_config() -> dict:
     for prov_id in sorted(detected_providers):
         cfg = PROVIDER_API_CONFIG.get(prov_id)
         if cfg:
-            providers_list.append({
-                "id": prov_id,
-                "name": cfg["name"],
-                "connected": True,
-                "api_url": cfg["url"],
-                "auth_required": cfg["auth"],
-            })
+            providers_list.append(
+                {
+                    "id": prov_id,
+                    "name": cfg["name"],
+                    "connected": True,
+                    "api_url": cfg["url"],
+                    "auth_required": cfg["auth"],
+                }
+            )
 
     return {
         "found": True,
@@ -166,17 +171,21 @@ def get_api_key(provider_id: str) -> str | None:
             entry = auth_data.get(provider_id)
             if isinstance(entry, dict):
                 return entry.get("key")
-        except: pass
+        except Exception:
+            pass
 
     # Check opencode config
     config_file = find_opencode_config()
     if config_file:
         try:
             data = json.loads(config_file.read_text())
-            key = data.get(provider_id, {}).get("api_key") or data.get("provider", {}).get(provider_id, {}).get("api_key")
+            key = data.get(provider_id, {}).get("api_key") or data.get("provider", {}).get(
+                provider_id, {}
+            ).get("api_key")
             if key:
                 return key
-        except: pass
+        except Exception:
+            pass
 
     return None
 
@@ -197,14 +206,13 @@ def get_blender_version(blender_path: str) -> str | None:
     """Return Blender version string (e.g. '4.0.2')."""
     try:
         result = subprocess.run(
-            [blender_path, "--version"],
-            capture_output=True, text=True, timeout=10
+            [blender_path, "--version"], capture_output=True, text=True, timeout=10
         )
         for line in result.stdout.split("\n"):
             if line.strip().startswith("Blender"):
                 return line.strip()
         return result.stdout.split("\n")[0].strip()
-    except:
+    except Exception:
         return None
 
 
@@ -213,17 +221,17 @@ def check_disk_space(path: str = ".") -> dict:
     try:
         if SYSTEM == "Windows":
             import ctypes
+
             free_bytes = ctypes.c_ulonglong(0)
             ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-                ctypes.c_wchar_p(os.path.abspath(path)),
-                None, None, ctypes.pointer(free_bytes)
+                ctypes.c_wchar_p(os.path.abspath(path)), None, None, ctypes.pointer(free_bytes)
             )
             free_mb = free_bytes.value / (1024 * 1024)
         else:
             st = os.statvfs(path)
             free_mb = (st.f_frsize * st.f_bavail) / (1024 * 1024)
         return {"free_mb": round(free_mb, 1), "enough": free_mb > 500}
-    except:
+    except Exception:
         return {"free_mb": 0, "enough": False}
 
 
@@ -247,19 +255,19 @@ def get_system_info() -> dict:
 
 def print_summary():
     info = get_system_info()
-    print(f"\n{'='*50}")
-    print(f"  blender-mcp — System Check")
-    print(f"{'='*50}")
+    print(f"\n{'=' * 50}")
+    print("  blender-mcp — System Check")
+    print(f"{'=' * 50}")
     print(f"  OS:          {info['system']}")
     print(f"  Python:      {info['python']} ({info['python_version']})")
     print(f"  Blender:     {info['blender']} ({info['blender_version']})")
     print(f"  Disk free:   {info['disk_free_mb']} MB")
-    print(f"{'='*50}")
-    if info['blender'] and info['python']:
-        print(f"  ✅ Sistema listo para blender-mcp")
+    print(f"{'=' * 50}")
+    if info["blender"] and info["python"]:
+        print("  ✅ Sistema listo para blender-mcp")
     else:
-        print(f"  ❌ Faltan componentes. Revisa check.py para más detalles.")
-    print(f"{'='*50}\n")
+        print("  ❌ Faltan componentes. Revisa check.py para más detalles.")
+    print(f"{'=' * 50}\n")
     return info
 
 

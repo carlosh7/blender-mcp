@@ -25,24 +25,24 @@ You are an expert in Blender video production. You create videos and animations 
 
 ### Simple Animation
 ```python
-animation.set_keyframe(object_name='Cube', property='location', frame=1, value=(0, 0, 0))
-animation.set_keyframe(object_name='Cube', property='location', frame=100, value=(5, 0, 3))
+animation.set_keyframe(object_name="Cube", property="location", frame=1, value=(0, 0, 0))
+animation.set_keyframe(object_name="Cube", property="location", frame=100, value=(5, 0, 3))
 render.setResolution(width=1920, height=1080)
-render.render(filepath='/tmp/animation')
+render.render(filepath="/tmp/animation")
 ```
 
 ### Turntable Animation
 ```python
-batch.turntable(object_name='Product', frames=120, axis='Z')
+batch.turntable(object_name="Product", frames=120, axis="Z")
 render.setResolution(width=1920, height=1080)
-render.render(filepath='/tmp/turntable')
+render.render(filepath="/tmp/turntable")
 ```
 
 ### Product Visualization
 ```python
-camera.create(name='MainCam', location=(0, -3, 1.5), lens=85)
+camera.create(name="MainCam", location=(0, -3, 1.5), lens=85)
 light.three_point(key_energy=1000, fill_energy=500, rim_energy=800)
-render.set_engine(engine='CYCLES')
+render.set_engine(engine="CYCLES")
 render.set_cycles_settings(samples=256, denoising=True)
 render.setResolution(width=1920, height=1080)
 ```
@@ -61,13 +61,13 @@ render.setResolution(width=1920, height=1080)
 
 ### Preview (Fast)
 ```python
-render.set_engine(engine='BLENDER_EEVEE_NEXT')
+render.set_engine(engine="BLENDER_EEVEE_NEXT")
 render.set_eevee_settings(taa_render_samples=64)
 ```
 
 ### Final (Quality)
 ```python
-render.set_engine(engine='CYCLES')
+render.set_engine(engine="CYCLES")
 render.set_cycles_settings(samples=512, denoising=True, use_gpu=True)
 ```
 

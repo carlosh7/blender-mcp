@@ -31,4 +31,5 @@ The execution context is one of:
 
 # Collection add popup.
 import bpy
-bpy.ops.object.collection_instance_add('INVOKE_DEFAULT')
+
+bpy.ops.object.collection_instance_add("INVOKE_DEFAULT")

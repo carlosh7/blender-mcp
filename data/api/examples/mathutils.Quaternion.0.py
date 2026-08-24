@@ -1,5 +1,6 @@
-import mathutils
 import math
+
+import mathutils
 
 # A new rotation 90 degrees about the Y axis.
 quat_a = mathutils.Quaternion((0.7071068, 0.0, 0.7071068, 0.0))
@@ -23,9 +24,9 @@ print("({:.2f}, {:.2f}, {:.2f}), {:.2f}".format(*quat_out.axis, math.degrees(qua
 
 # Multiple rotations can be interpolated using the exponential map.
 quat_c = mathutils.Quaternion((1.0, 0.0, 0.0), math.radians(15.0))
-exp_avg = (quat_a.to_exponential_map() +
-           quat_b.to_exponential_map() +
-           quat_c.to_exponential_map()) / 3.0
+exp_avg = (
+    quat_a.to_exponential_map() + quat_b.to_exponential_map() + quat_c.to_exponential_map()
+) / 3.0
 quat_avg = mathutils.Quaternion(exp_avg)
 print("Average rotation:")
 print(quat_avg)

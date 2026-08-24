@@ -144,13 +144,15 @@ TOOLS = [
         ToolCategory.YOUR_CATEGORY,
         "Description of the tool",
         ToolPermission.WRITE,
-        {"param": {"type": "str", "required": True}}
+        {"param": {"type": "str", "required": True}},
     ),
 ]
+
 
 def tool_handler(param: str) -> Dict:
     """Handler for the tool."""
     return {"success": True, "param": param}
+
 
 HANDLERS = {
     "your_category.tool_name": tool_handler,

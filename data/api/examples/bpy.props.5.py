@@ -35,8 +35,8 @@ set or returned, but do not control how/where that data is stored.
    in data, caused e.g. by an ``update`` callback.
 
 """
-import bpy
 
+import bpy
 
 scene = bpy.context.scene
 
@@ -67,6 +67,7 @@ print("test_float:", scene.test_float)
 # Read-only string property, returns the current date.
 def get_date(self):
     import datetime
+
     return str(datetime.datetime.now())
 
 
@@ -122,7 +123,8 @@ def set_array_transform(self, new_value, curr_value, is_set):
 
 
 bpy.types.Scene.test_array_transform = bpy.props.BoolVectorProperty(
-    size=2, get_transform=get_array_transform, set_transform=set_array_transform)
+    size=2, get_transform=get_array_transform, set_transform=set_array_transform
+)
 
 # Testing the property:
 print("test_array_transform:", tuple(scene.test_array_transform))
@@ -149,6 +151,7 @@ test_items = [
 
 def get_enum(self):
     import random
+
     return random.randint(1, 4)
 
 
@@ -160,7 +163,7 @@ bpy.types.Scene.test_enum = bpy.props.EnumProperty(items=test_items, get=get_enu
 
 # Testing the property:
 print("test_enum:", scene.test_enum)
-scene.test_enum = 'BLUE'
+scene.test_enum = "BLUE"
 print("test_enum:", scene.test_enum)
 
 # The above outputs something like:
@@ -172,6 +175,7 @@ print("test_enum:", scene.test_enum)
 # String, using 'transform' accessors to validate data before setting/returning it.
 def get_string_transform(self, curr_value, is_set):
     import os
+
     is_valid_path = os.path.exists(curr_value)
     print("Stored data:", curr_value, "(is set:", is_set, ", is valid path:", is_valid_path, ")")
     return curr_value if is_valid_path else ""
@@ -179,14 +183,25 @@ def get_string_transform(self, curr_value, is_set):
 
 def set_string_transform(self, new_value, curr_value, is_set):
     import os
+
     is_valid_path = os.path.exists(new_value)
-    print("New data:", new_value, "(is_valid_path:", is_valid_path, ");",
-          "Stored data:", curr_value, "(is set:", is_set, ")")
+    print(
+        "New data:",
+        new_value,
+        "(is_valid_path:",
+        is_valid_path,
+        ");",
+        "Stored data:",
+        curr_value,
+        "(is set:",
+        is_set,
+        ")",
+    )
     return new_value if is_valid_path else curr_value
 
 
 bpy.types.Scene.test_string_transform = bpy.props.StringProperty(
-    subtype='DIR_PATH',
+    subtype="DIR_PATH",
     default="an/invalid/path",
     get_transform=get_string_transform,
     set_transform=set_string_transform,

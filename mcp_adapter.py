@@ -3,24 +3,25 @@
 blender-mcp-ultra — MCP Server Adapter for opencode
 Bridges MCP protocol (stdio) to Blender socket server (TCP).
 """
-import sys
-import os
+
 import json
-import socket
-import time
 import logging
+import os
+import socket
+import sys
+import time
 from datetime import datetime
 
 # Setup paths
 _dir = os.path.dirname(os.path.abspath(__file__))
-_src_dir = os.path.join(_dir, 'src')
+_src_dir = os.path.join(_dir, "src")
 sys.path.insert(0, _src_dir)
 
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger("blender-mcp-ultra")
 
 # Import security modules
-from infrastructure.monitoring import get_metrics_collector, get_health_checker, get_alert_manager
+from infrastructure.monitoring import get_metrics_collector
 from infrastructure.security.auth import get_authenticator
 
 # Blender connection
@@ -41,16 +42,16 @@ def check_rate_limit(client_id: str = "default") -> bool:
     """Check if request is within rate limit."""
     now = time.time()
     minute_key = f"{client_id}:{int(now // 60)}"
-    
+
     if minute_key not in _request_counts:
         _request_counts[minute_key] = 0
-    
+
     _request_counts[minute_key] += 1
-    
+
     if _request_counts[minute_key] > MAX_REQUESTS_PER_MINUTE:
         logger.warning(f"Rate limit exceeded for {client_id}")
         return False
-    
+
     return True
 
 
@@ -83,12 +84,22 @@ def log_tool_call(tool_name: str, params: dict, success: bool, execution_time: f
     logger.info(f"TOOL_CALL: {json.dumps(log_entry)}")
 
 
+def unwrap_response(resp):
+    """Desenvolver la envolvente estándar del socket {"status", "result"|"message"}."""
+    if not isinstance(resp, dict):
+        return {}
+    if resp.get("status") == "success":
+        payload = resp.get("result")
+        return payload if isinstance(payload, dict) else {"result": payload}
+    return {"error": resp.get("message", "Unknown error")}
+
+
 def handle_request(request):
     """Handle MCP JSON-RPC request."""
     method = request.get("method", "")
     params = request.get("params", {})
     req_id = request.get("id")
-    
+
     # Start timing
     start_time = time.time()
 
@@ -97,12 +108,9 @@ def handle_request(request):
         return {
             "jsonrpc": "2.0",
             "id": req_id,
-            "error": {
-                "code": -32000,
-                "message": "Rate limit exceeded. Please slow down."
-            }
+            "error": {"code": -32000, "message": "Rate limit exceeded. Please slow down."},
         }
-    
+
     # Authentication check (if enabled)
     if _auth_enabled and method not in ["initialize", "notifications/initialized", "ping"]:
         token = params.get("token") or request.get("token")
@@ -112,15 +120,15 @@ def handle_request(request):
             if _default_token is None:
                 _default_token = get_authenticator().generate_token("default", ["read", "write"])
             token = _default_token
-        
+
         if not get_authenticator().validate_token(token):
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,
                 "error": {
                     "code": -32001,
-                    "message": "Authentication required. Provide valid token."
-                }
+                    "message": "Authentication required. Provide valid token.",
+                },
             }
 
     if method == "initialize":
@@ -130,18 +138,15 @@ def handle_request(request):
             "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {
-                    "name": "blender-mcp-ultra",
-                    "version": "1.0.0"
-                }
-            }
+                "serverInfo": {"name": "blender-mcp-ultra", "version": "1.0.0"},
+            },
         }
 
     elif method == "notifications/initialized":
         return None  # No response needed
 
     elif method == "tools/list":
-        result = send_to_blender("list_tools")
+        result = unwrap_response(send_to_blender("list_tools"))
         tools = []
         type_map = {
             "str": "string",
@@ -169,71 +174,87 @@ def handle_request(request):
                     prop["type"] = "string"
                 properties[k] = prop
 
-            tools.append({
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": [k for k, v in tool.get("parameters", {}).items() if v.get("required")]
+            tools.append(
+                {
+                    "name": tool["name"],
+                    "description": tool.get("description", ""),
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": [
+                            k for k, v in tool.get("parameters", {}).items() if v.get("required")
+                        ],
+                    },
                 }
-            })
+            )
         return {"jsonrpc": "2.0", "id": req_id, "result": {"tools": tools}}
 
     elif method == "tools/call":
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
-        
+
         # Security: validate tool name
         if not tool_name or not isinstance(tool_name, str):
-            return {"jsonrpc": "2.0", "id": req_id, "error": {
-                "code": -32602,
-                "message": "Invalid tool name"
-            }}
-        
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {"code": -32602, "message": "Invalid tool name"},
+            }
+
         # Security: check tool exists
         start_time = time.time()
-        result = send_to_blender("tool", {"tool_name": tool_name, "params": arguments})
+        result = unwrap_response(
+            send_to_blender("tool", {"tool_name": tool_name, "params": arguments})
+        )
         execution_time = time.time() - start_time
-        
+
         # Log the tool call
         log_tool_call(tool_name, arguments, result.get("success", False), execution_time)
-        
+
         if result.get("success"):
             content = json.dumps(result.get("data", {}), indent=2)
-            return {"jsonrpc": "2.0", "id": req_id, "result": {
-                "content": [{"type": "text", "text": content}]
-            }}
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {"content": [{"type": "text", "text": content}]},
+            }
         else:
-            return {"jsonrpc": "2.0", "id": req_id, "result": {
-                "content": [{"type": "text", "text": f"Error: {result.get('error', 'Unknown error')}"}],
-                "isError": True
-            }}
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "content": [
+                        {"type": "text", "text": f"Error: {result.get('error', 'Unknown error')}"}
+                    ],
+                    "isError": True,
+                },
+            }
 
     elif method == "ping":
-        result = send_to_blender("ping")
+        result = unwrap_response(send_to_blender("ping"))
         return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
     else:
-        response = {"jsonrpc": "2.0", "id": req_id, "error": {
-            "code": -32601,
-            "message": f"Method not found: {method}"
-        }}
-    
+        response = {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Method not found: {method}"},
+        }
+
     # Record metrics
     execution_time = time.time() - start_time
     success = "error" not in str(response)
     get_metrics_collector().record_request(execution_time, success)
-    
+
     return response
 
 
 def main():
     """Main loop: read JSON-RPC from stdin, write to stdout."""
     logger.info("blender-mcp-ultra MCP server starting")
-    
+
     # Test connection to Blender
-    result = send_to_blender("ping")
+    result = unwrap_response(send_to_blender("ping"))
     if result.get("pong"):
         logger.info(f"Connected to Blender ({result.get('tools', 0)} tools)")
     else:
@@ -245,21 +266,21 @@ def main():
             line = sys.stdin.readline()
             if not line:
                 break
-            
+
             buffer += line
             # Try to parse complete JSON-RPC messages
             try:
                 request = json.loads(buffer)
                 buffer = ""
-                
+
                 response = handle_request(request)
                 if response:
                     sys.stdout.write(json.dumps(response) + "\n")
                     sys.stdout.flush()
-                    
+
             except json.JSONDecodeError:
                 continue
-                
+
         except KeyboardInterrupt:
             break
         except Exception as e:

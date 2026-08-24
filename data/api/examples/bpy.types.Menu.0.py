@@ -21,6 +21,7 @@ convention for menus.
    When a menu is added to UI elements such as a panel or header,
    the operator execution context will be inherited from them.
 """
+
 import bpy
 
 
@@ -31,8 +32,8 @@ class BasicMenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("object.select_all", text="Select/Deselect All").action = 'TOGGLE'
-        layout.operator("object.select_all", text="Inverse").action = 'INVERT'
+        layout.operator("object.select_all", text="Select/Deselect All").action = "TOGGLE"
+        layout.operator("object.select_all", text="Inverse").action = "INVERT"
         layout.operator("object.select_random", text="Random")
 
 

@@ -19,8 +19,8 @@ bpy.ops.curve.primitive_bezier_curve_add()
 curve = bpy.context.active_object
 # Edit curve points to match reference silhouette
 # Convert to mesh, extrude for depth
-bpy.ops.object.convert(target='MESH')
-bpy.ops.object.mode_set(mode='EDIT')
+bpy.ops.object.convert(target="MESH")
+bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.extrude_region_move()
 ```
 
@@ -28,8 +28,8 @@ bpy.ops.mesh.extrude_region_move()
 ```python
 # Draw half-profile, then use Screw modifier
 bpy.ops.curve.primitive_bezier_curve_add()
-bpy.ops.object.convert(target='MESH')
-mod = bpy.context.active_object.modifiers.new(name="Lathe", type='SCREW')
+bpy.ops.object.convert(target="MESH")
+mod = bpy.context.active_object.modifiers.new(name="Lathe", type="SCREW")
 mod.angle = math.radians(360)
 mod.steps = 32
 ```
@@ -38,8 +38,8 @@ mod.steps = 32
 ```python
 bpy.ops.import_curves.svg(filepath="path/to/vector.svg")
 # Select imported curves, convert to mesh, extrude
-bpy.ops.object.convert(target='MESH')
-bpy.ops.object.mode_set(mode='EDIT')
+bpy.ops.object.convert(target="MESH")
+bpy.ops.object.mode_set(mode="EDIT")
 bpy.ops.mesh.extrude_region_move()
 ```
 

@@ -1,14 +1,18 @@
 """
 blender-mcp — Configurable Logging (cross-platform)
 """
+
+import logging
 import os
 import sys
-import logging
 from pathlib import Path
+
 from .platform import get_log_dir
 
 LOG_LEVEL = os.getenv("BLENDER_MCP_LOG_LEVEL", "INFO").upper()
-LOG_FORMAT = os.getenv("BLENDER_MCP_LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+LOG_FORMAT = os.getenv(
+    "BLENDER_MCP_LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 LOG_HANDLER = os.getenv("BLENDER_MCP_LOG_HANDLER", "console")
 LOG_FILE = os.getenv("BLENDER_MCP_LOG_FILE", str(get_log_dir() / "blender-mcp.log"))
 

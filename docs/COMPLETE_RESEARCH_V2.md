@@ -162,10 +162,10 @@ Usuario → auto_process._tick() (cada 0.5s)
 
 ```python
 TOOLS_DEF = [
-    execute_blender_code,     # Crear cualquier cosa en Blender
-    get_scene_info,           # Ver la escena
+    execute_blender_code,  # Crear cualquier cosa en Blender
+    get_scene_info,  # Ver la escena
     get_viewport_screenshot,  # Validación visual
-    scene_summary,            # Resumen de escena
+    scene_summary,  # Resumen de escena
 ]
 ```
 

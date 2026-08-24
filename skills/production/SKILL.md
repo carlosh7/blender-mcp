@@ -91,8 +91,8 @@ scene.get_info(include_objects=True, include_materials=True)
 
 ### Batch Processing
 ```python
-batch.rename(pattern='Old_', replace='New_')
-batch.delete_by_type(type='EMPTY')
+batch.rename(pattern="Old_", replace="New_")
+batch.delete_by_type(type="EMPTY")
 batch.apply_transforms()
 ```
 

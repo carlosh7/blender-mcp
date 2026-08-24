@@ -6,6 +6,7 @@ Set up, position, and configure cameras for optimal composition.
 
 ```python
 import math
+
 bpy.ops.object.camera_add(location=(5, -5, 4), rotation=(math.radians(60), 0, math.radians(45)))
 cam = bpy.context.active_object
 cam.name = "CAM_Main"
@@ -28,10 +29,10 @@ bpy.context.scene.camera = cam
 ```python
 # Track to target object
 target = bpy.data.objects["GEO_Subject"]
-constraint = cam.constraints.new(type='TRACK_TO')
+constraint = cam.constraints.new(type="TRACK_TO")
 constraint.target = target
-constraint.track_axis = 'TRACK_NEGATIVE_Z'
-constraint.up_axis = 'UP_Y'
+constraint.track_axis = "TRACK_NEGATIVE_Z"
+constraint.up_axis = "UP_Y"
 ```
 
 ## Depth of Field
@@ -45,7 +46,7 @@ cam.data.dof.aperture_fstop = 2.8  # Lower = more blur
 ## Auto-Framing
 
 ```python
-bpy.ops.object.select_all(action='DESELECT')
+bpy.ops.object.select_all(action="DESELECT")
 target.select_set(True)
 bpy.context.view_layer.objects.active = target
 bpy.ops.view3d.camera_to_view_selected()

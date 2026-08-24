@@ -2,8 +2,8 @@
 blender-mcp — Streaming Output UI
 Displays streaming LLM responses in Blender's text editor.
 """
+
 import bpy
-import time
 
 
 def get_or_create_text_block(name="blender-mcp-stream"):
@@ -22,6 +22,7 @@ def clear_stream():
 
 def append_stream(content):
     """Append text to the streaming output (thread-safe via timer)."""
+
     def _append():
         text = get_or_create_text_block()
         text.write(content)
@@ -39,16 +40,16 @@ def show_stream_in_editor():
     """Open the streaming text in Blender's text editor area."""
     for screen in bpy.data.screens:
         for area in screen.areas:
-            if area.type == 'TEXT_EDITOR':
+            if area.type == "TEXT_EDITOR":
                 area.spaces[0].text = get_or_create_text_block()
                 return
 
     # If no text editor, split current area
     for area in bpy.data.screens[0].areas:
-        if area.type == 'VIEW_3D':
-            bpy.ops.screen.area_split(direction='VERTICAL', factor=0.7)
+        if area.type == "VIEW_3D":
+            bpy.ops.screen.area_split(direction="VERTICAL", factor=0.7)
             for child in area.children:
-                if child.type != 'VIEW_3D':
-                    child.type = 'TEXT_EDITOR'
+                if child.type != "VIEW_3D":
+                    child.type = "TEXT_EDITOR"
                     child.spaces[0].text = get_or_create_text_block()
             return

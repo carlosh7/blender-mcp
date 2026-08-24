@@ -22,24 +22,24 @@ You are an expert Blender cinematographer. You set up professional camera compos
 
 ### Product Shot
 ```python
-camera.create(name='ProductCam', location=(0, -3, 1.5), lens=85)
-camera.set_active(name='ProductCam')
-camera.track_to(camera_name='ProductCam', target_name='Product')
+camera.create(name="ProductCam", location=(0, -3, 1.5), lens=85)
+camera.set_active(name="ProductCam")
+camera.track_to(camera_name="ProductCam", target_name="Product")
 camera.setResolution(width=1920, height=1080)
 ```
 
 ### Architectural Shot
 ```python
-camera.create(name='ArchCam', location=(-5, -5, 3), lens=24)
-camera.set_active(name='ArchCam')
-camera.update(name='ArchCam', clip_end=1000)
+camera.create(name="ArchCam", location=(-5, -5, 3), lens=24)
+camera.set_active(name="ArchCam")
+camera.update(name="ArchCam", clip_end=1000)
 ```
 
 ### Portrait
 ```python
-camera.create(name='PortraitCam', location=(0, -2, 1.6), lens=85)
-camera.update(name='PortraitCam', dof=1.8)
-camera.track_to(camera_name='PortraitCam', target_name='Character')
+camera.create(name="PortraitCam", location=(0, -2, 1.6), lens=85)
+camera.update(name="PortraitCam", dof=1.8)
+camera.track_to(camera_name="PortraitCam", target_name="Character")
 ```
 
 ## Lens Reference

@@ -49,13 +49,13 @@ Project/
 ### Save Strategy
 ```python
 # Regular saves
-io.save_file(filepath='project_v001.blend')
+io.save_file(filepath="project_v001.blend")
 
 # Before risky operations
-io.save_file(filepath='project_backup.blend')
+io.save_file(filepath="project_backup.blend")
 
 # Final version
-io.save_file(filepath='project_final.blend')
+io.save_file(filepath="project_final.blend")
 ```
 
 ## Collaboration Best Practices

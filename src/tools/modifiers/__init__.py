@@ -2,9 +2,10 @@
 blender-mcp-ultra — Modifier Tools
 Tools for modifier management.
 """
-from typing import Any, Dict, List, Optional
-from core.entities import Tool, ToolCategory, ToolPermission
 
+from typing import Any, Dict, List, Optional
+
+from ...core.entities import Tool, ToolCategory, ToolPermission
 
 # Tool definitions
 TOOLS = [
@@ -92,216 +93,215 @@ def add(
     object_name: str,
     type: str,
     name: str = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Add a modifier to an object."""
     try:
         import bpy
-        
+
         obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {'error': f'Object not found: {object_name}'}
-        
+            return {"error": f"Object not found: {object_name}"}
+
         # Add modifier
         mod = obj.modifiers.new(name=name or type, type=type)
-        
+
         return {
-            'success': True,
-            'object': object_name,
-            'modifier': mod.name,
-            'type': type,
+            "success": True,
+            "object": object_name,
+            "modifier": mod.name,
+            "type": type,
         }
-        
+
     except Exception as e:
-        return {'error': str(e)}
+        return {"error": str(e)}
 
 
 def remove(
     object_name: str,
     modifier_name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Remove a modifier from an object."""
     try:
         import bpy
-        
+
         obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {'error': f'Object not found: {object_name}'}
-        
+            return {"error": f"Object not found: {object_name}"}
+
         mod = obj.modifiers.get(modifier_name)
         if not mod:
-            return {'error': f'Modifier not found: {modifier_name}'}
-        
+            return {"error": f"Modifier not found: {modifier_name}"}
+
         obj.modifiers.remove(mod)
-        
+
         return {
-            'success': True,
-            'object': object_name,
-            'modifier': modifier_name,
+            "success": True,
+            "object": object_name,
+            "modifier": modifier_name,
         }
-        
+
     except Exception as e:
-        return {'error': str(e)}
+        return {"error": str(e)}
 
 
 def apply(
     object_name: str,
     modifier_name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Apply a modifier."""
     try:
         import bpy
-        
+
         obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {'error': f'Object not found: {object_name}'}
-        
+            return {"error": f"Object not found: {object_name}"}
+
         mod = obj.modifiers.get(modifier_name)
         if not mod:
-            return {'error': f'Modifier not found: {modifier_name}'}
-        
+            return {"error": f"Modifier not found: {modifier_name}"}
+
         # Apply modifier
         bpy.context.view_layer.objects.active = obj
         bpy.ops.object.modifier_apply(modifier=modifier_name)
-        
+
         return {
-            'success': True,
-            'object': object_name,
-            'modifier': modifier_name,
+            "success": True,
+            "object": object_name,
+            "modifier": modifier_name,
         }
-        
+
     except Exception as e:
-        return {'error': str(e)}
+        return {"error": str(e)}
 
 
-def list_modifiers(object_name: str) -> Dict[str, Any]:
+def list_modifiers(object_name: str) -> dict[str, Any]:
     """List modifiers on an object."""
     try:
         import bpy
-        
+
         obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {'error': f'Object not found: {object_name}'}
-        
+            return {"error": f"Object not found: {object_name}"}
+
         modifiers = []
         for mod in obj.modifiers:
-            modifiers.append({
-                'name': mod.name,
-                'type': mod.type,
-                'show_viewport': mod.show_viewport,
-                'show_render': mod.show_render,
-            })
-        
+            modifiers.append(
+                {
+                    "name": mod.name,
+                    "type": mod.type,
+                    "show_viewport": mod.show_viewport,
+                    "show_render": mod.show_render,
+                }
+            )
+
         return {
-            'object': object_name,
-            'count': len(modifiers),
-            'modifiers': modifiers,
+            "object": object_name,
+            "count": len(modifiers),
+            "modifiers": modifiers,
         }
-        
+
     except Exception as e:
-        return {'error': str(e)}
+        return {"error": str(e)}
 
 
 def update(
     object_name: str,
     modifier_name: str,
-    properties: Dict[str, Any],
-) -> Dict[str, Any]:
+    properties: dict[str, Any],
+) -> dict[str, Any]:
     """Update modifier properties."""
     try:
         import bpy
-        
+
         obj = bpy.data.objects.get(object_name)
         if not obj:
-            return {'error': f'Object not found: {object_name}'}
-        
+            return {"error": f"Object not found: {object_name}"}
+
         mod = obj.modifiers.get(modifier_name)
         if not mod:
-            return {'error': f'Modifier not found: {modifier_name}'}
-        
+            return {"error": f"Modifier not found: {modifier_name}"}
+
         updated = []
         for prop, value in properties.items():
             if hasattr(mod, prop):
                 setattr(mod, prop, value)
                 updated.append(prop)
-        
+
         return {
-            'success': True,
-            'object': object_name,
-            'modifier': modifier_name,
-            'updated': updated,
+            "success": True,
+            "object": object_name,
+            "modifier": modifier_name,
+            "updated": updated,
         }
-        
+
     except Exception as e:
-        return {'error': str(e)}
+        return {"error": str(e)}
 
 
-def types() -> Dict[str, Any]:
+def types() -> dict[str, Any]:
     """List available modifier types."""
     try:
         import bpy
-        
+
         # Get all modifier types
         modifier_types = [
-            ('ARRAY', 'Array', 'Generate'),
-            ('BEVEL', 'Bevel', 'Generate'),
-            ('BOOLEAN', 'Boolean', 'Generate'),
-            ('BUILD', 'Build', 'Generate'),
-            ('DECIMATE', 'Decimate', 'Generate'),
-            ('EDGE_SPLIT', 'Edge Split', 'Generate'),
-            ('MASK', 'Mask', 'Generate'),
-            ('MIRROR', 'Mirror', 'Generate'),
-            ('MULTIRES', 'Multiresolution', 'Generate'),
-            ('REMESH', 'Remesh', 'Generate'),
-            ('SCREW', 'Screw', 'Generate'),
-            ('SKIN', 'Skin', 'Generate'),
-            ('SOLIDIFY', 'Solidify', 'Generate'),
-            ('SUBSURF', 'Subdivision Surface', 'Generate'),
-            ('TRIANGULATE', 'Triangulate', 'Generate'),
-            ('WELD', 'Weld', 'Generate'),
-            ('WIREFRAME', 'Wireframe', 'Generate'),
-            ('ARMATURE', 'Armature', 'Deform'),
-            ('CAST', 'Cast', 'Deform'),
-            ('CURVE', 'Curve', 'Deform'),
-            ('DISPLACE', 'Displace', 'Deform'),
-            ('HOOK', 'Hook', 'Deform'),
-            ('LATTICE', 'Lattice', 'Deform'),
-            ('MESH_DEFORM', 'Mesh Deform', 'Deform'),
-            ('SHRINKWRAP', 'Shrinkwrap', 'Deform'),
-            ('SIMPLE_DEFORM', 'Simple Deform', 'Deform'),
-            ('SMOOTH', 'Smooth', 'Deform'),
-            ('CORRECTIVE_SMOOTH', 'Corrective Smooth', 'Deform'),
-            ('LAPLACIAN_SMOOTH', 'Laplacian Smooth', 'Deform'),
-            ('SURFACE_DEFORM', 'Surface Deform', 'Deform'),
-            ('WARP', 'Warp', 'Deform'),
-            ('WAVE', 'Wave', 'Deform'),
-            ('CLOTH', 'Cloth', 'Physics'),
-            ('COLLISION', 'Collision', 'Physics'),
-            ('DYNAMIC_PAINT', 'Dynamic Paint', 'Physics'),
-            ('EXPLODE', 'Explode', 'Physics'),
-            ('FLUID', 'Fluid', 'Physics'),
-            ('OCEAN', 'Ocean', 'Physics'),
-            ('PARTICLE_SYSTEM', 'Particle System', 'Physics'),
-            ('SOFT_BODY', 'Soft Body', 'Physics'),
+            ("ARRAY", "Array", "Generate"),
+            ("BEVEL", "Bevel", "Generate"),
+            ("BOOLEAN", "Boolean", "Generate"),
+            ("BUILD", "Build", "Generate"),
+            ("DECIMATE", "Decimate", "Generate"),
+            ("EDGE_SPLIT", "Edge Split", "Generate"),
+            ("MASK", "Mask", "Generate"),
+            ("MIRROR", "Mirror", "Generate"),
+            ("MULTIRES", "Multiresolution", "Generate"),
+            ("REMESH", "Remesh", "Generate"),
+            ("SCREW", "Screw", "Generate"),
+            ("SKIN", "Skin", "Generate"),
+            ("SOLIDIFY", "Solidify", "Generate"),
+            ("SUBSURF", "Subdivision Surface", "Generate"),
+            ("TRIANGULATE", "Triangulate", "Generate"),
+            ("WELD", "Weld", "Generate"),
+            ("WIREFRAME", "Wireframe", "Generate"),
+            ("ARMATURE", "Armature", "Deform"),
+            ("CAST", "Cast", "Deform"),
+            ("CURVE", "Curve", "Deform"),
+            ("DISPLACE", "Displace", "Deform"),
+            ("HOOK", "Hook", "Deform"),
+            ("LATTICE", "Lattice", "Deform"),
+            ("MESH_DEFORM", "Mesh Deform", "Deform"),
+            ("SHRINKWRAP", "Shrinkwrap", "Deform"),
+            ("SIMPLE_DEFORM", "Simple Deform", "Deform"),
+            ("SMOOTH", "Smooth", "Deform"),
+            ("CORRECTIVE_SMOOTH", "Corrective Smooth", "Deform"),
+            ("LAPLACIAN_SMOOTH", "Laplacian Smooth", "Deform"),
+            ("SURFACE_DEFORM", "Surface Deform", "Deform"),
+            ("WARP", "Warp", "Deform"),
+            ("WAVE", "Wave", "Deform"),
+            ("CLOTH", "Cloth", "Physics"),
+            ("COLLISION", "Collision", "Physics"),
+            ("DYNAMIC_PAINT", "Dynamic Paint", "Physics"),
+            ("EXPLODE", "Explode", "Physics"),
+            ("FLUID", "Fluid", "Physics"),
+            ("OCEAN", "Ocean", "Physics"),
+            ("PARTICLE_SYSTEM", "Particle System", "Physics"),
+            ("SOFT_BODY", "Soft Body", "Physics"),
         ]
-        
+
         return {
-            'count': len(modifier_types),
-            'types': [
-                {'id': t[0], 'name': t[1], 'category': t[2]}
-                for t in modifier_types
-            ],
+            "count": len(modifier_types),
+            "types": [{"id": t[0], "name": t[1], "category": t[2]} for t in modifier_types],
         }
-        
+
     except ImportError:
-        return {'error': 'Blender not available'}
+        return {"error": "Blender not available"}
 
 
 # Handler mapping
 HANDLERS = {
-    'modifier.add': add,
-    'modifier.remove': remove,
-    'modifier.apply': apply,
-    'modifier.list': list_modifiers,
-    'modifier.update': update,
-    'modifier.types': types,
+    "modifier.add": add,
+    "modifier.remove": remove,
+    "modifier.apply": apply,
+    "modifier.list": list_modifiers,
+    "modifier.update": update,
+    "modifier.types": types,
 }

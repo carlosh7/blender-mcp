@@ -7,11 +7,12 @@ Generate a texture using Offscreen Rendering
 #. Make a new shader for drawing a planar texture in 3D.
 #. Draw the generated texture using the new shader.
 """
+
 import bpy
 import gpu
-from mathutils import Matrix
 from gpu_extras.batch import batch_for_shader
 from gpu_extras.presets import draw_circle_2d
+from mathutils import Matrix
 
 # Create and fill offscreen
 ##########################################
@@ -36,16 +37,16 @@ with offscreen.bind():
 #############################################
 
 vert_out = gpu.types.GPUStageInterfaceInfo("my_interface")
-vert_out.smooth('VEC2', "uvInterp")
+vert_out.smooth("VEC2", "uvInterp")
 
 shader_info = gpu.types.GPUShaderCreateInfo()
-shader_info.push_constant('MAT4', "viewProjectionMatrix")
-shader_info.push_constant('MAT4', "modelMatrix")
-shader_info.sampler(0, 'FLOAT_2D', "image")
-shader_info.vertex_in(0, 'VEC2', "position")
-shader_info.vertex_in(1, 'VEC2', "uv")
+shader_info.push_constant("MAT4", "viewProjectionMatrix")
+shader_info.push_constant("MAT4", "modelMatrix")
+shader_info.sampler(0, "FLOAT_2D", "image")
+shader_info.vertex_in(0, "VEC2", "position")
+shader_info.vertex_in(1, "VEC2", "uv")
 shader_info.vertex_out(vert_out)
-shader_info.fragment_out(0, 'VEC4', "FragColor")
+shader_info.fragment_out(0, "VEC4", "FragColor")
 
 shader_info.vertex_source(
     "void main()"
@@ -55,19 +56,15 @@ shader_info.vertex_source(
     "}"
 )
 
-shader_info.fragment_source(
-    "void main()"
-    "{"
-    "  FragColor = texture(image, uvInterp);"
-    "}"
-)
+shader_info.fragment_source("void main(){  FragColor = texture(image, uvInterp);}")
 
 shader = gpu.shader.create_from_info(shader_info)
 del vert_out
 del shader_info
 
 batch = batch_for_shader(
-    shader, 'TRI_STRIP',
+    shader,
+    "TRI_STRIP",
     {
         "position": ((-1, -1), (1, -1), (-1, 1), (1, 1)),
         "uv": ((0, 0), (1, 0), (0, 1), (1, 1)),
@@ -82,4 +79,4 @@ def draw():
     batch.draw(shader)
 
 
-bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_VIEW')
+bpy.types.SpaceView3D.draw_handler_add(draw, (), "WINDOW", "POST_VIEW")

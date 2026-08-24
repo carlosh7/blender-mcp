@@ -25,6 +25,7 @@ you would pass ``active_object=object`` to :class:`bpy.types.Context.temp_overri
 # Remove all objects in scene rather than the selected ones.
 import bpy
 from bpy import context
+
 context_override = context.copy()
 context_override["selected_objects"] = list(context.scene.objects)
 with context.temp_override(**context_override):

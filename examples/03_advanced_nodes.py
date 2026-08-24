@@ -3,35 +3,36 @@
 Ejemplo 3: Shader Nodes y Geometry Nodes
 Requiere: Blender abierto con addon MCP activo
 """
-import socket
+
 import json
+import socket
 import time
 
 
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r:
+                if b"\n" in r:
                     break
-        except socket.timeout:
+        except TimeoutError:
             continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
 
 
 # 1. Material Ladrillo Procedural
 print("1. Creando material ladrillo...")
-run('''
+run("""
 import bpy
 
 bpy.ops.mesh.primitive_cube_add(size=2, location=(0, -5, 1))
@@ -60,11 +61,11 @@ links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
 wall.data.materials.append(mat)
 print(f"Material ladrillo: {mat.name}")
-''')
+""")
 
 # 2. Material Vidrio
 print("2. Creando material vidrio...")
-run('''
+run("""
 import bpy
 
 bpy.ops.mesh.primitive_ico_sphere_add(radius=1, subdivisions=4, location=(3, -5, 1))
@@ -81,11 +82,11 @@ bsdf.inputs["Alpha"].default_value = 0.3
 
 glass.data.materials.append(mat)
 print(f"Material vidrio: {mat.name}")
-''')
+""")
 
 # 3. Geometry Nodes: Scatter
 print("3. Creando scatter con Geometry Nodes...")
-run('''
+run("""
 import bpy
 
 bpy.ops.mesh.primitive_plane_add(size=10, location=(0, 5, 0))
@@ -133,11 +134,11 @@ mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.2
 iso.data.materials.append(mat)
 
 print(f"GeoNodes: {ng.name}")
-''')
+""")
 
 # 4. Array Modifier
 print("4. Creando grid con Array...")
-run('''
+run("""
 import bpy
 
 bpy.ops.mesh.primitive_cube_add(size=0.4, location=(8, 0, 0.2))
@@ -158,11 +159,11 @@ mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (1.0
 arr.data.materials.append(mat)
 
 print(f"Grid: 8x5 = 40 cubos")
-''')
+""")
 
 # 5. Luces y cámara
 print("5. Configurando luces y cámara...")
-run('''
+run("""
 import bpy
 
 # Luces
@@ -183,7 +184,7 @@ bpy.context.scene.render.resolution_x = 1920
 bpy.context.scene.render.resolution_y = 1080
 
 print("Luces y cámara configuradas")
-''')
+""")
 
 print("\nEscena avanzada creada!")
 print("Materiales: Ladrillo, Vidrio")

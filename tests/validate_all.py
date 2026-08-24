@@ -2,9 +2,10 @@
 """
 validate_all.py — Ejecuta todas las validaciones y resume.
 """
+
+import os
 import subprocess
 import sys
-import os
 
 SCRIPTS = [
     ("🔌 Blender Socket", "validate_tools.py"),
@@ -17,10 +18,9 @@ RESULTS = []
 for name, script in SCRIPTS:
     path = os.path.join(os.path.dirname(__file__), script)
     print(f"\n▶  {name} ({script})")
-    print(f"{'─'*50}")
+    print(f"{'─' * 50}")
     try:
-        r = subprocess.run([sys.executable, path],
-                          capture_output=True, text=True, timeout=120)
+        r = subprocess.run([sys.executable, path], capture_output=True, text=True, timeout=120)
         # Show last 10 lines
         lines = (r.stdout or "").strip().split("\n")
         for line in lines[-8:]:
@@ -36,14 +36,14 @@ for name, script in SCRIPTS:
         print(f"  ⚠️  Script no encontrado: {path}")
         RESULTS.append((name, "❌ no encontrado"))
 
-print(f"\n{'='*50}")
-print(f"  RESUMEN DE VALIDACION")
-print(f"{'='*50}")
+print(f"\n{'=' * 50}")
+print("  RESUMEN DE VALIDACION")
+print(f"{'=' * 50}")
 for name, status in RESULTS:
     print(f"  {status} {name}")
-print(f"{'='*50}")
+print(f"{'=' * 50}")
 total_ok = sum(1 for _, s in RESULTS if s == "✅")
 total = len(RESULTS)
 print(f"  {total_ok}/{total} pruebas exitosas")
-print(f"{'='*50}")
+print(f"{'=' * 50}")
 sys.exit(0 if total_ok == total else 1)

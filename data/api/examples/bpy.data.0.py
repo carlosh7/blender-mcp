@@ -1,6 +1,5 @@
 import bpy
 
-
 # Print all objects.
 for obj in bpy.data.objects:
     print(obj.name)
@@ -19,6 +18,7 @@ if "Cube" in bpy.data.meshes:
 
 # Write images into a file next to the blend.
 import os
-with open(os.path.splitext(bpy.data.filepath)[0] + ".txt", 'w') as fs:
+
+with open(os.path.splitext(bpy.data.filepath)[0] + ".txt", "w") as fs:
     for image in bpy.data.images:
-        fs.write("{:s} {:d} x {:d}\n".format(image.filepath, image.size[0], image.size[1]))
+        fs.write(f"{image.filepath:s} {image.size[0]:d} x {image.size[1]:d}\n")

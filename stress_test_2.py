@@ -1,34 +1,40 @@
 #!/usr/bin/env python3
 """blender-mcp — STRESS TEST 2: Rigging + Array + Batch"""
-import socket, json, time, math
+
+import json
+import socket
+import time
 
 
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r: break
-        except: continue
+                if b"\n" in r:
+                    break
+        except Exception:
+            continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
 
 
 def phase(name):
-    print(f"\n{'='*60}\n{name}\n{'='*60}")
+    print(f"\n{'=' * 60}\n{name}\n{'=' * 60}")
 
 
 # FASE 1: RIGGING
 phase("FASE 1: RIGGING - Armature + Bones")
-print(run('''
+print(
+    run("""
 import bpy
 from mathutils import Vector
 arm_data = bpy.data.armatures.new("RigData")
@@ -54,11 +60,13 @@ bpy.ops.object.mode_set(mode="OBJECT")
 print(f"Armature: {arm_obj.name} ({len(arm.bones)} bones)")
 for b in arm.bones:
     print(f"  - {b.name}")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 2: ANIMATE RIG
 phase("FASE 2: ANIMATE RIG (pose mode)")
-print(run('''
+print(
+    run("""
 import bpy, math
 arm = bpy.data.objects.get("Character")
 bpy.context.view_layer.objects.active = arm
@@ -73,11 +81,13 @@ for bone_name in ["UpperArm_L", "UpperArm_R", "Head"]:
         b.rotation_euler = (0,0,0); b.keyframe_insert("rotation_euler", frame=90)
 bpy.ops.object.mode_set(mode="OBJECT")
 print("Animated: UpperArm_L, UpperArm_R, Head")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 3: ARRAY MODIFIERS
 phase("FASE 3: ARRAY MODIFIERS (3D Grid)")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.mesh.primitive_cube_add(size=0.3, location=(10,0,0.15))
 grid = bpy.context.active_object; grid.name = "Array3D"
@@ -89,11 +99,13 @@ mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.2
 mat.node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 0.6
 grid.data.materials.append(mat)
 print(f"Array3D: 10x10x5 = 500 cubes")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 4: SUBDIVISION + SMOOTH
 phase("FASE 4: SUBDIVISION SURFACES")
-print(run('''
+print(
+    run("""
 import bpy
 # Monkey with subdivision
 bpy.ops.mesh.primitive_monkey_add(size=2, location=(0, -10, 2))
@@ -114,11 +126,13 @@ mat2.node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 0.8
 mat2.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.1
 smooth.data.materials.append(mat2)
 print("Suzanne (subsurf 2) + SmoothSphere (64 seg)")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 5: MULTIPLE CURVES
 phase("FASE 5: CURVES + BEZIER")
-print(run('''
+print(
+    run("""
 import bpy, math
 # Create bezier circle
 bpy.ops.curve.primitive_bezier_circle_add(radius=4, location=(0,12,1))
@@ -139,11 +153,13 @@ mat2 = bpy.data.materials.new("SpiralMat"); mat2.use_nodes = True
 mat2.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.5,0.1,0.9,1)
 spiral.data.materials.append(mat2)
 print(f"BezierCircle (bevel 0.1) + SpiralTube (50 segments)")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 6: BOOLEAN OPERATIONS
 phase("FASE 6: BOOLEAN OPERATIONS")
-print(run('''
+print(
+    run("""
 import bpy
 # Base cube
 bpy.ops.mesh.primitive_cube_add(size=3, location=(-10, 0, 1.5))
@@ -171,11 +187,13 @@ mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.7
 base.data.materials.append(mat)
 intersect.data.materials.append(mat)
 print("Boolean: DIFFERENCE + INTERSECT")
-''').get('output',''))
+""").get("output", "")
+)
 
 # RESUMEN
 phase("RESUMEN STRESS TEST 2")
-print(run('''
+print(
+    run("""
 import bpy
 s = bpy.context.scene
 types = {}
@@ -187,8 +205,9 @@ print(f"Meshes: {len(bpy.data.meshes)}")
 print(f"Armatures: {len(bpy.data.armatures)}")
 print(f"Curves: {len(bpy.data.curves)}")
 print(f"Frames: {s.frame_start}-{s.frame_end} @ {s.render.fps}fps")
-''').get('output',''))
+""").get("output", "")
+)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("STRESS TEST 2 COMPLETADO")
-print("="*60)
+print("=" * 60)

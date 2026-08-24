@@ -6,6 +6,7 @@ The scene has to have a camera for this example to work.
 You could also make this independent of a specific camera,
 but Blender does not expose good functions to create view and projection matrices yet.
 """
+
 import bpy
 import gpu
 from gpu_extras.presets import draw_texture_2d
@@ -23,7 +24,8 @@ def draw():
     view_matrix = scene.camera.matrix_world.inverted()
 
     projection_matrix = scene.camera.calc_matrix_camera(
-        context.evaluated_depsgraph_get(), x=WIDTH, y=HEIGHT)
+        context.evaluated_depsgraph_get(), x=WIDTH, y=HEIGHT
+    )
 
     offscreen.draw_view3d(
         scene,
@@ -32,10 +34,11 @@ def draw():
         context.region,
         view_matrix,
         projection_matrix,
-        do_color_management=True)
+        do_color_management=True,
+    )
 
     gpu.state.depth_mask_set(False)
     draw_texture_2d(offscreen.texture_color, (10, 10), WIDTH, HEIGHT)
 
 
-bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
+bpy.types.SpaceView3D.draw_handler_add(draw, (), "WINDOW", "POST_PIXEL")

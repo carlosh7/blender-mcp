@@ -6,12 +6,12 @@ Configure render engines, resolution, and output settings.
 
 ```python
 # Cycles (photorealistic, slower)
-bpy.context.scene.render.engine = 'CYCLES'
+bpy.context.scene.render.engine = "CYCLES"
 bpy.context.scene.cycles.samples = 128
-bpy.context.scene.cycles.device = 'GPU'  # or 'CPU'
+bpy.context.scene.cycles.device = "GPU"  # or 'CPU'
 
 # EEVEE (real-time, faster)
-bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+bpy.context.scene.render.engine = "BLENDER_EEVEE"
 ```
 
 ## Resolution
@@ -27,7 +27,7 @@ bpy.context.scene.render.fps = 24
 
 ```python
 bpy.context.scene.render.filepath = "/path/to/output.png"
-bpy.context.scene.render.image_settings.file_format = 'PNG'  # PNG, JPEG, OPEN_EXR
+bpy.context.scene.render.image_settings.file_format = "PNG"  # PNG, JPEG, OPEN_EXR
 ```
 
 ## Rendering
@@ -44,8 +44,8 @@ bpy.ops.render.render(animation=True)
 
 ```python
 scene = bpy.context.scene
-scene.view_settings.view_transform = 'Standard'  # or 'Filmic', 'AgX'
-scene.view_settings.look = 'None'  # or 'Medium Contrast'
+scene.view_settings.view_transform = "Standard"  # or 'Filmic', 'AgX'
+scene.view_settings.look = "None"  # or 'Medium Contrast'
 ```
 
 ## Cycles Sampling Guide

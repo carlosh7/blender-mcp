@@ -2,8 +2,10 @@
 Assign parameters to functions
 ------------------------------
 """
-import bpy
+
 import functools
+
+import bpy
 
 
 def print_message(message):

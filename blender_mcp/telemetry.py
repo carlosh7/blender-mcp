@@ -3,11 +3,12 @@ blender-mcp — Anonymous Telemetry
 Records minimal usage data (tool names, success/failure, duration).
 Can be disabled via DISABLE_TELEMETRY env var or Blender preferences.
 """
+
 import json
-import os
-import time
-import threading
 import logging
+import os
+import threading
+import time
 from pathlib import Path
 
 logger = logging.getLogger("blender-mcp")

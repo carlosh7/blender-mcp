@@ -13,6 +13,7 @@ To get started with Action Slots, you can easily create them by inserting a keyf
 Blender automatically creates an Action & Slot for that data-block.
 
 """
+
 import bpy
 
 # Assume Suzanne mesh is present in the scene.
@@ -25,6 +26,8 @@ suzanne.keyframe_insert("location", index=0)
 # Action slots can be accessed like this:
 action = suzanne.animation_data.action
 for slot in action.slots:
-    print(f"Slot Identifier {slot.identifier!r} "
-          f"with name {slot.name_display!r} "
-          f"targets ID type {slot.target_id_type!r}")
+    print(
+        f"Slot Identifier {slot.identifier!r} "
+        f"with name {slot.name_display!r} "
+        f"targets ID type {slot.target_id_type!r}"
+    )

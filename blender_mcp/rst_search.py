@@ -3,19 +3,71 @@ blender-mcp — Contextual RST Documentation Search Engine (TF-IDF)
 Full-text search over bundled Blender Python API and User Manual RST files.
 Implements TF-IDF ranking with section title and path boosting.
 """
+
+import glob
+import math
 import os
 import re
-import math
-import glob
 
-_STOPWORDS = frozenset({
-    "a", "an", "the", "is", "it", "in", "on", "of", "to", "for", "and",
-    "or", "but", "with", "as", "at", "by", "from", "so", "this", "that",
-    "are", "was", "be", "been", "have", "has", "had", "do", "does", "did",
-    "will", "would", "can", "could", "may", "might", "should", "about",
-    "into", "over", "such", "only", "than", "then", "also", "very", "just",
-    "how", "what", "when", "where", "which", "who", "why",
-})
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "is",
+        "it",
+        "in",
+        "on",
+        "of",
+        "to",
+        "for",
+        "and",
+        "or",
+        "but",
+        "with",
+        "as",
+        "at",
+        "by",
+        "from",
+        "so",
+        "this",
+        "that",
+        "are",
+        "was",
+        "be",
+        "been",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "can",
+        "could",
+        "may",
+        "might",
+        "should",
+        "about",
+        "into",
+        "over",
+        "such",
+        "only",
+        "than",
+        "then",
+        "also",
+        "very",
+        "just",
+        "how",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+    }
+)
 
 _TITLE_MATCH_WEIGHT = 15.0
 _PATH_MATCH_WEIGHT = 10.0
@@ -38,7 +90,12 @@ def _get_title(filepath):
     with open(filepath, errors="replace") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith("#") and not line.startswith("=") and not line.startswith("-"):
+            if (
+                line
+                and not line.startswith("#")
+                and not line.startswith("=")
+                and not line.startswith("-")
+            ):
                 return line[:120]
     return os.path.basename(filepath)
 
@@ -113,7 +170,10 @@ def _search(subdir, query, max_results=10):
             rel = os.path.relpath(fp, _DATA_DIR)
             scored.append((score, rel, _extract_snippet(content, query), title))
     scored.sort(key=lambda x: -x[0])
-    results = [{"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)} for r in scored[:max_results]]
+    results = [
+        {"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)}
+        for r in scored[:max_results]
+    ]
     return {"query": query, "results": results, "total": len(scored)}
 
 

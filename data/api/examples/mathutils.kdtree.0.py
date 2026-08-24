@@ -2,6 +2,7 @@ import mathutils
 
 # Create a KD-tree from a mesh.
 from bpy import context
+
 obj = context.object
 
 mesh = obj.data
@@ -24,11 +25,11 @@ co_find = obj.matrix_world.inverted() @ context.scene.cursor.location
 
 # Find the closest 10 points to the 3D cursor.
 print("Close 10 points")
-for (co, index, dist) in kd.find_n(co_find, 10):
+for co, index, dist in kd.find_n(co_find, 10):
     print("    ", co, index, dist)
 
 
 # Find points within a radius of the 3D cursor.
 print("Close points within 0.5 distance")
-for (co, index, dist) in kd.find_range(co_find, 0.5):
+for co, index, dist in kd.find_range(co_find, 0.5):
     print("    ", co, index, dist)

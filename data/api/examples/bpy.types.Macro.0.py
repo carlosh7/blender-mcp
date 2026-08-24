@@ -17,7 +17,7 @@ import bpy
 class OBJECT_OT_simple_macro(bpy.types.Macro):
     bl_idname = "object.simple_macro"
     bl_label = "Simple Transform Macro"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
     def poll(cls, context):
@@ -36,7 +36,7 @@ def register():
     step = OBJECT_OT_simple_macro.define("transform.rotate")
     props = step.properties
     props.value = 0.785398  # 45 degrees in radians
-    props.orient_axis = 'Z'
+    props.orient_axis = "Z"
 
 
 def unregister():

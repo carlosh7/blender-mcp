@@ -1,9 +1,9 @@
 """
 blender-mcp — Config Cache (cross-platform)
 """
+
 import json
-import os
-from pathlib import Path
+
 from .platform_utils import get_config_dir
 
 CONFIG_DIR = get_config_dir()
@@ -16,7 +16,7 @@ def load_config():
         try:
             with open(CONFIG_FILE) as f:
                 return json.load(f)
-        except:
+        except Exception:
             pass
     return {}
 

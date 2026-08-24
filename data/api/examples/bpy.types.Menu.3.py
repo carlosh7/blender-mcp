@@ -12,8 +12,8 @@ however you can use properties defined by your own scripts too.
 """
 
 import bpy
-from bpy.types import Operator, Menu
 from bl_operators.presets import AddPresetBase
+from bpy.types import Menu, Operator
 
 
 class OBJECT_MT_display_presets(Menu):
@@ -24,15 +24,14 @@ class OBJECT_MT_display_presets(Menu):
 
 
 class AddPresetObjectDisplay(AddPresetBase, Operator):
-    '''Add a Object Display Preset'''
+    """Add a Object Display Preset"""
+
     bl_idname = "camera.object_display_preset_add"
     bl_label = "Add Object Display Preset"
     preset_menu = "OBJECT_MT_display_presets"
 
     # Variable used for all preset values.
-    preset_defines = [
-        "obj = bpy.context.object"
-    ]
+    preset_defines = ["obj = bpy.context.object"]
 
     # Properties to store in the preset.
     preset_values = [
@@ -54,8 +53,8 @@ def panel_func(self, context):
 
     row = layout.row(align=True)
     row.menu(OBJECT_MT_display_presets.__name__, text=OBJECT_MT_display_presets.bl_label)
-    row.operator(AddPresetObjectDisplay.bl_idname, text="", icon='ZOOM_IN')
-    row.operator(AddPresetObjectDisplay.bl_idname, text="", icon='ZOOM_OUT').remove_active = True
+    row.operator(AddPresetObjectDisplay.bl_idname, text="", icon="ZOOM_IN")
+    row.operator(AddPresetObjectDisplay.bl_idname, text="", icon="ZOOM_OUT").remove_active = True
 
 
 classes = (

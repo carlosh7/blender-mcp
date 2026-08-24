@@ -7,20 +7,22 @@ an original ID.
 This is needed every time one needs to access state with animation, constraints, and modifiers
 taken into account.
 """
+
 import bpy
 
 
 class OBJECT_OT_evaluated_example(bpy.types.Operator):
     """Access evaluated object state and do something with it"""
+
     bl_label = "DEG Access Evaluated Object"
     bl_idname = "object.evaluated_example"
 
     def execute(self, context):
         # This is an original object. Its data does not have any modifiers applied.
         obj = context.object
-        if obj is None or obj.type != 'MESH':
-            self.report({'INFO'}, "No active mesh object to get info from")
-            return {'CANCELLED'}
+        if obj is None or obj.type != "MESH":
+            self.report({"INFO"}, "No active mesh object to get info from")
+            return {"CANCELLED"}
         # Evaluated object exists within a specific dependency graph.
         # We will request evaluated object from the dependency graph which corresponds to the
         # current scene and view layer.
@@ -44,8 +46,8 @@ class OBJECT_OT_evaluated_example(bpy.types.Operator):
         # NOTE: All ID types have `evaluated_get()`, including materials, node trees, worlds.
         object_eval = obj.evaluated_get(depsgraph)
         mesh_eval = object_eval.data
-        self.report({'INFO'}, f"Number of evaluated vertices: {len(mesh_eval.vertices)}")
-        return {'FINISHED'}
+        self.report({"INFO"}, f"Number of evaluated vertices: {len(mesh_eval.vertices)}")
+        return {"FINISHED"}
 
 
 def register():

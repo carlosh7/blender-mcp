@@ -6,6 +6,7 @@ To return a list of the data-blocks that are animated by a specific slot of an A
 use the ``users()`` method of the ActionSlot.
 
 """
+
 import bpy
 
 # Iterate through all actions in the Blender data.

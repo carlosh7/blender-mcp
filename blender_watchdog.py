@@ -3,13 +3,12 @@
 blender-mcp — Blender Watchdog
 Detecta si Blender se cierra, lo reabre, activa el addon y guarda el proyecto.
 """
-import subprocess
-import socket
+
 import json
-import time
 import os
-import signal
-import sys
+import socket
+import subprocess
+import time
 
 
 def find_blender():
@@ -48,13 +47,13 @@ def is_socket_alive(host="localhost", port=9876, timeout=3):
                     r += c
                     if b"\n" in r:
                         break
-            except socket.timeout:
+            except TimeoutError:
                 continue
         s.close()
         if r:
             data = json.loads(r.decode().strip())
             return data.get("result", {}).get("pong", False)
-    except:
+    except Exception:
         pass
     return False
 
@@ -115,7 +114,7 @@ def send_command(cmd, params=None, timeout=30):
                     r += c
                     if b"\n" in r:
                         break
-            except socket.timeout:
+            except TimeoutError:
                 continue
         s.close()
         if r:
@@ -129,9 +128,12 @@ def send_command(cmd, params=None, timeout=30):
 def save_project(name):
     """Save Blender project with given name."""
     filepath = f"/tmp/{name}.blend"
-    result = send_command("execute_code", {
-        "code": f'import bpy; bpy.ops.wm.save_as_mainfile(filepath="{filepath}"); print("Saved: {filepath}")'
-    })
+    result = send_command(
+        "execute_code",
+        {
+            "code": f'import bpy; bpy.ops.wm.save_as_mainfile(filepath="{filepath}"); print("Saved: {filepath}")'
+        },
+    )
     return result, filepath
 
 
@@ -194,7 +196,9 @@ def main():
                     print("[watchdog] ERROR: Failed to restart Blender")
 
             elif not socket:
-                print(f"[watchdog] Socket not responding (Blender running, PID={get_blender_pid()})")
+                print(
+                    f"[watchdog] Socket not responding (Blender running, PID={get_blender_pid()})"
+                )
                 print("[watchdog] Waiting for socket...")
                 if wait_for_socket(timeout=15):
                     print("[watchdog] Socket recovered")

@@ -5,11 +5,9 @@ Dimensiones estándar, conexiones padre-hijo, colecciones, validación.
 Regla de oro: SIEMPRE usar estas funciones para crear objetos.
 NUNCA crear objetos sueltos sin conexión.
 """
-import bpy
-import json
-import os
-from mathutils import Vector
 
+import bpy
+from mathutils import Vector
 
 # ═══════════════════════════════════════════════════════════════
 # DIMENSIONES ESTÁNDAR (en metros)
@@ -42,12 +40,15 @@ STANDARD_OBJECTS = {
     },
     "book": {
         "description": "Libro tamaño A4",
-        "w": 0.21, "d": 0.15, "h": 0.03,
+        "w": 0.21,
+        "d": 0.15,
+        "h": 0.03,
         "material": {"color": (0.7, 0.1, 0.1), "roughness": 0.6, "metallic": 0.0},
     },
     "clock": {
         "description": "Reloj de pared circular",
-        "r": 0.15, "depth": 0.03,
+        "r": 0.15,
+        "depth": 0.03,
         "markers": 12,
         "material": {"color": (0.1, 0.1, 0.1), "roughness": 0.2, "metallic": 0.5},
     },
@@ -76,7 +77,8 @@ STANDARD_OBJECTS = {
     },
     "wall": {
         "description": "Pared vertical",
-        "size": 10.0, "height": 3.0,
+        "size": 10.0,
+        "height": 3.0,
         "material": {"color": (0.85, 0.83, 0.8), "roughness": 0.5, "metallic": 0.0},
     },
 }
@@ -109,34 +111,35 @@ STANDARD_COLORS = {
 # GESTIÓN DE COLECCIONES
 # ═══════════════════════════════════════════════════════════════
 
+
 def create_collection(name, parent=None):
     """
     Crear una colección en la escena.
-    
+
     Args:
         name: Nombre de la colección (ej: "Chair", "Table")
         parent: Colección padre (opcional)
-    
+
     Returns:
         La colección creada o la existente
     """
     if name in bpy.data.collections:
         return bpy.data.collections[name]
-    
+
     col = bpy.data.collections.new(name)
-    
+
     if parent and parent in bpy.data.collections:
         bpy.data.collections[parent].children.link(col)
     else:
         bpy.context.scene.collection.children.link(col)
-    
+
     return col
 
 
 def move_to_collection(obj, collection_name):
     """
     Mover un objeto a una colección específica.
-    
+
     Args:
         obj: Objeto Blender
         collection_name: Nombre de la colección destino
@@ -144,7 +147,7 @@ def move_to_collection(obj, collection_name):
     # Remover de todas las colecciones actuales
     for col in obj.users_collection:
         col.objects.unlink(obj)
-    
+
     # Agregar a la colección destino
     if collection_name in bpy.data.collections:
         bpy.data.collections[collection_name].objects.link(obj)
@@ -156,7 +159,7 @@ def move_to_collection(obj, collection_name):
 def get_collection_hierarchy():
     """
     Retornar la jerarquía de colecciones como diccionario.
-    
+
     Returns:
         dict con estructura: {col_name: [obj_names]}
     """
@@ -177,46 +180,47 @@ def list_collections():
 # MATERIALES
 # ═══════════════════════════════════════════════════════════════
 
+
 def create_material(name, color=None, roughness=0.5, metallic=0.0, emission=None):
     """
     Crear un material PBR.
-    
+
     Args:
         name: Nombre del material
         color: Tupla RGBA (0-1)
         roughness: Rugosidad (0-1)
         metallic: Metalicidad (0-1)
         emission: Tupla RGBA para emisión (opcional)
-    
+
     Returns:
         El material creado
     """
     if name in bpy.data.materials:
         return bpy.data.materials[name]
-    
+
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
     bsdf = mat.node_tree.nodes["Principled BSDF"]
-    
+
     if color:
         bsdf.inputs["Base Color"].default_value = (*color, 1.0) if len(color) == 3 else color
     bsdf.inputs["Roughness"].default_value = roughness
     bsdf.inputs["Metallic"].default_value = metallic
-    
+
     if emission:
         em = mat.node_tree.nodes.new("ShaderNodeEmission")
         em.inputs["Color"].default_value = (*emission, 1.0) if len(emission) == 3 else emission
         em.inputs["Strength"].default_value = 3.0
         output = mat.node_tree.nodes["Material Output"]
         mat.node_tree.links.new(em.outputs["Emission"], output.inputs["Surface"])
-    
+
     return mat
 
 
 def apply_material(obj, material_name):
     """
     Aplicar un material a un objeto.
-    
+
     Args:
         obj: Objeto Blender
         material_name: Nombre del material (de STANDARD_COLORS o crear nuevo)
@@ -228,7 +232,7 @@ def apply_material(obj, material_name):
         mat = bpy.data.materials[material_name]
     else:
         mat = create_material(material_name)
-    
+
     obj.data.materials.append(mat)
     return mat
 
@@ -237,17 +241,18 @@ def apply_material(obj, material_name):
 # SISTEMA DE CONEXIÓN PADRE-HIJO
 # ═══════════════════════════════════════════════════════════════
 
+
 def get_bounding_box(obj):
     """
     Obtener bounding box de un objeto.
-    
+
     Returns:
         dict con min, max, center, size
     """
     bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-    mins = Vector((min(v[i] for v in bbox) for i in range(3)))
-    maxs = Vector((max(v[i] for v in bbox) for i in range(3)))
-    
+    mins = Vector(min(v[i] for v in bbox) for i in range(3))
+    maxs = Vector(max(v[i] for v in bbox) for i in range(3))
+
     return {
         "min": tuple(mins),
         "max": tuple(maxs),
@@ -259,7 +264,7 @@ def get_bounding_box(obj):
 def connect_to_parent(child, parent, anchor="TOP_CENTER", offset=(0, 0, 0)):
     """
     Conectar un objeto hijo a un objeto padre en un anchor específico.
-    
+
     Args:
         child: Objeto hijo a posicionar
         parent: Objeto padre
@@ -268,18 +273,18 @@ def connect_to_parent(child, parent, anchor="TOP_CENTER", offset=(0, 0, 0)):
             - CENTER, CENTER_FRONT, CENTER_BACK
             - BOTTOM_CENTER, BOTTOM_FRONT, BOTTOM_BACK
         offset: Desplazamiento adicional (x, y, z)
-    
+
     Returns:
         Posición calculada
     """
     parent_bb = get_bounding_box(parent)
     child_bb = get_bounding_box(child)
-    
+
     # Calcular posición del anchor en el padre
     p_min = Vector(parent_bb["min"])
     p_max = Vector(parent_bb["max"])
     p_center = Vector(parent_bb["center"])
-    
+
     anchor_map = {
         "TOP_CENTER": Vector((p_center.x, p_center.y, p_max.z)),
         "TOP_FRONT": Vector((p_center.x, p_min.y, p_max.z)),
@@ -293,47 +298,47 @@ def connect_to_parent(child, parent, anchor="TOP_CENTER", offset=(0, 0, 0)):
         "BOTTOM_FRONT": Vector((p_center.x, p_min.y, p_min.z)),
         "BOTTOM_BACK": Vector((p_center.x, p_max.y, p_min.z)),
     }
-    
+
     anchor_pos = anchor_map.get(anchor, p_center)
-    
+
     # Posicionar hijo: borde inferior del hijo toca el anchor del padre
     child_height = child_bb["size"][2]
     new_pos = anchor_pos + Vector((0, 0, child_height / 2)) + Vector(offset)
-    
+
     child.location = new_pos
-    
+
     # Establecer parent
     child.parent = parent
-    
+
     return tuple(new_pos)
 
 
 def validate_connection(obj1, obj2, max_distance=0.001):
     """
     Verificar que dos objetos están conectados.
-    
+
     Returns:
         dict con {connected: bool, distance: float, message: str}
     """
     bb1 = get_bounding_box(obj1)
     bb2 = get_bounding_box(obj2)
-    
+
     # Calcular distancia entre bordes más cercanos
     min1 = Vector(bb1["min"])
     max1 = Vector(bb1["max"])
     min2 = Vector(bb2["min"])
     max2 = Vector(bb2["max"])
-    
+
     # Puntos más cercanos
-    closest_dist = float('inf')
+    closest_dist = float("inf")
     for p1 in [min1, max1]:
         for p2 in [min2, max2]:
             dist = (p1 - p2).length
             if dist < closest_dist:
                 closest_dist = dist
-    
+
     connected = closest_dist <= max_distance
-    
+
     return {
         "connected": connected,
         "distance": closest_dist,
@@ -346,10 +351,11 @@ def validate_connection(obj1, obj2, max_distance=0.001):
 # FUNCIONES DE CREACIÓN (con reglas aplicadas)
 # ═══════════════════════════════════════════════════════════════
 
+
 def create_part(name, primitive, params, collection, material=None, parent=None, anchor=None):
     """
     Crear una pieza con todas las reglas aplicadas.
-    
+
     Args:
         name: Nombre de la pieza
         primitive: Tipo de primitiva (cube, cylinder, sphere, etc.)
@@ -358,7 +364,7 @@ def create_part(name, primitive, params, collection, material=None, parent=None,
         material: Nombre del material (opcional)
         parent: Objeto padre para conectar (opcional)
         anchor: Punto de conexión en el padre (opcional)
-    
+
     Returns:
         El objeto creado
     """
@@ -373,51 +379,53 @@ def create_part(name, primitive, params, collection, material=None, parent=None,
         "plane": bpy.ops.mesh.primitive_plane_add,
         "circle": bpy.ops.mesh.primitive_circle_add,
     }
-    
+
     func = primitive_map.get(primitive)
     if not func:
         raise ValueError(f"Primitiva no soportada: {primitive}")
-    
+
     func(**params)
     obj = bpy.context.active_object
     obj.name = name
-    
+
     # Mover a colección
     move_to_collection(obj, collection)
-    
+
     # Aplicar material
     if material:
         apply_material(obj, material)
-    
+
     # Conectar al padre
     if parent and anchor:
         connect_to_parent(obj, parent, anchor)
-    
+
     return obj
 
 
 def create_object(object_type, position=(0, 0, 0), collection_name=None, material_override=None):
     """
     Crear un objeto completo basado en tipo estándar.
-    
+
     Args:
         object_type: Tipo de objeto (chair, table, cup, etc.)
         position: Posición base (x, y, z)
         collection_name: Nombre de la colección (default: object_type)
         material_override: Material personalizado (opcional)
-    
+
     Returns:
         dict con todos los objetos creados
     """
     if object_type not in STANDARD_OBJECTS:
-        raise ValueError(f"Objeto no soportado: {object_type}. Disponibles: {list(STANDARD_OBJECTS.keys())}")
-    
+        raise ValueError(
+            f"Objeto no soportado: {object_type}. Disponibles: {list(STANDARD_OBJECTS.keys())}"
+        )
+
     config = STANDARD_OBJECTS[object_type]
     col_name = collection_name or object_type.capitalize()
     create_collection(col_name)
-    
+
     created = {}
-    
+
     if object_type == "chair":
         created = _create_chair(config, position, col_name, material_override)
     elif object_type == "table":
@@ -434,7 +442,7 @@ def create_object(object_type, position=(0, 0, 0), collection_name=None, materia
         created = _create_floor(config, position, col_name, material_override)
     elif object_type == "wall":
         created = _create_wall(config, position, col_name, material_override)
-    
+
     return created
 
 
@@ -442,61 +450,105 @@ def create_object(object_type, position=(0, 0, 0), collection_name=None, materia
 # CREADORES ESPECÍFICOS POR OBJETO
 # ═══════════════════════════════════════════════════════════════
 
+
 def _create_chair(config, pos, col, mat_override):
     """Crear silla completa con piezas conectadas."""
     x, y, z = pos
     mat_name = mat_override or "wood_light"
     results = {}
-    
+
     # Asiento
     seat = create_part(
-        f"{col}_Seat", "cube",
-        {"size": 1, "location": (x, y, z + config["seat"]["h"]/2)},
-        col, mat_name
+        f"{col}_Seat",
+        "cube",
+        {"size": 1, "location": (x, y, z + config["seat"]["h"] / 2)},
+        col,
+        mat_name,
     )
     seat.scale = (config["seat"]["w"], config["seat"]["d"], config["seat"]["h"])
     bpy.ops.object.transform_apply(rotation=False, scale=True)
     results["seat"] = seat
-    
+
     # Patas (4)
     leg_positions = [
-        (config["seat"]["w"]/2 - config["leg"]["r"], config["seat"]["d"]/2 - config["leg"]["r"]),
-        (config["seat"]["w"]/2 - config["leg"]["r"], -(config["seat"]["d"]/2 - config["leg"]["r"])),
-        (-(config["seat"]["w"]/2 - config["leg"]["r"]), config["seat"]["d"]/2 - config["leg"]["r"]),
-        (-(config["seat"]["w"]/2 - config["leg"]["r"]), -(config["seat"]["d"]/2 - config["leg"]["r"])),
+        (
+            config["seat"]["w"] / 2 - config["leg"]["r"],
+            config["seat"]["d"] / 2 - config["leg"]["r"],
+        ),
+        (
+            config["seat"]["w"] / 2 - config["leg"]["r"],
+            -(config["seat"]["d"] / 2 - config["leg"]["r"]),
+        ),
+        (
+            -(config["seat"]["w"] / 2 - config["leg"]["r"]),
+            config["seat"]["d"] / 2 - config["leg"]["r"],
+        ),
+        (
+            -(config["seat"]["w"] / 2 - config["leg"]["r"]),
+            -(config["seat"]["d"] / 2 - config["leg"]["r"]),
+        ),
     ]
-    
+
     for i, (lx, ly) in enumerate(leg_positions):
         leg = create_part(
-            f"{col}_Leg_{i+1}", "cylinder",
-            {"radius": config["leg"]["r"], "depth": config["leg"]["h"],
-             "location": (x + lx, y + ly, z - config["leg"]["h"]/2)},
-            col, mat_name, parent=seat, anchor="BOTTOM_CENTER"
+            f"{col}_Leg_{i + 1}",
+            "cylinder",
+            {
+                "radius": config["leg"]["r"],
+                "depth": config["leg"]["h"],
+                "location": (x + lx, y + ly, z - config["leg"]["h"] / 2),
+            },
+            col,
+            mat_name,
+            parent=seat,
+            anchor="BOTTOM_CENTER",
         )
-        results[f"leg_{i+1}"] = leg
-    
+        results[f"leg_{i + 1}"] = leg
+
     # Respaldo (barras verticales)
     bar_spacing = config["backrest"]["w"] / (config["backrest"]["bars"] + 1)
     for i in range(config["backrest"]["bars"]):
-        bx = x - config["backrest"]["w"]/2 + bar_spacing * (i + 1)
+        bx = x - config["backrest"]["w"] / 2 + bar_spacing * (i + 1)
         bar = create_part(
-            f"{col}_BackBar_{i+1}", "cylinder",
-            {"radius": config["backrest"]["bar_r"], "depth": config["backrest"]["h"],
-             "location": (bx, y - config["seat"]["d"]/2, z + config["seat"]["h"] + config["backrest"]["h"]/2)},
-            col, mat_name, parent=seat, anchor="TOP_BACK"
+            f"{col}_BackBar_{i + 1}",
+            "cylinder",
+            {
+                "radius": config["backrest"]["bar_r"],
+                "depth": config["backrest"]["h"],
+                "location": (
+                    bx,
+                    y - config["seat"]["d"] / 2,
+                    z + config["seat"]["h"] + config["backrest"]["h"] / 2,
+                ),
+            },
+            col,
+            mat_name,
+            parent=seat,
+            anchor="TOP_BACK",
         )
-        results[f"back_bar_{i+1}"] = bar
-    
+        results[f"back_bar_{i + 1}"] = bar
+
     # Barra superior
     top_bar = create_part(
-        f"{col}_BackTop", "cylinder",
-        {"radius": config["backrest"]["bar_r"], "depth": config["backrest"]["w"],
-         "location": (x, y - config["seat"]["d"]/2, z + config["seat"]["h"] + config["backrest"]["h"])},
-        col, mat_name, parent=seat, anchor="TOP_BACK"
+        f"{col}_BackTop",
+        "cylinder",
+        {
+            "radius": config["backrest"]["bar_r"],
+            "depth": config["backrest"]["w"],
+            "location": (
+                x,
+                y - config["seat"]["d"] / 2,
+                z + config["seat"]["h"] + config["backrest"]["h"],
+            ),
+        },
+        col,
+        mat_name,
+        parent=seat,
+        anchor="TOP_BACK",
     )
-    top_bar.rotation_euler = (0, 3.14159/2, 0)
+    top_bar.rotation_euler = (0, 3.14159 / 2, 0)
     results["back_top"] = top_bar
-    
+
     return results
 
 
@@ -505,35 +557,50 @@ def _create_table(config, pos, col, mat_override):
     x, y, z = pos
     mat_name = mat_override or "wood_dark"
     results = {}
-    
+
     # Tabla superior
     top = create_part(
-        f"{col}_Top", "cube",
-        {"size": 1, "location": (x, y, z + config["leg"]["h"] + config["top"]["h"]/2)},
-        col, mat_name
+        f"{col}_Top",
+        "cube",
+        {"size": 1, "location": (x, y, z + config["leg"]["h"] + config["top"]["h"] / 2)},
+        col,
+        mat_name,
     )
     top.scale = (config["top"]["w"], config["top"]["d"], config["top"]["h"])
     bpy.ops.object.transform_apply(rotation=False, scale=True)
     results["top"] = top
-    
+
     # Patas (4)
     leg_positions = [
-        (config["top"]["w"]/2 - config["leg"]["w"], config["top"]["d"]/2 - config["leg"]["d"]),
-        (config["top"]["w"]/2 - config["leg"]["w"], -(config["top"]["d"]/2 - config["leg"]["d"])),
-        (-(config["top"]["w"]/2 - config["leg"]["w"]), config["top"]["d"]/2 - config["leg"]["d"]),
-        (-(config["top"]["w"]/2 - config["leg"]["w"]), -(config["top"]["d"]/2 - config["leg"]["d"])),
+        (config["top"]["w"] / 2 - config["leg"]["w"], config["top"]["d"] / 2 - config["leg"]["d"]),
+        (
+            config["top"]["w"] / 2 - config["leg"]["w"],
+            -(config["top"]["d"] / 2 - config["leg"]["d"]),
+        ),
+        (
+            -(config["top"]["w"] / 2 - config["leg"]["w"]),
+            config["top"]["d"] / 2 - config["leg"]["d"],
+        ),
+        (
+            -(config["top"]["w"] / 2 - config["leg"]["w"]),
+            -(config["top"]["d"] / 2 - config["leg"]["d"]),
+        ),
     ]
-    
+
     for i, (lx, ly) in enumerate(leg_positions):
         leg = create_part(
-            f"{col}_Leg_{i+1}", "cube",
-            {"size": 1, "location": (x + lx, y + ly, z + config["leg"]["h"]/2)},
-            col, mat_name, parent=top, anchor="BOTTOM_CENTER"
+            f"{col}_Leg_{i + 1}",
+            "cube",
+            {"size": 1, "location": (x + lx, y + ly, z + config["leg"]["h"] / 2)},
+            col,
+            mat_name,
+            parent=top,
+            anchor="BOTTOM_CENTER",
         )
         leg.scale = (config["leg"]["w"], config["leg"]["d"], config["leg"]["h"])
         bpy.ops.object.transform_apply(rotation=False, scale=True)
-        results[f"leg_{i+1}"] = leg
-    
+        results[f"leg_{i + 1}"] = leg
+
     return results
 
 
@@ -541,50 +608,75 @@ def _create_cup(config, pos, col, mat_override):
     """Crear taza con plato y asa."""
     x, y, z = pos
     results = {}
-    
+
     # Cuerpo
     body = create_part(
-        f"{col}_Body", "cylinder",
-        {"radius": config["body"]["r"], "depth": config["body"]["h"],
-         "location": (x, y, z + config["body"]["h"]/2)},
-        col, mat_override or "ceramic_white"
+        f"{col}_Body",
+        "cylinder",
+        {
+            "radius": config["body"]["r"],
+            "depth": config["body"]["h"],
+            "location": (x, y, z + config["body"]["h"] / 2),
+        },
+        col,
+        mat_override or "ceramic_white",
     )
     results["body"] = body
-    
+
     # Plato
     plate = create_part(
-        f"{col}_Plate", "cylinder",
-        {"radius": config["plate"]["r"], "depth": config["plate"]["h"],
-         "location": (x, y, z + config["plate"]["h"]/2)},
-        col, mat_override or "ceramic_white", parent=body, anchor="BOTTOM_CENTER"
+        f"{col}_Plate",
+        "cylinder",
+        {
+            "radius": config["plate"]["r"],
+            "depth": config["plate"]["h"],
+            "location": (x, y, z + config["plate"]["h"] / 2),
+        },
+        col,
+        mat_override or "ceramic_white",
+        parent=body,
+        anchor="BOTTOM_CENTER",
     )
     results["plate"] = plate
-    
+
     # Asa
     handle = create_part(
-        f"{col}_Handle", "torus",
-        {"major_radius": config["handle"]["r"], "minor_radius": config["handle"]["tube_r"],
-         "location": (x + config["body"]["r"] + config["handle"]["r"], y, z + config["body"]["h"] * 0.6)},
-        col, mat_override or "ceramic_white", parent=body, anchor="CENTER"
+        f"{col}_Handle",
+        "torus",
+        {
+            "major_radius": config["handle"]["r"],
+            "minor_radius": config["handle"]["tube_r"],
+            "location": (
+                x + config["body"]["r"] + config["handle"]["r"],
+                y,
+                z + config["body"]["h"] * 0.6,
+            ),
+        },
+        col,
+        mat_override or "ceramic_white",
+        parent=body,
+        anchor="CENTER",
     )
-    handle.rotation_euler = (0, 3.14159/2, 0)
+    handle.rotation_euler = (0, 3.14159 / 2, 0)
     results["handle"] = handle
-    
+
     return results
 
 
 def _create_book(config, pos, col, mat_override):
     """Crear libro."""
     x, y, z = pos
-    
+
     book = create_part(
-        f"{col}_Book", "cube",
-        {"size": 1, "location": (x, y, z + config["h"]/2)},
-        col, mat_override or "plastic_red"
+        f"{col}_Book",
+        "cube",
+        {"size": 1, "location": (x, y, z + config["h"] / 2)},
+        col,
+        mat_override or "plastic_red",
     )
     book.scale = (config["w"], config["d"], config["h"])
     bpy.ops.object.transform_apply(rotation=False, scale=True)
-    
+
     return {"book": book}
 
 
@@ -592,35 +684,58 @@ def _create_lamp(config, pos, col, mat_override):
     """Crear lámpara de escritorio."""
     x, y, z = pos
     results = {}
-    
+
     # Base
     base = create_part(
-        f"{col}_Base", "cylinder",
-        {"radius": config["base"]["r"], "depth": config["base"]["h"],
-         "location": (x, y, z + config["base"]["h"]/2)},
-        col, mat_override or "metal_black"
+        f"{col}_Base",
+        "cylinder",
+        {
+            "radius": config["base"]["r"],
+            "depth": config["base"]["h"],
+            "location": (x, y, z + config["base"]["h"] / 2),
+        },
+        col,
+        mat_override or "metal_black",
     )
     results["base"] = base
-    
+
     # Vara
     pole = create_part(
-        f"{col}_Pole", "cylinder",
-        {"radius": config["pole"]["r"], "depth": config["pole"]["h"],
-         "location": (x, y, z + config["base"]["h"] + config["pole"]["h"]/2)},
-        col, mat_override or "metal_black", parent=base, anchor="TOP_CENTER"
+        f"{col}_Pole",
+        "cylinder",
+        {
+            "radius": config["pole"]["r"],
+            "depth": config["pole"]["h"],
+            "location": (x, y, z + config["base"]["h"] + config["pole"]["h"] / 2),
+        },
+        col,
+        mat_override or "metal_black",
+        parent=base,
+        anchor="TOP_CENTER",
     )
     results["pole"] = pole
-    
+
     # Pantalla
     shade = create_part(
-        f"{col}_Shade", "cone",
-        {"radius1": config["shade"]["r_bot"], "radius2": config["shade"]["r_top"],
-         "depth": config["shade"]["h"],
-         "location": (x, y, z + config["base"]["h"] + config["pole"]["h"] + config["shade"]["h"]/2)},
-        col, "ceramic_white", parent=pole, anchor="TOP_CENTER"
+        f"{col}_Shade",
+        "cone",
+        {
+            "radius1": config["shade"]["r_bot"],
+            "radius2": config["shade"]["r_top"],
+            "depth": config["shade"]["h"],
+            "location": (
+                x,
+                y,
+                z + config["base"]["h"] + config["pole"]["h"] + config["shade"]["h"] / 2,
+            ),
+        },
+        col,
+        "ceramic_white",
+        parent=pole,
+        anchor="TOP_CENTER",
     )
     results["shade"] = shade
-    
+
     return results
 
 
@@ -628,62 +743,85 @@ def _create_pot(config, pos, col, mat_override):
     """Crear maceta con planta."""
     x, y, z = pos
     results = {}
-    
+
     # Maceta
     body = create_part(
-        f"{col}_Body", "cone",
-        {"radius1": config["body"]["r_top"], "radius2": config["body"]["r_bot"],
-         "depth": config["body"]["h"],
-         "location": (x, y, z + config["body"]["h"]/2)},
-        col, mat_override or "terracota"
+        f"{col}_Body",
+        "cone",
+        {
+            "radius1": config["body"]["r_top"],
+            "radius2": config["body"]["r_bot"],
+            "depth": config["body"]["h"],
+            "location": (x, y, z + config["body"]["h"] / 2),
+        },
+        col,
+        mat_override or "terracota",
     )
     results["body"] = body
-    
+
     # Tierra
     soil = create_part(
-        f"{col}_Soil", "cylinder",
-        {"radius": config["soil"]["r"], "depth": config["soil"]["h"],
-         "location": (x, y, z + config["body"]["h"] - config["soil"]["h"]/2)},
-        col, "soil_brown", parent=body, anchor="TOP_CENTER"
+        f"{col}_Soil",
+        "cylinder",
+        {
+            "radius": config["soil"]["r"],
+            "depth": config["soil"]["h"],
+            "location": (x, y, z + config["body"]["h"] - config["soil"]["h"] / 2),
+        },
+        col,
+        "soil_brown",
+        parent=body,
+        anchor="TOP_CENTER",
     )
     results["soil"] = soil
-    
+
     # Tallo
     stem = create_part(
-        f"{col}_Stem", "cylinder",
-        {"radius": config["stem"]["r"], "depth": config["stem"]["h"],
-         "location": (x, y, z + config["body"]["h"] + config["stem"]["h"]/2)},
-        col, "leaf_green", parent=soil, anchor="TOP_CENTER"
+        f"{col}_Stem",
+        "cylinder",
+        {
+            "radius": config["stem"]["r"],
+            "depth": config["stem"]["h"],
+            "location": (x, y, z + config["body"]["h"] + config["stem"]["h"] / 2),
+        },
+        col,
+        "leaf_green",
+        parent=soil,
+        anchor="TOP_CENTER",
     )
     results["stem"] = stem
-    
+
     return results
 
 
 def _create_floor(config, pos, col, mat_override):
     """Crear suelo."""
     x, y, z = pos
-    
+
     floor = create_part(
-        f"{col}_Floor", "plane",
+        f"{col}_Floor",
+        "plane",
         {"size": config["size"], "location": (x, y, z)},
-        col, mat_override or "wood_medium"
+        col,
+        mat_override or "wood_medium",
     )
-    
+
     return {"floor": floor}
 
 
 def _create_wall(config, pos, col, mat_override):
     """Crear pared."""
     x, y, z = pos
-    
+
     wall = create_part(
-        f"{col}_Wall", "plane",
-        {"size": config["size"], "location": (x, y, z + config["height"]/2)},
-        col, mat_override or "ceramic_white"
+        f"{col}_Wall",
+        "plane",
+        {"size": config["size"], "location": (x, y, z + config["height"] / 2)},
+        col,
+        mat_override or "ceramic_white",
     )
-    wall.rotation_euler = (3.14159/2, 0, 0)
-    
+    wall.rotation_euler = (3.14159 / 2, 0, 0)
+
     return {"wall": wall}
 
 
@@ -691,12 +829,13 @@ def _create_wall(config, pos, col, mat_override):
 # UTILIDADES
 # ═══════════════════════════════════════════════════════════════
 
+
 def get_object_info(name):
     """Obtener información detallada de un objeto."""
     obj = bpy.data.objects.get(name)
     if not obj:
         return None
-    
+
     bb = get_bounding_box(obj)
     return {
         "name": obj.name,
@@ -713,10 +852,10 @@ def get_object_info(name):
 
 def print_scene_summary():
     """Imprimir resumen de la escena."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("RESUMEN DE ESCENA")
-    print("="*60)
-    
+    print("=" * 60)
+
     collections = get_collection_hierarchy()
     for col_name, objs in collections.items():
         print(f"\n📁 {col_name} ({len(objs)} objetos):")
@@ -724,7 +863,9 @@ def print_scene_summary():
             info = get_object_info(obj_name)
             if info:
                 loc = info["location"]
-                print(f"   • {obj_name} ({info['type']}) en [{loc[0]:.2f}, {loc[1]:.2f}, {loc[2]:.2f}]")
-    
+                print(
+                    f"   • {obj_name} ({info['type']}) en [{loc[0]:.2f}, {loc[1]:.2f}, {loc[2]:.2f}]"
+                )
+
     print(f"\nTotal: {len(bpy.data.objects)} objetos, {len(bpy.data.materials)} materiales")
-    print("="*60)
+    print("=" * 60)

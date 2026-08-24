@@ -2,9 +2,11 @@
 blender-mcp — Anthropic Claude Provider (embedded)
 Uses Anthropic's Messages API with streaming and tool use.
 """
+
 import json
-import urllib.request
 import logging
+import urllib.request
+
 from . import MCPClientBase
 
 logger = logging.getLogger("blender-mcp-claude")
@@ -19,7 +21,6 @@ class MCPClientClaude(MCPClientBase):
     api_base = "https://api.anthropic.com/v1"
 
     def __init__(self, server_url=None):
-        import os
         super().__init__(server_url)
 
     async def _call_llm(self, model, api_key, messages, stream_callback=None):
@@ -41,10 +42,18 @@ class MCPClientClaude(MCPClientBase):
                 system = content_text
             elif role == "tool":
                 tc = msg.get("tool_calls", [{}])[0] if msg.get("tool_calls") else None
-                anthropic_messages.append({
-                    "role": "user",
-                    "content": [{"type": "tool_result", "tool_use_id": msg.get("tool_call_id", ""), "content": content_text}],
-                })
+                anthropic_messages.append(
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": msg.get("tool_call_id", ""),
+                                "content": content_text,
+                            }
+                        ],
+                    }
+                )
             elif role == "assistant" and msg.get("tool_calls"):
                 content_parts = []
                 if content_text:
@@ -52,14 +61,16 @@ class MCPClientClaude(MCPClientBase):
                 for tc in msg.get("tool_calls", []):
                     try:
                         args = json.loads(tc["function"]["arguments"])
-                    except:
+                    except Exception:
                         args = {}
-                    content_parts.append({
-                        "type": "tool_use",
-                        "id": tc.get("id", "call_1"),
-                        "name": tc["function"]["name"],
-                        "input": args,
-                    })
+                    content_parts.append(
+                        {
+                            "type": "tool_use",
+                            "id": tc.get("id", "call_1"),
+                            "name": tc["function"]["name"],
+                            "input": args,
+                        }
+                    )
                 anthropic_messages.append({"role": "assistant", "content": content_parts})
             else:
                 anthropic_messages.append({"role": role, "content": content_text})
@@ -76,11 +87,13 @@ class MCPClientClaude(MCPClientBase):
         # Add tools from embedded server
         tools_payload = []
         for t in self._tools:
-            tools_payload.append({
-                "name": t["name"],
-                "description": t["description"],
-                "input_schema": t["schema"],
-            })
+            tools_payload.append(
+                {
+                    "name": t["name"],
+                    "description": t["description"],
+                    "input_schema": t["schema"],
+                }
+            )
         if tools_payload:
             body["tools"] = tools_payload
 
@@ -125,10 +138,15 @@ class MCPClientClaude(MCPClientBase):
                         "id": block.get("id", f"tool_{idx}"),
                         "function": {"name": block.get("name", ""), "arguments": ""},
                     }
-            elif etype == "content_block_delta" and event.get("delta", {}).get("type") == "input_json_delta":
+            elif (
+                etype == "content_block_delta"
+                and event.get("delta", {}).get("type") == "input_json_delta"
+            ):
                 idx = event.get("index", 0)
                 if idx in tool_calls:
-                    tool_calls[idx]["function"]["arguments"] += event["delta"].get("partial_json", "")
+                    tool_calls[idx]["function"]["arguments"] += event["delta"].get(
+                        "partial_json", ""
+                    )
 
         result = {"content": full_content}
         if tool_calls:
@@ -137,7 +155,7 @@ class MCPClientClaude(MCPClientBase):
             for tc in result["tool_calls"]:
                 try:
                     tc["function"]["arguments"] = json.loads(tc["function"]["arguments"])
-                except:
+                except Exception:
                     pass
 
         return result

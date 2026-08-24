@@ -1,34 +1,40 @@
 #!/usr/bin/env python3
 """blender-mcp — STRESS TEST 3: Escena Completa + Render"""
-import socket, json, time, math
+
+import json
+import socket
+import time
 
 
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r: break
-        except: continue
+                if b"\n" in r:
+                    break
+        except Exception:
+            continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
 
 
 def phase(name):
-    print(f"\n{'='*60}\n{name}\n{'='*60}")
+    print(f"\n{'=' * 60}\n{name}\n{'=' * 60}")
 
 
 # FASE 1: CLEAN
 phase("FASE 1: CLEAN")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
@@ -38,11 +44,13 @@ for curve in bpy.data.curves: bpy.data.curves.remove(curve)
 s = bpy.context.scene; s.frame_start=1; s.frame_end=120; s.render.fps=24
 s.render.engine = "BLENDER_EEVEE_NEXT"
 print("Clean: 120 frames, EEVEE_NEXT")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 2: MATERIALS LIBRARY
 phase("FASE 2: MATERIALS LIBRARY (20 materiales)")
-print(run('''
+print(
+    run("""
 import bpy
 materials_config = [
     ("Red_Metal", (0.8,0.05,0.05,1), 0.9, 0.1),
@@ -74,11 +82,13 @@ for name, color, metal, rough in materials_config:
     bsdf.inputs["Metallic"].default_value = metal
     bsdf.inputs["Roughness"].default_value = rough
 print(f"Created {len(materials_config)} materials")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 3: OBJECT ZOO (every primitive type)
 phase("FASE 3: OBJECT ZOO (every primitive)")
-print(run('''
+print(
+    run("""
 import bpy
 prims = [
     ("Cube", "primitive_cube_add", {"size":1.5}, (-8,0,1)),
@@ -100,11 +110,13 @@ for name, prim, kwargs, loc in prims:
     obj.data.materials.append(mat)
     print(f"  {name} -> {mat.name}")
 print(f"Created {len(prims)} primitives")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 4: PARTICLE-LIKE SCATTER (multiple GeoNodes)
 phase("FASE 4: MULTIPLE SCATTER SYSTEMS")
-print(run('''
+print(
+    run("""
 import bpy
 # Scatter 1: grass-like
 bpy.ops.mesh.primitive_plane_add(size=8, location=(-8,8,0))
@@ -154,11 +166,13 @@ mat_r = bpy.data.materials.new("Rock"); mat_r.use_nodes = True
 mat_r.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value=(0.4,0.35,0.3,1)
 iso2.data.materials.append(mat_r)
 print("2 scatter systems: Grass (50 pts/m2) + Rocks (20 pts/m2)")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 5: ANIMATION
 phase("FASE 5: COMPLEX ANIMATION")
-print(run('''
+print(
+    run("""
 import bpy, math
 # Animate every primitive
 for i, name in enumerate(["Cube","Sphere","IcoSphere","Cylinder","Cone","Torus","Plane","Monkey","Circle"]):
@@ -171,11 +185,13 @@ for i, name in enumerate(["Cube","Sphere","IcoSphere","Cylinder","Cone","Torus",
             obj.keyframe_insert("location", frame=f)
             obj.keyframe_insert("rotation_euler", frame=f)
 print("Animated 9 primitives: sine wave + rotation")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 6: LIGHTS
 phase("FASE 6: LIGHTING RIG")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.object.light_add(type="AREA", location=(10,-10,12))
 bpy.context.active_object.data.energy = 1000; bpy.context.active_object.data.size = 8
@@ -192,11 +208,13 @@ bpy.ops.object.light_add(type="POINT", location=(0,0,8))
 bpy.context.active_object.data.energy = 200; bpy.context.active_object.data.color = (1,0.8,0.6)
 bpy.context.active_object.name = "WarmFill"
 print("5 lights: Key + Fill + Rim + Sun + WarmFill")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 7: CAMERA
 phase("FASE 7: CAMERA + RENDER SETTINGS")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.object.camera_add(location=(18,-15,12))
 cam = bpy.context.active_object; cam.name = "FinalCam"
@@ -209,19 +227,23 @@ s.render.resolution_percentage = 100
 s.render.engine = "BLENDER_EEVEE_NEXT"
 s.eevee.taa_render_samples = 64
 print(f"Camera: 1920x1080, EEVEE_NEXT, 64 samples")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 8: SAVE
 phase("FASE 8: SAVE")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.wm.save_as_mainfile(filepath="/tmp/stress_test_scene.blend")
 print("Saved: /tmp/stress_test_scene.blend")
-''').get('output',''))
+""").get("output", "")
+)
 
 # RESUMEN FINAL
 phase("RESUMEN FINAL")
-print(run('''
+print(
+    run("""
 import bpy
 s = bpy.context.scene
 types = {}
@@ -234,8 +256,9 @@ print(f"Meshes: {len(bpy.data.meshes)}")
 print(f"Node Groups: {len(bpy.data.node_groups)}")
 print(f"Frames: {s.frame_start}-{s.frame_end} @ {s.render.fps}fps")
 print(f"Render: {s.render.engine} {s.render.resolution_x}x{s.render.resolution_y}")
-''').get('output',''))
+""").get("output", "")
+)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("STRESS TEST 3 COMPLETADO - ESCENA LISTA PARA RENDER")
-print("="*60)
+print("=" * 60)

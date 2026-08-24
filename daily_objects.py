@@ -1,33 +1,39 @@
 #!/usr/bin/env python3
 """blender-mcp — Objetos Cotidianos de la Vida Real"""
-import socket, json, time, math
+
+import json
+import socket
+import time
 
 
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r: break
-        except: continue
+                if b"\n" in r:
+                    break
+        except Exception:
+            continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
 
 
 def phase(name):
-    print(f"\n{'='*60}\n{name}\n{'='*60}")
+    print(f"\n{'=' * 60}\n{name}\n{'=' * 60}")
 
 
 # CLEAN
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
@@ -35,13 +41,15 @@ for m in bpy.data.materials: bpy.data.materials.remove(m)
 for mesh in bpy.data.meshes: bpy.data.meshes.remove(m)
 s = bpy.context.scene; s.frame_start=1; s.frame_end=1
 print("Clean")
-''').get('output',''))
+""").get("output", "")
+)
 
 # =============================================
 # SILLA DE MADERA
 # =============================================
 phase("SILLA DE MADERA")
-print(run('''
+print(
+    run("""
 import bpy
 
 wood = bpy.data.materials.new("Wood")
@@ -84,14 +92,16 @@ barra_top.rotation_euler = (0, math.pi/2, 0)
 barra_top.data.materials.append(wood)
 
 print("Silla creada: asiento + 4 patas + respaldo")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # MESA CON CAJONES
 # =============================================
 phase("MESA CON CAJONES")
-print(run('''
+print(
+    run("""
 import bpy
 
 # Material madera oscura
@@ -138,7 +148,7 @@ for i, y_pos in enumerate([-0.15, 0.15]):
     cajon.scale = (0.35, 0.18, 0.1)
     bpy.ops.object.transform_apply(rotation=False, scale=True)
     cajon.data.materials.append(drawer_mat)
-    
+
     # Tirador
     bpy.ops.mesh.primitive_cylinder_add(radius=0.01, depth=0.12, location=(3, y_pos - 0.09, 0.6))
     tirador = bpy.context.active_object; tirador.name = f"Mesa_Tirador_{i}"
@@ -153,14 +163,16 @@ bpy.ops.object.transform_apply(rotation=False, scale=True)
 repisa.data.materials.append(dark_wood)
 
 print("Mesa creada: tabla + 4 patas + 2 cajones + repisa")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # LAPARA DE ESCRITORIO
 # =============================================
 phase("LAMPARA DE ESCRITORIO")
-print(run('''
+print(
+    run("""
 import bpy, math
 
 # Material metal negro
@@ -216,14 +228,16 @@ luz.data.energy = 100
 luz.data.color = (1, 0.9, 0.7)
 
 print("Lampara creada: base + vara + brazo + pantalla + bulbo + luz")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # TAZA DE CAFE
 # =============================================
 phase("TAZA DE CAFE")
-print(run('''
+print(
+    run("""
 import bpy, math
 
 # Material ceramica blanca
@@ -281,14 +295,16 @@ bpy.ops.object.transform_apply(rotation=False, scale=True)
 copa.data.materials.append(mat_sp)
 
 print("Taza creada: taza + cafe + asa + plato + cucharita")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # RELOJ DE PARED
 # =============================================
 phase("RELOJ DE PARED")
-print(run('''
+print(
+    run("""
 import bpy, math
 
 # Material carcasa
@@ -362,14 +378,16 @@ centro = bpy.context.active_object; centro.name = "Reloj_Center"
 centro.data.materials.append(gold_mat)
 
 print("Reloj creado: carcasa + esfera + 12 marcadores + manecillas")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # MACETA CON PLANTA
 # =============================================
 phase("MACETA CON PLANTA")
-print(run('''
+print(
+    run("""
 import bpy, math
 
 # Material terracota
@@ -435,14 +453,16 @@ mat_flower.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value
 flor.data.materials.append(mat_flower)
 
 print("Maceta creada: maceta + tierra + tallo + 5 hojas + flor")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # LIBRO APILADO
 # =============================================
 phase("LIBROS APILADOS")
-print(run('''
+print(
+    run("""
 import bpy
 
 colors = [
@@ -456,7 +476,7 @@ colors = [
 for i, color in enumerate(colors):
     h = 0.04
     z = 0.02 + i * (h + 0.002)
-    
+
     # Tapa
     bpy.ops.mesh.primitive_cube_add(size=1, location=(6, -6, z))
     libro = bpy.context.active_object; libro.name = f"Book_{i}"
@@ -467,7 +487,7 @@ for i, color in enumerate(colors):
     mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = color
     mat.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.6
     libro.data.materials.append(mat)
-    
+
     # Paginas (blanco)
     bpy.ops.mesh.primitive_cube_add(size=1, location=(6, -6, z + 0.001))
     pag = bpy.context.active_object; pag.name = f"Book_Pages_{i}"
@@ -479,14 +499,16 @@ for i, color in enumerate(colors):
     pag.data.materials.append(mat_p)
 
 print("5 libros apilados con colores diferentes")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # =============================================
 # LUZ + CAMARA + SUELO
 # =============================================
 phase("LUZ + CAMARA + SUELO")
-print(run('''
+print(
+    run("""
 import bpy
 
 # Suelo
@@ -527,12 +549,14 @@ bpy.context.scene.render.engine = "BLENDER_EEVEE_NEXT"
 bpy.context.scene.eevee.taa_render_samples = 64
 
 print("Escena: suelo + pared + 3 luces + camara 1920x1080")
-''').get('output',''))
+""").get("output", "")
+)
 
 
 # RESUMEN
 phase("RESUMEN")
-print(run('''
+print(
+    run("""
 import bpy
 s = bpy.context.scene
 types = {}
@@ -541,15 +565,18 @@ print(f"Total: {len(s.objects)} objetos")
 for t,c in sorted(types.items()): print(f"  {t}: {c}")
 print(f"Materiales: {len(bpy.data.materials)}")
 print(f"Meshes: {len(bpy.data.meshes)}")
-''').get('output',''))
+""").get("output", "")
+)
 
 # GUARDAR
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.wm.save_as_mainfile(filepath="/tmp/daily_objects.blend")
 print("Guardado: /tmp/daily_objects.blend")
-''').get('output',''))
+""").get("output", "")
+)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("OBJETOS COTIDIANOS COMPLETADOS!")
-print("="*60)
+print("=" * 60)

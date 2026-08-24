@@ -2,7 +2,9 @@
 blender-mcp — Test Helpers
 Shared utilities for test modules.
 """
+
 import socket
+
 import pytest
 
 

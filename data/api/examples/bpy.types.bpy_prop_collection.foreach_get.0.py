@@ -2,6 +2,7 @@
 Only works for 'basic type' properties (bool, int and float)!
 Multi-dimensional arrays (like array of vectors) will be flattened into seq.
 """
+
 import bpy
 
 mesh = bpy.context.object.data

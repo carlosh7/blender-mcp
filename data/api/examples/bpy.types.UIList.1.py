@@ -10,6 +10,7 @@ Notice the name of the class, this naming convention is similar as the one for p
 
    UIList subclasses must be registered for Blender to use them.
 """
+
 import bpy
 
 
@@ -27,7 +28,6 @@ class MATERIAL_UL_matslots_example(bpy.types.UIList):
     #   Note: as index and flt_flag are optional arguments, you do not have to use/declare them here if you don't
     #         need them.
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
-        ob = data
         slot = item
         ma = slot.material
         # You should always start your row layout by a label (icon + text), or a non-embossed text field,
@@ -43,10 +43,11 @@ class MATERIAL_UL_matslots_example(bpy.types.UIList):
 # And now we can use this list everywhere in Blender. Here is a small example panel.
 class UIListPanelExample1(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
+
     bl_label = "UIList Example 1 Panel"
     bl_idname = "OBJECT_PT_ui_list_example_1"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
+    bl_space_type = "PROPERTIES"
+    bl_region_type = "WINDOW"
     bl_context = "object"
 
     def draw(self, context):
@@ -57,12 +58,21 @@ class UIListPanelExample1(bpy.types.Panel):
         # `template_list` now takes two new arguments.
         # The first one is the identifier of the registered UIList to use (if you want only the default list,
         # with no custom draw code, use "UI_UL_list").
-        layout.template_list("MATERIAL_UL_matslots_example", "", obj, "material_slots", obj, "active_material_index")
+        layout.template_list(
+            "MATERIAL_UL_matslots_example", "", obj, "material_slots", obj, "active_material_index"
+        )
 
         # The second one can usually be left as an empty string.
         # It's an additional ID used to distinguish lists in case you use the same list several times in a given area.
-        layout.template_list("MATERIAL_UL_matslots_example", "compact", obj, "material_slots",
-                             obj, "active_material_index", type='COMPACT')
+        layout.template_list(
+            "MATERIAL_UL_matslots_example",
+            "compact",
+            obj,
+            "material_slots",
+            obj,
+            "active_material_index",
+            type="COMPACT",
+        )
 
 
 def register():

@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = ["mcp", "blender", "3d", "ai", "llm", "model-context-protocol", "3d-modeling"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -22,8 +22,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "mcp[cli]>=1.3.0",
+    "mcp[cli]>=1.3.0,<2",
     "requests>=2.25.0",
+    "pyyaml>=6.0",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -39,7 +41,7 @@ dev = [
 
 [project.scripts]
 blender-mcp = "blender_mcp.cli:main"
-blender-mcp-server = "blender_mcp.server:main"
+blender-mcp-server = "src.presentation.mcp_server:main"
 blender-mcp-adapter = "mcp_adapter:main"
 
 [project.urls]
@@ -53,7 +55,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/blender_mcp", "addon"]
+packages = ["blender_mcp", "addon", "src"]
+force-include = {"mcp_adapter.py" = "mcp_adapter.py"}
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -70,7 +73,7 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = [".", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -90,4 +93,24 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
-ignore = ["E501", "N999"]
+# Deuda de estilo heredada (sin autofix disponible); revisar en futuras pasadas:
+# - E701/E702/E402: one-liners e imports tardíos del código legacy
+# - N801/N802/N806/N811/N818: convenciones de nombres legacy
+# - UP035: re-exports de typing compatibles con Blender <3.9
+# - F841: dead stores (29 sitios, requieren triage manual)
+ignore = [
+    "E501", "N999",
+    "E701", "E702", "E402",
+    "N801", "N802", "N806", "N811", "N818",
+    "UP035", "F841",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"data/**" = ["F821", "N805", "E501"]
+"skills/**" = ["F821"]
+"**/__init__.py" = ["F401"]
+# Agregador deliberado de creation_rules (re-export)
+"addon/creation_rules_unified.py" = ["F403"]
+# Wrappers multi-línea para --python-expr: .format con {!r} es intencional
+"blender_mcp/blender_cli.py" = ["UP032"]
+"blender_mcp/utils/launcher.py" = ["UP032"]

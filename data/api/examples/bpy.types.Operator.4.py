@@ -4,6 +4,7 @@ Dialog Box
 
 This operator uses its :class:`Operator.invoke` function to call a popup.
 """
+
 import bpy
 
 
@@ -16,11 +17,9 @@ class DialogOperator(bpy.types.Operator):
     my_string: bpy.props.StringProperty(name="String Value")
 
     def execute(self, context):
-        message = "Popup Values: {:f}, {:d}, '{:s}'".format(
-            self.my_float, self.my_bool, self.my_string,
-        )
-        self.report({'INFO'}, message)
-        return {'FINISHED'}
+        message = f"Popup Values: {self.my_float:f}, {self.my_bool:d}, '{self.my_string:s}'"
+        self.report({"INFO"}, message)
+        return {"FINISHED"}
 
     def invoke(self, context, event):
         wm = context.window_manager
@@ -37,4 +36,4 @@ bpy.utils.register_class(DialogOperator)
 bpy.types.VIEW3D_MT_object.append(menu_func)
 
 # Test call.
-bpy.ops.object.dialog_operator('INVOKE_DEFAULT')
+bpy.ops.object.dialog_operator("INVOKE_DEFAULT")

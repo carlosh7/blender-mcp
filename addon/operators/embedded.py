@@ -2,14 +2,12 @@
 blender-mcp — Embedded Mode Operators
 Auto-start on addon activation. Auto-detects Ollama if available.
 """
-import bpy
+
 import json
-import os
-import sys
-import time
-import threading
 import logging
+import os
 import urllib.request
+
 from bpy.types import Operator
 
 logger = logging.getLogger("blender-mcp-embedded")
@@ -22,7 +20,10 @@ _auto_started = False
 def _check_ollama():
     """Check if Ollama is running locally."""
     try:
-        req = urllib.request.Request(os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/version", method="GET")
+        req = urllib.request.Request(
+            os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434") + "/api/version",
+            method="GET",
+        )
         with urllib.request.urlopen(req, timeout=2) as resp:
             data = json.loads(resp.read())
             return data.get("version", "")
@@ -39,6 +40,7 @@ def auto_start():
     # Start embedded MCP server (tool execution)
     try:
         from ..server import start_embedded_server
+
         _embedded_server = start_embedded_server()
         logger.info("Embedded MCP server started")
     except Exception as e:
@@ -60,21 +62,27 @@ def _auto_start_client(provider, api_key):
     try:
         if provider == "ollama":
             from ..client.ollama import MCPClientOllama
+
             _embedded_client = MCPClientOllama()
         elif provider == "anthropic":
             from ..client.claude import MCPClientClaude
+
             _embedded_client = MCPClientClaude()
         elif provider == "deepseek":
             from ..client.openai import MCPClientDeepSeek
+
             _embedded_client = MCPClientDeepSeek()
         elif provider == "openrouter":
             from ..client.openai import MCPClientOpenRouter
+
             _embedded_client = MCPClientOpenRouter()
         elif provider == "google":
             from ..client.openai import MCPClientGoogle
+
             _embedded_client = MCPClientGoogle()
         else:
             from ..client.openai import MCPClientOpenAI
+
             _embedded_client = MCPClientOpenAI()
         _embedded_client.start()
         logger.info(f"Embedded client started: {provider}")
@@ -88,14 +96,15 @@ def auto_stop():
     if _embedded_client:
         try:
             _embedded_client.stop()
-        except:
+        except Exception:
             pass
         _embedded_client = None
     if _embedded_server:
         try:
             from ..server import stop_embedded_server
+
             stop_embedded_server()
-        except:
+        except Exception:
             pass
         _embedded_server = None
     _auto_started = False
@@ -111,19 +120,24 @@ class BLENDERMCP_OT_StartEmbedded(Operator):
         scene = context.scene
 
         provider = scene.aimcp_provider or "opencode-go"
-        env_map = {"opencode-go": "OPENAI_API_KEY", "openai": "OPENAI_API_KEY",
-                   "deepseek": "DEEPSEEK_API_KEY", "openrouter": "OPENROUTER_API_KEY",
-                   "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_API_KEY"}
+        env_map = {
+            "opencode-go": "OPENAI_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GOOGLE_API_KEY",
+        }
         api_key = os.environ.get(env_map.get(provider, ""), "")
 
         _auto_start_client(provider, api_key)
         if _embedded_client:
             scene.aimcp_ai_state = "connected"
-            self.report({'INFO'}, f"Local AI ready ({provider})")
+            self.report({"INFO"}, f"Local AI ready ({provider})")
         else:
             scene.aimcp_ai_state = "no_mcp"
-            self.report({'WARNING'}, "Could not start AI. Check API key or Ollama.")
-        return {'FINISHED'}
+            self.report({"WARNING"}, "Could not start AI. Check API key or Ollama.")
+        return {"FINISHED"}
 
 
 class BLENDERMCP_OT_StopEmbedded(Operator):
@@ -136,8 +150,8 @@ class BLENDERMCP_OT_StopEmbedded(Operator):
             _embedded_client.stop()
             _embedded_client = None
         context.scene.aimcp_ai_state = "disconnected"
-        self.report({'INFO'}, "Local AI stopped")
-        return {'FINISHED'}
+        self.report({"INFO"}, "Local AI stopped")
+        return {"FINISHED"}
 
 
 EMBEDDED_OPERATORS = [
@@ -148,12 +162,16 @@ EMBEDDED_OPERATORS = [
 
 def register_embedded_operators():
     from bpy.utils import register_class
+
     for cls in EMBEDDED_OPERATORS:
-        try: register_class(cls)
-        except: pass
+        try:
+            register_class(cls)
+        except Exception:
+            pass
 
 
 def unregister_embedded_operators():
     from bpy.utils import unregister_class
+
     for cls in reversed(EMBEDDED_OPERATORS):
         unregister_class(cls)

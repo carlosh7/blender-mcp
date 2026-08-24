@@ -58,16 +58,16 @@ Scene
 ### Product Scene
 ```python
 # Create collection structure
-scene.create(name='ProductScene')
+scene.create(name="ProductScene")
 
 # Add ground plane
-object.create(type='MESH', name='GEO_Ground', location=(0, 0, -1))
+object.create(type="MESH", name="GEO_Ground", location=(0, 0, -1))
 
 # Add lighting
 light.three_point(key_energy=1000, fill_energy=500)
 
 # Setup camera
-camera.create(name='CAM_Product', location=(0, -3, 1.5), lens=85)
+camera.create(name="CAM_Product", location=(0, -3, 1.5), lens=85)
 ```
 
 ### Environment Scene

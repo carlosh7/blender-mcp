@@ -16,6 +16,7 @@ that no undo step will created (see next example for more info about undo).
    Operator subclasses must be registered before accessing them from Blender.
 
 """
+
 import bpy
 
 
@@ -25,7 +26,7 @@ class HelloWorldOperator(bpy.types.Operator):
 
     def execute(self, context):
         print("Hello World")
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 # Only needed if you want to add into a dynamic menu.

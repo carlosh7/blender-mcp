@@ -6,11 +6,13 @@ Sometimes it is needed to know all the instances with their matrices (for exampl
 exporter or a custom render engine).
 This example shows how to access all objects and instances in the scene.
 """
+
 import bpy
 
 
 class OBJECT_OT_object_instances(bpy.types.Operator):
     """Access original object and do something with it"""
+
     bl_label = "DEG Iterate Object Instances"
     bl_idname = "object.object_instances"
 
@@ -27,7 +29,7 @@ class OBJECT_OT_object_instances(bpy.types.Operator):
                 # Instanced will additionally have fields like uv, random_id and others which are
                 # specific for instances. See Python API for DepsgraphObjectInstance for details,
                 print(f"Instance of {obj.name} at {object_instance.matrix_world}")
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 def register():

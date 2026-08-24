@@ -1,6 +1,7 @@
 """
 This example shows how it's possible to add an object to the scene in another window.
 """
+
 import bpy
 from bpy import context
 

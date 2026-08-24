@@ -18,7 +18,6 @@ class CustomGPURenderEngine(bpy.types.RenderEngine):
     def render(self, depsgraph):
         # Lazily import GPU module, since GPU context is only created on demand
         # for rendering and does not exist on register.
-        import gpu
 
         # Perform rendering task.
         pass

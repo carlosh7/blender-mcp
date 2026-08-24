@@ -1,13 +1,9 @@
 """
 blender-mcp — Connection Operators
 """
-import bpy
-import os
-import json
-import threading
-import urllib.request
+
 from bpy.types import Operator
-from bpy.props import StringProperty
+
 from .. import _axsock as bsock
 
 
@@ -24,7 +20,7 @@ class OP_Check(Operator):
         ctx.scene.aimcp_status = "Connected" if connected else "Socket not running"
         if ctx.area:
             ctx.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 class OP_Disconnect(Operator):
@@ -37,7 +33,7 @@ class OP_Disconnect(Operator):
         ctx.scene.aimcp_status = ""
         if ctx.area:
             ctx.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 CONNECT_OPERATORS = [OP_Check, OP_Disconnect]
@@ -45,12 +41,16 @@ CONNECT_OPERATORS = [OP_Check, OP_Disconnect]
 
 def register_connect_operators():
     from bpy.utils import register_class
+
     for cls in CONNECT_OPERATORS:
-        try: register_class(cls)
-        except: pass
+        try:
+            register_class(cls)
+        except Exception:
+            pass
 
 
 def unregister_connect_operators():
     from bpy.utils import unregister_class
+
     for cls in reversed(CONNECT_OPERATORS):
         unregister_class(cls)

@@ -1,44 +1,57 @@
 #!/usr/bin/env python3
 """blender-mcp — Mesa de Billar (Test del sistema completo)"""
-import socket, json, time, math
+
+import json
+import socket
+import time
+
 
 def send(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command':'execute_code','params':{'code':code}}).encode()+b'\n')
-    r=b''; dl=time.time()+25
-    while time.time()<dl:
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
+    dl = time.time() + 25
+    while time.time() < dl:
         try:
-            c=s.recv(65536)
-            if c: r+=c
-            if b'\n' in r: break
-        except: continue
+            c = s.recv(65536)
+            if c:
+                r += c
+            if b"\n" in r:
+                break
+        except Exception:
+            continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result',{})
+    return data.get("result", {})
+
 
 def phase(name):
-    print(f"\n{'='*60}\n{name}\n{'='*60}")
+    print(f"\n{'=' * 60}\n{name}\n{'=' * 60}")
+
 
 # =============================================
 # LIMPIAR ESCENA
 # =============================================
 phase("LIMPIAR ESCENA")
-print(send('''
+print(
+    send("""
 import bpy
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
 for m in bpy.data.materials: bpy.data.materials.remove(m)
 for mesh in bpy.data.meshes: bpy.data.meshes.remove(m)
 print("Escena limpia")
-''').get('output',''))
+""").get("output", "")
+)
 
 # =============================================
 # CREAR COLECCIONES
 # =============================================
 phase("CREAR COLECCIONES")
-print(send('''
+print(
+    send("""
 import bpy
 
 # Crear colecciones
@@ -54,13 +67,15 @@ for obj in bpy.context.scene.collection.objects:
     bpy.data.collections["PoolTable"].objects.link(obj)
 
 print(f"Colecciones creadas: {cols}")
-''').get('output',''))
+""").get("output", "")
+)
 
 # =============================================
 # MATERIALES
 # =============================================
 phase("CREAR MATERIALES")
-print(send('''
+print(
+    send("""
 import bpy
 
 materials = {
@@ -89,7 +104,8 @@ for name, props in materials.items():
     bsdf.inputs["Metallic"].default_value = props["metallic"]
 
 print(f"Materiales creados: {len(materials)}")
-''').get('output',''))
+""").get("output", "")
+)
 
 # =============================================
 # DIMENSIONES ESTÁNDAR MESA DE BILLAR
@@ -100,7 +116,8 @@ print(f"Materiales creados: {len(materials)}")
 # =============================================
 
 phase("CREAR BASE (PIES + ESTRUCTURA)")
-print(send('''
+print(
+    send("""
 import bpy
 
 # === PIES DE LA MESA (4) ===
@@ -122,7 +139,7 @@ for i, (x, y, z) in enumerate(leg_positions):
     leg.name = f"Leg_{i+1}"
     mat = bpy.data.materials["Wood_Dark"]
     leg.data.materials.append(mat)
-    
+
     # Mover a colección
     for col in leg.users_collection:
         col.objects.unlink(leg)
@@ -142,10 +159,12 @@ for i, (x, y, z) in enumerate(leg_positions):
     bpy.data.collections["PoolTable"].objects.link(foot)
 
 print("4 patas + 4 pies creados")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR ESTRUCTURA INFERIOR")
-print(send('''
+print(
+    send("""
 import bpy
 
 mat = bpy.data.materials["Wood_Dark"]
@@ -195,10 +214,12 @@ for col in right.users_collection:
 bpy.data.collections["PoolTable"].objects.link(right)
 
 print("Estructura inferior: 4 vigas")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR SUPERFICIE DE JUEGO (FELT)")
-print(send('''
+print(
+    send("""
 import bpy
 
 mat = bpy.data.materials["Felt_Green"]
@@ -227,10 +248,12 @@ for col in frame.users_collection:
 bpy.data.collections["PoolTable"].objects.link(frame)
 
 print("Superficie: felt verde + marco exterior")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR BOLSILLOS")
-print(send('''
+print(
+    send("""
 import bpy, math
 
 mat = bpy.data.materials["Rubber_Black"]
@@ -249,7 +272,7 @@ pocket_sizes = [0.07, 0.07, 0.07, 0.07, 0.06, 0.06]  # Radio
 
 for i, (x, y, z) in enumerate(pocket_sizes):
     pos = pocket_positions[i]
-    
+
     # Boca del bolsillo (cilindro negro)
     bpy.ops.mesh.primitive_cylinder_add(
         radius=pocket_sizes[i],
@@ -264,10 +287,12 @@ for i, (x, y, z) in enumerate(pocket_sizes):
     bpy.data.collections["PoolTable"].objects.link(pocket)
 
 print("6 bolsillos creados (4 esquinas + 2 laterales)")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR BANDAS (RAILS)")
-print(send('''
+print(
+    send("""
 import bpy
 
 mat = bpy.data.materials["Wood_Light"]
@@ -340,10 +365,12 @@ for col in right_rail_l.users_collection:
 bpy.data.collections["PoolTable"].objects.link(right_rail_l)
 
 print("6 bandas creadas (front, back, 2 left, 2 right)")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR BALAS (16 BOLAS)")
-print(send('''
+print(
+    send("""
 import bpy, math
 
 ball_colors = [
@@ -392,13 +419,13 @@ for row in range(5):
     for col in range(row + 1):
         x = start_x + row * spacing * 0.866  # cos(30°)
         y = start_y + (col - row/2) * spacing
-        
+
         mat_name, ball_name = ball_colors[ball_idx]
-        
+
         bpy.ops.mesh.primitive_uv_sphere_add(radius=0.026, location=(x, y, 0.806))
         ball = bpy.context.active_object
         ball.name = ball_name
-        
+
         # Material (rayada para 9-15)
         if ball_idx >= 9:
             # Crear material rayada
@@ -413,19 +440,21 @@ for row in range(5):
             ball.data.materials.append(mat)
         else:
             ball.data.materials.append(bpy.data.materials[mat_name])
-        
+
         # Mover a colección
         for col_obj in ball.users_collection:
             col_obj.objects.unlink(ball)
         bpy.data.collections["Balls"].objects.link(ball)
-        
+
         ball_idx += 1
 
 print("16 bolas creadas (1 cue + 15 object balls)")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR TACO (CUE STICK)")
-print(send('''
+print(
+    send("""
 import bpy, math
 
 mat = bpy.data.materials["Cue_Wood"]
@@ -476,10 +505,12 @@ for col in rest.users_collection:
 bpy.data.collections["Accessories"].objects.link(rest)
 
 print("Taco: stick + tip + rest")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CREAR SALA (SUELO + PARED)")
-print(send('''
+print(
+    send("""
 import bpy, math
 
 # Suelo de madera
@@ -519,10 +550,12 @@ for col in wall_l.users_collection:
 bpy.data.collections["Room"].objects.link(wall_l)
 
 print("Sala: suelo + 2 paredes")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("ILUMINACIÓN")
-print(send('''
+print(
+    send("""
 import bpy
 
 # Luz principal sobre la mesa (lámpara de billar)
@@ -547,10 +580,12 @@ ambient2.data.energy = 200
 ambient2.data.size = 2
 
 print("Iluminación: 1 principal + 2 ambientales")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("CÁMARA")
-print(send('''
+print(
+    send("""
 import bpy
 
 bpy.ops.object.camera_add(location=(3.5, -3, 2.5))
@@ -567,10 +602,12 @@ s.render.engine = "BLENDER_EEVEE_NEXT"
 s.eevee.taa_render_samples = 64
 
 print("Cámara: 1920x1080, EEVEE_NEXT")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("RESUMEN FINAL")
-print(send('''
+print(
+    send("""
 import bpy
 
 # Contar por colección
@@ -598,16 +635,19 @@ print(f"  Altura: 0.80m")
 print(f"  Superficie juego: 2.54m x 1.22m")
 print(f"  Bolsillos: 6 (Ø 13-14cm)")
 print(f"  Balas: 16 (Ø 5.25cm)")
-''').get('output',''))
+""").get("output", "")
+)
 
 phase("GUARDAR")
-print(send('''
+print(
+    send("""
 import bpy
 filepath = "/tmp/pool_table.blend"
 bpy.ops.wm.save_as_mainfile(filepath=filepath)
 print(f"Guardado: {filepath}")
-''').get('output',''))
+""").get("output", "")
+)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("MESA DE BILLAR COMPLETADA!")
-print("="*60)
+print("=" * 60)

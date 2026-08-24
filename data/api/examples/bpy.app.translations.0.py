@@ -45,27 +45,37 @@ import bpy
 
 # Tuple of tuples ((msgctxt, msgid), (sources, gen_comments), (lang, translation, (is_fuzzy, comments)), ...)
 translations_tuple = (
-    (("*", ""),
-     ((), ()),
-     ("fr_FR", "Project-Id-Version: Copy Settings 0.1.5 (r0)\nReport-Msgid-Bugs-To: \nPOT-Creation-Date: 2013-04-18 15:27:45.563524\nPO-Revision-Date: 2013-04-18 15:38+0100\nLast-Translator: Bastien Montagne <montagne29@wanadoo.fr>\nLanguage-Team: LANGUAGE <LL@li.org>\nLanguage: __POT__\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n",
-               (False,
-                ("Blender's translation file (po format).",
-                 "Copyright (C) 2013 The Blender Foundation.",
-                 "This file is distributed under the same license as the Blender package.",
-                 "FIRST AUTHOR <EMAIL@ADDRESS>, YEAR."))),
-     ),
-    (("Operator", "Render: Copy Settings"),
-     (("bpy.types.SCENE_OT_render_copy_settings",),
-      ()),
-     ("fr_FR", "Rendu: copier réglages",
-               (False, ())),
-     ),
-    (("*", "Copy render settings from current scene to others"),
-     (("bpy.types.SCENE_OT_render_copy_settings",),
-      ()),
-     ("fr_FR", "Copier les réglages de rendu depuis la scène courante vers d’autres",
-               (False, ())),
-     ),
+    (
+        ("*", ""),
+        ((), ()),
+        (
+            "fr_FR",
+            "Project-Id-Version: Copy Settings 0.1.5 (r0)\nReport-Msgid-Bugs-To: \nPOT-Creation-Date: 2013-04-18 15:27:45.563524\nPO-Revision-Date: 2013-04-18 15:38+0100\nLast-Translator: Bastien Montagne <montagne29@wanadoo.fr>\nLanguage-Team: LANGUAGE <LL@li.org>\nLanguage: __POT__\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n",
+            (
+                False,
+                (
+                    "Blender's translation file (po format).",
+                    "Copyright (C) 2013 The Blender Foundation.",
+                    "This file is distributed under the same license as the Blender package.",
+                    "FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.",
+                ),
+            ),
+        ),
+    ),
+    (
+        ("Operator", "Render: Copy Settings"),
+        (("bpy.types.SCENE_OT_render_copy_settings",), ()),
+        ("fr_FR", "Rendu: copier réglages", (False, ())),
+    ),
+    (
+        ("*", "Copy render settings from current scene to others"),
+        (("bpy.types.SCENE_OT_render_copy_settings",), ()),
+        (
+            "fr_FR",
+            "Copier les réglages de rendu depuis la scène courante vers d’autres",
+            (False, ()),
+        ),
+    ),
     # ... etc, all messages from your addon.
 )
 
@@ -82,7 +92,7 @@ for msg in translations_tuple:
 
 
 def register():
-   # Usual operator/UI/etc. registration...
+    # Usual operator/UI/etc. registration...
 
     bpy.app.translations.register(__name__, translations_dict)
 
@@ -90,4 +100,5 @@ def register():
 def unregister():
     bpy.app.translations.unregister(__name__)
 
-   # Usual operator/UI/etc. unregistration...
+
+# Usual operator/UI/etc. unregistration...

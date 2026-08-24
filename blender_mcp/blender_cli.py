@@ -2,10 +2,10 @@
 blender-mcp — Run tool-code via ``blender --background``.
 Analyze .blend files without a running Blender instance.
 """
+
 import json
 import os
 import subprocess
-from . import platform
 
 _BLENDER_PATH_ENV = "BLENDER_PATH"
 _RESULT_PREFIX = "__BLMCP_RESULT__"
@@ -22,7 +22,7 @@ def run_blender_cli(blend_file: str, code: str, timeout: float = _CLI_TIMEOUT) -
     wrapper = (
         "import json\n"
         "try:\n"
-        "    _ns = {'result': {}}\n"
+        "    _ns = {{'result': {{}}}}\n"
         "    exec({!r}, _ns)\n"
         "    _result = _ns['result']\n"
         "    if not isinstance(_result, dict):\n"
@@ -34,7 +34,10 @@ def run_blender_cli(blend_file: str, code: str, timeout: float = _CLI_TIMEOUT) -
     try:
         proc = subprocess.run(
             [blender, "--background", blend_file, "--python-expr", wrapper],
-            capture_output=True, text=True, timeout=timeout, check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
         )
     except subprocess.TimeoutExpired as ex:
         raise RuntimeError(f"Blender CLI timed out after {timeout:.0f}s") from ex
@@ -45,11 +48,13 @@ def run_blender_cli(blend_file: str, code: str, timeout: float = _CLI_TIMEOUT) -
 
     for line in proc.stdout.splitlines():
         if line.startswith(_RESULT_PREFIX):
-            result = json.loads(line[len(_RESULT_PREFIX):])
+            result = json.loads(line[len(_RESULT_PREFIX) :])
             if not isinstance(result, dict):
                 raise TypeError(f"Expected dict from Blender CLI, got {type(result)}")
             return result
         if line.startswith(_ERROR_PREFIX):
-            raise RuntimeError(f"Blender CLI error: {json.loads(line[len(_ERROR_PREFIX):])}")
+            raise RuntimeError(f"Blender CLI error: {json.loads(line[len(_ERROR_PREFIX) :])}")
 
-    raise RuntimeError(f"No result marker in Blender CLI output.\nstdout: {proc.stdout}\nstderr: {proc.stderr}")
+    raise RuntimeError(
+        f"No result marker in Blender CLI output.\nstdout: {proc.stdout}\nstderr: {proc.stderr}"
+    )

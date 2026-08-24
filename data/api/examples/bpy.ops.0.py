@@ -45,6 +45,7 @@ There are 2 optional positional arguments (documented in detail below).
 
 Each of these arguments is optional, but must be given in the order above.
 """
+
 import bpy
 
 # Calling an operator.
@@ -53,4 +54,4 @@ bpy.ops.mesh.subdivide(number_cuts=3, smoothness=0.5)
 
 # Check poll() to avoid exception.
 if bpy.ops.object.mode_set.poll():
-    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.object.mode_set(mode="EDIT")

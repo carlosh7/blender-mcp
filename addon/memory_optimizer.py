@@ -2,20 +2,21 @@
 blender-mcp — Memory Optimization
 Optimización de memoria y monitoreo de uso.
 """
-import bpy
+
 import sys
-from typing import Dict, List
 from datetime import datetime
 
+import bpy
 
 # ═══════════════════════════════════════════════════════════════
 # MEMORY MONITOR
 # ═══════════════════════════════════════════════════════════════
 
-def get_detailed_memory_usage() -> Dict[str, any]:
+
+def get_detailed_memory_usage() -> dict[str, any]:
     """
     Obtener uso detallado de memoria.
-    
+
     Returns:
         Dict con estadísticas de memoria
     """
@@ -25,17 +26,17 @@ def get_detailed_memory_usage() -> Dict[str, any]:
     textures = len(bpy.data.textures)
     images = len(bpy.data.images)
     objects = len(bpy.data.objects)
-    
+
     # Count users per block
     mesh_users = sum(m.users for m in bpy.data.meshes)
     mat_users = sum(m.users for m in bpy.data.materials)
-    
+
     # Orphan blocks
     orphan_meshes = sum(1 for m in bpy.data.meshes if m.users == 0)
     orphan_materials = sum(1 for m in bpy.data.materials if m.users == 0)
     orphan_textures = sum(1 for t in bpy.data.textures if t.users == 0)
     orphan_images = sum(1 for i in bpy.data.images if i.users == 0)
-    
+
     return {
         "timestamp": datetime.now().isoformat(),
         "data_blocks": {
@@ -67,10 +68,11 @@ def get_detailed_memory_usage() -> Dict[str, any]:
 # OPTIMIZATION
 # ═══════════════════════════════════════════════════════════════
 
-def optimize_scene() -> Dict[str, any]:
+
+def optimize_scene() -> dict[str, any]:
     """
     Optimizar escena completa.
-    
+
     Returns:
         Dict con optimizaciones realizadas
     """
@@ -79,47 +81,43 @@ def optimize_scene() -> Dict[str, any]:
         "removed_objects": 0,
         "orphan_blocks_purged": 0,
     }
-    
+
     # 1. Merge by distance
     for obj in bpy.context.scene.objects:
-        if obj.type == 'MESH':
+        if obj.type == "MESH":
             bpy.context.view_layer.objects.active = obj
             obj.select_set(True)
-            
+
             before_verts = len(obj.data.vertices)
-            
+
             try:
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.object.mode_set(mode="EDIT")
+                bpy.ops.mesh.select_all(action="SELECT")
                 bpy.ops.mesh.remove_doubles(threshold=0.0001)
-                bpy.ops.object.mode_set(mode='OBJECT')
-                
+                bpy.ops.object.mode_set(mode="OBJECT")
+
                 after_verts = len(obj.data.vertices)
                 results["merged_vertices"] += before_verts - after_verts
             except Exception as e:
                 print(f"[optimize] Merge failed for {obj.name}: {e}")
                 try:
-                    bpy.ops.object.mode_set(mode='OBJECT')
+                    bpy.ops.object.mode_set(mode="OBJECT")
                 except Exception:
                     pass
-            
+
             obj.select_set(False)
-    
+
     # 2. Purge orphan data
     try:
         before = len(bpy.data.meshes) + len(bpy.data.materials)
-        bpy.ops.outliner.orphans_purge(
-            do_local_ids=True,
-            do_linked_ids=True,
-            do_recursive=True
-        )
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
         after = len(bpy.data.meshes) + len(bpy.data.materials)
         results["orphan_blocks_purged"] = before - after
     except Exception as e:
         print(f"[optimize] Orphan purge failed: {e}")
-    
+
     # 3. Remove default objects
-    default_names = {'Cube', 'Sphere', 'Cylinder', 'Cone', 'Plane'}
+    default_names = {"Cube", "Sphere", "Cylinder", "Cone", "Plane"}
     for obj in list(bpy.context.scene.objects):
         if obj.name in default_names and obj.location == (0, 0, 0):
             try:
@@ -127,7 +125,7 @@ def optimize_scene() -> Dict[str, any]:
                 results["removed_objects"] += 1
             except Exception:
                 pass
-    
+
     print(f"[optimize] Scene optimized: {results}")
     return results
 
@@ -135,12 +133,12 @@ def optimize_scene() -> Dict[str, any]:
 def get_memory_report() -> str:
     """
     Generar reporte legible de memoria.
-    
+
     Returns:
         String con reporte formateado
     """
     usage = get_detailed_memory_usage()
-    
+
     lines = [
         "=== MEMORY REPORT ===",
         f"Timestamp: {usage['timestamp']}",
@@ -164,5 +162,5 @@ def get_memory_report() -> str:
         f"  Total: {usage['orphans']['total']}",
         "=======================",
     ]
-    
+
     return "\n".join(lines)

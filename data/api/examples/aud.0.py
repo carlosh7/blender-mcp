@@ -5,11 +5,12 @@ Basic Sound Playback
 This script shows how to use the classes: :class:`Device`, :class:`Sound` and
 :class:`Handle`.
 """
+
 import aud
 
 device = aud.Device()
 # Load sound file (it can be a video file with audio).
-sound = aud.Sound('music.ogg')
+sound = aud.Sound("music.ogg")
 
 # Play the audio, this return a handle to control play/pause.
 handle = device.play(sound)

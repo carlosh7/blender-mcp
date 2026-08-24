@@ -1,8 +1,9 @@
 """
 blender-mcp — AST Validator Tests
 """
-import sys
+
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
@@ -10,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 class TestASTValidator:
     def setup_method(self):
         from blender_mcp.utils.validator import validate
+
         self.validate = validate
 
     def test_safe_code(self):

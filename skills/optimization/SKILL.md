@@ -23,11 +23,10 @@ You are an expert in Blender optimization. You make scenes fast and efficient.
 
 ### Mesh Optimization
 ```python
-scene_utils.mesh_analysis(object_name='HighPoly')
+scene_utils.mesh_analysis(object_name="HighPoly")
 # Check vertex count, face count, etc.
-modifier.add(object_name='HighPoly', type='DECIMATE')
-modifier.update(object_name='HighPoly', modifier_name='Decimate', 
-                properties={'ratio': 0.5})
+modifier.add(object_name="HighPoly", type="DECIMATE")
+modifier.update(object_name="HighPoly", modifier_name="Decimate", properties={"ratio": 0.5})
 ```
 
 ### Scene Cleanup
@@ -40,19 +39,17 @@ batch.apply_transforms()
 ### LOD Creation
 ```python
 # High detail
-object.create(type='MESH', name='Tree_High')
+object.create(type="MESH", name="Tree_High")
 
 # Medium detail
-object.duplicate(name='Tree_High', new_name='Tree_Med')
-modifier.add(object_name='Tree_Med', type='DECIMATE')
-modifier.update(object_name='Tree_Med', modifier_name='Decimate', 
-                properties={'ratio': 0.5})
+object.duplicate(name="Tree_High", new_name="Tree_Med")
+modifier.add(object_name="Tree_Med", type="DECIMATE")
+modifier.update(object_name="Tree_Med", modifier_name="Decimate", properties={"ratio": 0.5})
 
 # Low detail
-object.duplicate(name='Tree_High', new_name='Tree_Low')
-modifier.add(object_name='Tree_Low', type='DECIMATE')
-modifier.update(object_name='Tree_Low', modifier_name='Decimate', 
-                properties={'ratio': 0.25})
+object.duplicate(name="Tree_High", new_name="Tree_Low")
+modifier.add(object_name="Tree_Low", type="DECIMATE")
+modifier.update(object_name="Tree_Low", modifier_name="Decimate", properties={"ratio": 0.25})
 ```
 
 ## Optimization Techniques

@@ -22,13 +22,14 @@ be called before the :class:`Operator.invoke` and after the operator finishes.
 Also see the
 :ref:`class construction and destruction section <info_overview_class_construction_destruction>`.
 """
+
 import bpy
 
 
 class ModalOperator(bpy.types.Operator):
     bl_idname = "object.modal_operator"
     bl_label = "Simple Modal Operator"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,20 +41,20 @@ class ModalOperator(bpy.types.Operator):
 
     def execute(self, context):
         context.object.location.x = self.value / 100.0
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     def modal(self, context, event):
-        if event.type == 'MOUSEMOVE':  # Apply.
+        if event.type == "MOUSEMOVE":  # Apply.
             self.value = event.mouse_x
             self.execute(context)
-        elif event.type == 'LEFTMOUSE':  # Confirm.
-            return {'FINISHED'}
-        elif event.type in {'RIGHTMOUSE', 'ESC'}:  # Cancel.
+        elif event.type == "LEFTMOUSE":  # Confirm.
+            return {"FINISHED"}
+        elif event.type in {"RIGHTMOUSE", "ESC"}:  # Cancel.
             # Revert all changes that have been made
             context.object.location.x = self.init_loc_x
-            return {'CANCELLED'}
+            return {"CANCELLED"}
 
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
     def invoke(self, context, event):
         self.init_loc_x = context.object.location.x
@@ -61,7 +62,7 @@ class ModalOperator(bpy.types.Operator):
         self.execute(context)
 
         context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
 
 # Only needed if you want to add into a dynamic menu.
@@ -74,4 +75,4 @@ bpy.utils.register_class(ModalOperator)
 bpy.types.VIEW3D_MT_object.append(menu_func)
 
 # Test call.
-bpy.ops.object.modal_operator('INVOKE_DEFAULT')
+bpy.ops.object.modal_operator("INVOKE_DEFAULT")

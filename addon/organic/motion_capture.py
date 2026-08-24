@@ -3,11 +3,10 @@ blender-mcp — Motion Capture System
 Sistema de captura de movimiento básico.
 Inspirado en BlendArMocap.
 """
-import bpy
-import math
-import json
-from mathutils import Vector, Quaternion
 
+import math
+
+import bpy
 
 # ═══════════════════════════════════════════════════════════════
 # MOTION DATA
@@ -110,44 +109,45 @@ MOTION_PRESETS = {
 # MOTION CAPTURE
 # ═══════════════════════════════════════════════════════════════
 
+
 def apply_motion_preset(arm_obj, preset_name):
     """
     Aplicar preset de movimiento a un esqueleto.
-    
+
     Args:
         arm_obj: Objeto armature
         preset_name: Nombre del preset
-    
+
     Returns:
         bool: True si fue exitoso
     """
     if preset_name not in MOTION_PRESETS:
         print(f"Preset no encontrado: {preset_name}")
         return False
-    
+
     preset = MOTION_PRESETS[preset_name]
-    
+
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='POSE')
-    
+    bpy.ops.object.mode_set(mode="POSE")
+
     for bone_name, keyframes in preset["bones"].items():
         bone = arm_obj.pose.bones.get(bone_name)
         if not bone:
             print(f"Hueso no encontrado: {bone_name}")
             continue
-        
-        bone.rotation_mode = 'XYZ'
-        
+
+        bone.rotation_mode = "XYZ"
+
         for kf in keyframes:
             bone.rotation_euler = kf["rotation"]
             bone.keyframe_insert("rotation_euler", frame=kf["frame"])
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
     # Configurar frame range
     bpy.context.scene.frame_start = 1
     bpy.context.scene.frame_end = preset["frames"]
-    
+
     print(f"Preset aplicado: {preset_name} ({preset['frames']} frames)")
     return True
 
@@ -155,23 +155,23 @@ def apply_motion_preset(arm_obj, preset_name):
 def record_motion(arm_obj, frames=100, fps=24):
     """
     Grabar movimiento desde la pose actual.
-    
+
     Args:
         arm_obj: Objeto armature
         frames: Número de frames a grabar
         fps: Frames por segundo
-    
+
     Returns:
         dict con datos grabados
     """
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='POSE')
-    
+    bpy.ops.object.mode_set(mode="POSE")
+
     recorded = {}
-    
+
     for frame in range(1, frames + 1):
         bpy.context.scene.frame_set(frame)
-        
+
         frame_data = {}
         for bone in arm_obj.pose.bones:
             frame_data[bone.name] = {
@@ -179,11 +179,11 @@ def record_motion(arm_obj, frames=100, fps=24):
                 "rotation": list(bone.rotation_euler),
                 "scale": list(bone.scale),
             }
-        
+
         recorded[frame] = frame_data
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
     print(f"Movimiento grabado: {frames} frames")
     return recorded
 
@@ -191,14 +191,14 @@ def record_motion(arm_obj, frames=100, fps=24):
 def playback_motion(arm_obj, motion_data):
     """
     Reproducir movimiento grabado.
-    
+
     Args:
         arm_obj: Objeto armature
         motion_data: Datos de movimiento grabados
     """
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='POSE')
-    
+    bpy.ops.object.mode_set(mode="POSE")
+
     for frame, frame_data in motion_data.items():
         for bone_name, bone_data in frame_data.items():
             bone = arm_obj.pose.bones.get(bone_name)
@@ -209,19 +209,20 @@ def playback_motion(arm_obj, motion_data):
                 bone.keyframe_insert("location", frame=frame)
                 bone.keyframe_insert("rotation_euler", frame=frame)
                 bone.keyframe_insert("scale", frame=frame)
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
     # Configurar frame range
     bpy.context.scene.frame_start = 1
     bpy.context.scene.frame_end = max(motion_data.keys())
-    
+
     print(f"Movimiento reproducido: {len(motion_data)} frames")
 
 
 # ═══════════════════════════════════════════════════════════════
 # UTILIDADES
 # ═══════════════════════════════════════════════════════════════
+
 
 def list_motion_presets():
     """Listar presets de movimiento disponibles"""
@@ -232,7 +233,7 @@ def get_motion_info(preset_name):
     """Obtener información de un preset"""
     if preset_name not in MOTION_PRESETS:
         return None
-    
+
     preset = MOTION_PRESETS[preset_name]
     return {
         "name": preset_name,

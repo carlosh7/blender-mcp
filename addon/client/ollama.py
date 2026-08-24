@@ -2,9 +2,11 @@
 blender-mcp — Ollama Provider (local LLM)
 Runs fully offline using local models via Ollama API.
 """
+
 import json
-import urllib.request
 import logging
+import urllib.request
+
 from . import MCPClientBase
 
 logger = logging.getLogger("blender-mcp-ollama")
@@ -20,6 +22,7 @@ class MCPClientOllama(MCPClientBase):
 
     def __init__(self, server_url=None):
         import os
+
         self.api_base = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
         super().__init__(server_url)
 
@@ -32,7 +35,7 @@ class MCPClientOllama(MCPClientBase):
         for msg in messages:
             role = msg.get("role", "user")
             content = msg.get("content", "")
-            tool_calls = msg.get("tool_calls")
+            msg.get("tool_calls")
             if role == "tool":
                 role = "tool"
             ollama_messages.append({"role": role, "content": content})

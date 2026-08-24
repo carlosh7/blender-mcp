@@ -26,14 +26,15 @@ class CustomHydraRenderEngine(bpy.types.HydraRenderEngine):
         bpy.utils.expose_bundled_modules()
 
         import pxr.Plug
-        pxr.Plug.Registry().RegisterPlugins(['/path/to/plugin'])
+
+        pxr.Plug.Registry().RegisterPlugins(["/path/to/plugin"])
 
     # Render settings that will be passed to the delegate.
     def get_render_settings(self, engine_type):
         return {
-            'myBoolean': True,
-            'myValue': 8,
-            'aovToken:Depth': "depth",
+            "myBoolean": True,
+            "myValue": 8,
+            "aovToken:Depth": "depth",
         }
 
     # RenderEngine methods for update, render and draw are implemented in
@@ -45,7 +46,7 @@ class CustomHydraRenderEngine(bpy.types.HydraRenderEngine):
 
     def update_render_passes(self, scene, render_layer):
         if render_layer.use_pass_z:
-            self.register_pass(scene, render_layer, 'Depth', 1, 'Z', 'VALUE')
+            self.register_pass(scene, render_layer, "Depth", 1, "Z", "VALUE")
 
 
 # Registration.

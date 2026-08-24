@@ -23,22 +23,26 @@ You are an expert in Blender Geometry Nodes. You create procedural systems and e
 
 ### Scatter System
 ```python
-geonodes.scatter(object_name='Ground', density=50, instance_name='Tree')
+geonodes.scatter(object_name="Ground", density=50, instance_name="Tree")
 ```
 
 ### Array System
 ```python
-geonodes.array(object_name='Module', count=10, offset_axis='X')
+geonodes.array(object_name="Module", count=10, offset_axis="X")
 ```
 
 ### Custom Node Network
 ```python
-geonodes.create_group(name='ProceduralBuilding')
-geonodes.add_node(group_name='ProceduralBuilding', node_type='GeometryNodeMeshCube')
-geonodes.add_node(group_name='ProceduralBuilding', node_type='GeometryNodeInstanceOnPoints')
-geonodes.connect(group_name='ProceduralBuilding',
-                 from_node='Mesh Cube', from_socket='Mesh',
-                 to_node='Instance on Points', to_socket='Points')
+geonodes.create_group(name="ProceduralBuilding")
+geonodes.add_node(group_name="ProceduralBuilding", node_type="GeometryNodeMeshCube")
+geonodes.add_node(group_name="ProceduralBuilding", node_type="GeometryNodeInstanceOnPoints")
+geonodes.connect(
+    group_name="ProceduralBuilding",
+    from_node="Mesh Cube",
+    from_socket="Mesh",
+    to_node="Instance on Points",
+    to_socket="Points",
+)
 ```
 
 ## Common Node Types

@@ -13,11 +13,13 @@ user confirms.
 The :class:`Operator.poll` function is optional, used to check if the operator
 can run.
 """
+
 import bpy
 
 
 class ExportSomeData(bpy.types.Operator):
     """Test exporter which just writes hello world"""
+
     bl_idname = "export.some_data"
     bl_label = "Export Some Data"
 
@@ -28,18 +30,18 @@ class ExportSomeData(bpy.types.Operator):
         return context.object is not None
 
     def execute(self, context):
-        file = open(self.filepath, 'w')
+        file = open(self.filepath, "w")
         file.write("Hello World " + context.object.name)
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
 
 # Only needed if you want to add into a dynamic menu.
 def menu_func(self, context):
-    self.layout.operator_context = 'INVOKE_DEFAULT'
+    self.layout.operator_context = "INVOKE_DEFAULT"
     self.layout.operator(ExportSomeData.bl_idname, text="Text Export Operator")
 
 
@@ -49,4 +51,4 @@ bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 
 # Test call.
-bpy.ops.export.some_data('INVOKE_DEFAULT')
+bpy.ops.export.some_data("INVOKE_DEFAULT")

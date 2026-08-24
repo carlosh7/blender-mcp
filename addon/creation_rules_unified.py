@@ -5,6 +5,7 @@ Single source of truth: src/tools/objects/creation_rules.py
 This module imports everything from src/tools/objects/creation_rules.py
 addon/ files should import from this module instead of duplicating code.
 """
+
 import sys
 from pathlib import Path
 
@@ -17,20 +18,21 @@ if str(_src_path) not in sys.path:
 try:
     from tools.objects.creation_rules import *
     from tools.objects.creation_rules import (
-        STANDARD_OBJECTS,
         STANDARD_COLORS,
+        STANDARD_OBJECTS,
         create_collection,
         create_object,
         get_collection_hierarchy,
         validate_connection,
         verify_connection,
     )
+
     _source = "src/tools/objects/creation_rules.py"
 except ImportError as e:
     # Fallback: inline copy if src/ not available
     print(f"[creation_rules] Warning: Could not import from src/, using inline copy: {e}")
     _source = "inline"
-    
+
     # This will be the fallback - copy the essential parts here
     # In production, this should never be needed
     raise ImportError(
@@ -45,12 +47,12 @@ def get_source():
 
 
 __all__ = [
-    'STANDARD_OBJECTS',
-    'STANDARD_COLORS',
-    'create_collection',
-    'create_object',
-    'get_collection_hierarchy',
-    'validate_connection',
-    'verify_connection',
-    'get_source',
+    "STANDARD_OBJECTS",
+    "STANDARD_COLORS",
+    "create_collection",
+    "create_object",
+    "get_collection_hierarchy",
+    "validate_connection",
+    "verify_connection",
+    "get_source",
 ]

@@ -2,6 +2,7 @@
 blender-mcp — Tool Cache
 Caches expensive tool results (get_scene_info, etc.) to avoid redundant Blender socket round-trips.
 """
+
 import time
 
 CACHE_TTL = 2.0  # seconds

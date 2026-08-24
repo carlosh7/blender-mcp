@@ -2,8 +2,9 @@
 blender-mcp — Perception Helper
 Helper que fuerza el flujo de percepción para cualquier agente.
 """
-import socket
+
 import json
+import socket
 import time
 
 
@@ -11,29 +12,29 @@ def send_command(code, timeout=25):
     """Ejecutar código en Blender"""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + timeout - 5
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r:
+                if b"\n" in r:
                     break
-        except:
+        except Exception:
             continue
     s.close()
     if r:
         data = json.loads(r.decode().strip())
-        return data.get('result', {})
+        return data.get("result", {})
     return {}
 
 
 def analyze_scene():
     """Analizar escena actual"""
-    return send_command('''
+    return send_command("""
 import bpy
 objects = bpy.data.objects
 meshes = [o for o in objects if o.type == "MESH"]
@@ -47,7 +48,7 @@ result = {
     "quality": quality,
 }
 print(f"Scene: {result}")
-''')
+""")
 
 
 def validate_object(obj_name):
@@ -82,7 +83,7 @@ print(f"Screenshot: {filepath}")
 
 def get_scene_info():
     """Obtener info de escena"""
-    return send_command('''
+    return send_command("""
 import bpy
 result = {
     "objects": len(bpy.data.objects),
@@ -90,7 +91,7 @@ result = {
     "materials": len(bpy.data.materials),
 }
 print(f"Scene: {result}")
-''')
+""")
 
 
 def before_create():
@@ -103,7 +104,7 @@ def before_create():
 def after_create(obj_name):
     """DESPUÉS de crear: validar"""
     print(f"\nAFTER CREATE: {obj_name}")
-    validation = validate_object(obj_name)
+    validate_object(obj_name)
     take_screenshot(f"/tmp/after_{obj_name}.png")
 
 
@@ -120,5 +121,5 @@ if child and parent:
     child_min = Vector((min(v[i] for v in child_bb) for i in range(3)))
     parent_max = Vector((max(v[i] for v in parent_bb) for i in range(3)))
     distance = (child_min - parent_max).length
-    print(f"Connection: {obj_name} to {parent_name} = {distance:.4f}m")
+    print(f"Connection: {obj_name} to {parent_name} = {{distance:.4f}}m")
 ''')

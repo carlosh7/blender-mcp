@@ -3,6 +3,7 @@ blender-mcp — AKB Auto-Feeder
 Busca objetos en Poly Haven (gratis, sin API key) y Sketchfarm,
 extrae dimensiones reales, y guarda como Blueprint JSON v0.4.0.
 """
+
 import json
 import os
 import sys
@@ -21,9 +22,11 @@ DEFAULT_CATEGORIES = {
 
 def _get_polyhaven_model_dimensions(asset_id):
     """Descarga un modelo de Poly Haven y extrae sus dimensiones reales."""
-    import bpy
     import shutil
     import urllib.request
+
+    import bpy
+
     sys.path.insert(0, str(Path(__file__).parent / "handlers"))
     from polyhaven import _api_get
 
@@ -86,30 +89,32 @@ def _get_polyhaven_model_dimensions(asset_id):
 
 def _search_polyhaven_models(query):
     """Busca modelos gratuitos en Poly Haven."""
-    import urllib.request, json
-    url = f"https://api.polyhaven.com/assets?type=models"
+    import urllib.request
+
+    url = "https://api.polyhaven.com/assets?type=models"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "blender-mcp/0.8"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
-    except:
+    except Exception:
         return []
 
     results = []
     for aid, info in data.items():
         if query.lower() in aid.lower():
-            results.append({
-                "id": aid,
-                "name": aid.replace("_", " ").title(),
-                "type": info.get("type", "model"),
-                "source": "polyhaven",
-            })
+            results.append(
+                {
+                    "id": aid,
+                    "name": aid.replace("_", " ").title(),
+                    "type": info.get("type", "model"),
+                    "source": "polyhaven",
+                }
+            )
     return results[:10]
 
 
 def feed_from_polyhaven(category, keywords=None):
     """Busca modelos en Poly Haven (gratis), descarga, extrae dimensiones, guarda blueprint."""
-    import bpy
     sys.path.insert(0, str(Path(__file__).parent))
     from akb import save_blueprint
 
@@ -147,6 +152,7 @@ def feed_from_polyhaven(category, keywords=None):
 def feed_from_scanner(obj_name):
     """Escanea un objeto existente y lo guarda como blueprint."""
     import bpy
+
     sys.path.insert(0, str(Path(__file__).parent))
     from akb import save_blueprint
 

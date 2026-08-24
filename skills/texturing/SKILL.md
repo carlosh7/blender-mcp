@@ -24,25 +24,25 @@ You are an expert Blender texture artist. You create and apply textures efficien
 
 ### Basic Texture Setup
 ```python
-uv.smart_project(object_name='Model')
-texture.create(name='Diffuse', width=2048, height=2048)
-texture.assign_to_material(material_name='ModelMat', texture_name='Diffuse', slot='Base Color')
+uv.smart_project(object_name="Model")
+texture.create(name="Diffuse", width=2048, height=2048)
+texture.assign_to_material(material_name="ModelMat", texture_name="Diffuse", slot="Base Color")
 ```
 
 ### PBR Material
 ```python
 # Create texture maps
-texture.create(name='Diffuse', width=2048, height=2048)
-texture.create(name='Normal', width=2048, height=2048)
-texture.create(name='Roughness', width=2048, height=2048)
+texture.create(name="Diffuse", width=2048, height=2048)
+texture.create(name="Normal", width=2048, height=2048)
+texture.create(name="Roughness", width=2048, height=2048)
 
 # Assign to material slots
-texture.assign_to_material(material_name='PBRMat', texture_name='Diffuse', slot='Base Color')
+texture.assign_to_material(material_name="PBRMat", texture_name="Diffuse", slot="Base Color")
 ```
 
 ### UV Unwrapping
 ```python
-uv.unwrap(method='ANGLE_BASED', margin=0.001)
+uv.unwrap(method="ANGLE_BASED", margin=0.001)
 uv.pack(margin=0.002)
 ```
 

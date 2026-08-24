@@ -2,26 +2,26 @@
 blender-mcp — Rig Engine
 Motor de rigging: Armature, IK/FK, Constraints, Shape Keys, Auto-rig.
 """
+
 try:
     import bpy
 except ImportError:
     bpy = None
-import math
-from mathutils import Vector, Quaternion
-
+from mathutils import Vector
 
 # ═══════════════════════════════════════════════════════════════
 # CREACIÓN DE ESQUELETOS
 # ═══════════════════════════════════════════════════════════════
 
+
 def create_armature(name="Armature", location=(0, 0, 0)):
     """
     Crear esqueleto básico.
-    
+
     Args:
         name: Nombre del esqueleto
         location: Posición inicial
-    
+
     Returns:
         Objeto armature
     """
@@ -30,35 +30,35 @@ def create_armature(name="Armature", location=(0, 0, 0)):
     bpy.context.collection.objects.link(arm_obj)
     bpy.context.view_layer.objects.active = arm_obj
     arm_obj.select_set(True)
-    
+
     return arm_obj
 
 
 def add_bone(arm_obj, name, head, tail, parent=None):
     """
     Agregar hueso a un esqueleto.
-    
+
     Args:
         arm_obj: Objeto armature
         name: Nombre del hueso
         head: Posición inicial (Vector)
         tail: Posición final (Vector)
         parent: Hueso padre (opcional)
-    
+
     Returns:
         Hueso creado
     """
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='EDIT')
-    
+    bpy.ops.object.mode_set(mode="EDIT")
+
     bone = arm_obj.data.edit_bones.new(name)
     bone.head = head
     bone.tail = tail
-    
+
     if parent:
         bone.parent = parent
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
+
+    bpy.ops.object.mode_set(mode="OBJECT")
     return bone
 
 
@@ -86,7 +86,7 @@ HUMANOID_RIG = {
         "UpperLeg_R": {"head": (-0.1, 0, 0), "tail": (-0.1, 0, -0.4), "parent": "Root"},
         "LowerLeg_R": {"head": (-0.1, 0, -0.4), "tail": (-0.1, 0, -0.8), "parent": "UpperLeg_R"},
         "Foot_R": {"head": (-0.1, 0, -0.8), "tail": (-0.1, 0.1, -0.85), "parent": "LowerLeg_R"},
-    }
+    },
 }
 
 QUADRUPED_RIG = {
@@ -98,19 +98,47 @@ QUADRUPED_RIG = {
         "Neck": {"head": (0, 0, 0.5), "tail": (0, 0.2, 0.65), "parent": "Chest"},
         "Head": {"head": (0, 0.2, 0.65), "tail": (0, 0.35, 0.6), "parent": "Neck"},
         "UpperLeg_FL": {"head": (0.15, 0.2, 0.4), "tail": (0.15, 0.2, 0.1), "parent": "Chest"},
-        "LowerLeg_FL": {"head": (0.15, 0.2, 0.1), "tail": (0.15, 0.2, -0.2), "parent": "UpperLeg_FL"},
+        "LowerLeg_FL": {
+            "head": (0.15, 0.2, 0.1),
+            "tail": (0.15, 0.2, -0.2),
+            "parent": "UpperLeg_FL",
+        },
         "Paw_FL": {"head": (0.15, 0.2, -0.2), "tail": (0.15, 0.25, -0.25), "parent": "LowerLeg_FL"},
         "UpperLeg_FR": {"head": (-0.15, 0.2, 0.4), "tail": (-0.15, 0.2, 0.1), "parent": "Chest"},
-        "LowerLeg_FR": {"head": (-0.15, 0.2, 0.1), "tail": (-0.15, 0.2, -0.2), "parent": "UpperLeg_FR"},
-        "Paw_FR": {"head": (-0.15, 0.2, -0.2), "tail": (-0.15, 0.25, -0.25), "parent": "LowerLeg_FR"},
+        "LowerLeg_FR": {
+            "head": (-0.15, 0.2, 0.1),
+            "tail": (-0.15, 0.2, -0.2),
+            "parent": "UpperLeg_FR",
+        },
+        "Paw_FR": {
+            "head": (-0.15, 0.2, -0.2),
+            "tail": (-0.15, 0.25, -0.25),
+            "parent": "LowerLeg_FR",
+        },
         "UpperLeg_BL": {"head": (0.15, -0.3, 0.3), "tail": (0.15, -0.3, 0.0), "parent": "Spine"},
-        "LowerLeg_BL": {"head": (0.15, -0.3, 0.0), "tail": (0.15, -0.3, -0.25), "parent": "UpperLeg_BL"},
-        "Paw_BL": {"head": (0.15, -0.3, -0.25), "tail": (0.15, -0.25, -0.3), "parent": "LowerLeg_BL"},
+        "LowerLeg_BL": {
+            "head": (0.15, -0.3, 0.0),
+            "tail": (0.15, -0.3, -0.25),
+            "parent": "UpperLeg_BL",
+        },
+        "Paw_BL": {
+            "head": (0.15, -0.3, -0.25),
+            "tail": (0.15, -0.25, -0.3),
+            "parent": "LowerLeg_BL",
+        },
         "UpperLeg_BR": {"head": (-0.15, -0.3, 0.3), "tail": (-0.15, -0.3, 0.0), "parent": "Spine"},
-        "LowerLeg_BR": {"head": (-0.15, -0.3, 0.0), "tail": (-0.15, -0.3, -0.25), "parent": "UpperLeg_BR"},
-        "Paw_BR": {"head": (-0.15, -0.3, -0.25), "tail": (-0.15, -0.25, -0.3), "parent": "LowerLeg_BR"},
+        "LowerLeg_BR": {
+            "head": (-0.15, -0.3, 0.0),
+            "tail": (-0.15, -0.3, -0.25),
+            "parent": "UpperLeg_BR",
+        },
+        "Paw_BR": {
+            "head": (-0.15, -0.3, -0.25),
+            "tail": (-0.15, -0.25, -0.3),
+            "parent": "LowerLeg_BR",
+        },
         "Tail": {"head": (0, -0.35, 0.35), "tail": (0, -0.55, 0.4), "parent": "Spine"},
-    }
+    },
 }
 
 
@@ -127,23 +155,23 @@ def create_quadruped_rig(name="QuadrupedRig", location=(0, 0, 0)):
 def _create_rig_from_template(template, name, location):
     """Crear rig desde plantilla"""
     arm_obj = create_armature(name, location)
-    
+
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='EDIT')
-    
+    bpy.ops.object.mode_set(mode="EDIT")
+
     bone_map = {}
     for bone_name, bone_data in template["bones"].items():
         bone = arm_obj.data.edit_bones.new(bone_name)
         bone.head = Vector(bone_data["head"])
         bone.tail = Vector(bone_data["tail"])
-        
+
         if "parent" in bone_data and bone_data["parent"] in bone_map:
             bone.parent = bone_map[bone_data["parent"]]
-        
+
         bone_map[bone_name] = bone
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
     print(f"Rig creado: {name} ({len(template['bones'])} huesos)")
     return arm_obj
 
@@ -152,10 +180,11 @@ def _create_rig_from_template(template, name, location):
 # IK/FK
 # ═══════════════════════════════════════════════════════════════
 
+
 def add_ik_constraint(arm_obj, bone_name, target_name=None, chain_length=0):
     """
     Agregar constraint IK a un hueso.
-    
+
     Args:
         arm_obj: Objeto armature
         bone_name: Nombre del hueso
@@ -163,22 +192,22 @@ def add_ik_constraint(arm_obj, bone_name, target_name=None, chain_length=0):
         chain_length: Longitud de la cadena (0 = hasta root)
     """
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='POSE')
-    
+    bpy.ops.object.mode_set(mode="POSE")
+
     bone = arm_obj.pose.bones.get(bone_name)
     if not bone:
         print(f"Hueso no encontrado: {bone_name}")
         return
-    
-    constraint = bone.constraints.new('IK')
+
+    constraint = bone.constraints.new("IK")
     constraint.chain_count = chain_length
-    
+
     if target_name:
         target_obj = bpy.data.objects.get(target_name)
         if target_obj:
             constraint.target = target_obj
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
+
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 
 def add_fk_constraint(arm_obj, bone_name, target_name):
@@ -186,30 +215,31 @@ def add_fk_constraint(arm_obj, bone_name, target_name):
     Agregar constraint FK (Copy Rotation) a un hueso.
     """
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='POSE')
-    
+    bpy.ops.object.mode_set(mode="POSE")
+
     bone = arm_obj.pose.bones.get(bone_name)
     if not bone:
         return
-    
-    constraint = bone.constraints.new('COPY_ROTATION')
-    
+
+    constraint = bone.constraints.new("COPY_ROTATION")
+
     if target_name:
         target_obj = bpy.data.objects.get(target_name)
         if target_obj:
             constraint.target = target_obj
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
+
+    bpy.ops.object.mode_set(mode="OBJECT")
 
 
 # ═══════════════════════════════════════════════════════════════
 # CONSTRAINTS
 # ═══════════════════════════════════════════════════════════════
 
+
 def add_constraint(arm_obj, bone_name, constraint_type, target_name=None):
     """
     Agregar constraint a un hueso.
-    
+
     Tipos disponibles:
     - COPY_LOCATION, COPY_ROTATION, COPY_SCALE
     - LIMIT_LOCATION, LIMIT_ROTATION, LIMIT_SCALE
@@ -217,36 +247,36 @@ def add_constraint(arm_obj, bone_name, constraint_type, target_name=None):
     - IK, SPLINE_IK
     """
     bpy.context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode='POSE')
-    
+    bpy.ops.object.mode_set(mode="POSE")
+
     bone = arm_obj.pose.bones.get(bone_name)
     if not bone:
         return None
-    
+
     constraint = bone.constraints.new(constraint_type)
-    
+
     if target_name:
         target_obj = bpy.data.objects.get(target_name)
         if target_obj:
             constraint.target = target_obj
-    
-    bpy.ops.object.mode_set(mode='OBJECT')
+
+    bpy.ops.object.mode_set(mode="OBJECT")
     return constraint
 
 
 def add_limit_constraint(arm_obj, bone_name, limit_type, min_val, max_val):
     """
     Agregar limit constraint.
-    
+
     Args:
         limit_type: 'LOCATION', 'ROTATION', 'SCALE'
         min_val: Valor mínimo (tupla xyz)
         max_val: Valor máximo (tupla xyz)
     """
-    constraint = add_constraint(arm_obj, bone_name, f'LIMIT_{limit_type}')
-    
+    constraint = add_constraint(arm_obj, bone_name, f"LIMIT_{limit_type}")
+
     if constraint:
-        if limit_type == 'LOCATION':
+        if limit_type == "LOCATION":
             constraint.use_min_x = True
             constraint.use_min_y = True
             constraint.use_min_z = True
@@ -255,13 +285,13 @@ def add_limit_constraint(arm_obj, bone_name, limit_type, min_val, max_val):
             constraint.use_max_z = True
             constraint.min_x, constraint.min_y, constraint.min_z = min_val
             constraint.max_x, constraint.max_y, constraint.max_z = max_val
-        elif limit_type == 'ROTATION':
+        elif limit_type == "ROTATION":
             constraint.use_limit_x = True
             constraint.use_limit_y = True
             constraint.use_limit_z = True
             constraint.min_x, constraint.min_y, constraint.min_z = min_val
             constraint.max_x, constraint.max_y, constraint.max_z = max_val
-    
+
     return constraint
 
 
@@ -269,67 +299,76 @@ def add_limit_constraint(arm_obj, bone_name, limit_type, min_val, max_val):
 # SHAPE KEYS
 # ═══════════════════════════════════════════════════════════════
 
+
 def add_shape_key(obj, name, vertex_positions=None):
     """
     Agregar shape key a un objeto.
-    
+
     Args:
         obj: Objeto mesh
         name: Nombre del shape key
         vertex_positions: Posiciones de vértices (opcional)
-    
+
     Returns:
         Shape key creado
     """
-    if obj.type != 'MESH':
+    if obj.type != "MESH":
         return None
-    
+
     # Crear Basis si no existe
     if not obj.data.shape_keys:
-        obj.shape_key_add(name='Basis', from_mix=False)
-    
+        obj.shape_key_add(name="Basis", from_mix=False)
+
     # Crear shape key
     sk = obj.shape_key_add(name=name, from_mix=False)
-    
+
     if vertex_positions:
         for i, pos in enumerate(vertex_positions):
             if i < len(sk.data):
                 sk.data[i].co = pos
-    
+
     return sk
 
 
 FACE_SHAPE_KEYS = [
-    "Blink_L", "Blink_R",
-    "Smile_L", "Smile_R",
-    "Frown_L", "Frown_R",
-    "Mouth_Open", "Mouth_Close",
-    "Brow_Up_L", "Brow_Up_R",
-    "Brow_Down_L", "Brow_Down_R",
-    "Jaw_Open", "Jaw_Close",
-    "Nose_Scrunch", "Nose_Flare",
+    "Blink_L",
+    "Blink_R",
+    "Smile_L",
+    "Smile_R",
+    "Frown_L",
+    "Frown_R",
+    "Mouth_Open",
+    "Mouth_Close",
+    "Brow_Up_L",
+    "Brow_Up_R",
+    "Brow_Down_L",
+    "Brow_Down_R",
+    "Jaw_Open",
+    "Jaw_Close",
+    "Nose_Scrunch",
+    "Nose_Flare",
 ]
 
 
 def create_facial_shape_keys(obj):
     """
     Crear shape keys faciales estándar (52 blendshapes).
-    
+
     Args:
         obj: Objeto mesh (cara)
-    
+
     Returns:
         Lista de shape keys creados
     """
-    if obj.type != 'MESH':
+    if obj.type != "MESH":
         return []
-    
+
     created = []
     for name in FACE_SHAPE_KEYS:
         sk = add_shape_key(obj, name)
         if sk:
             created.append(name)
-    
+
     print(f"Shape keys faciales creados: {len(created)}")
     return created
 
@@ -338,24 +377,25 @@ def create_facial_shape_keys(obj):
 # WEIGHT PAINTING
 # ═══════════════════════════════════════════════════════════════
 
+
 def automatic_weights(obj, arm_obj):
     """
     Asignar pesos automáticamente.
-    
+
     Args:
         obj: Objeto mesh
         arm_obj: Objeto armature
-    
+
     Returns:
         True si fue exitoso
     """
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     arm_obj.select_set(True)
     bpy.context.view_layer.objects.active = arm_obj
-    
+
     try:
-        bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+        bpy.ops.object.parent_set(type="ARMATURE_AUTO")
         print(f"Pesos automáticos asignados: {obj.name} → {arm_obj.name}")
         return True
     except Exception as e:
@@ -367,14 +407,15 @@ def automatic_weights(obj, arm_obj):
 # AUTO-RIG
 # ═══════════════════════════════════════════════════════════════
 
+
 def auto_rig_character(mesh_obj, rig_type="humanoid"):
     """
     Auto-rig un personaje.
-    
+
     Args:
         mesh_obj: Objeto mesh del personaje
         rig_type: Tipo de rig ('humanoid', 'quadruped')
-    
+
     Returns:
         Tupla (arm_obj, mesh_obj) con rig aplicado
     """
@@ -385,10 +426,10 @@ def auto_rig_character(mesh_obj, rig_type="humanoid"):
         arm_obj = create_quadruped_rig("AutoRig", mesh_obj.location)
     else:
         raise ValueError(f"Tipo de rig no soportado: {rig_type}")
-    
+
     # Asignar pesos automáticos
     automatic_weights(mesh_obj, arm_obj)
-    
+
     print(f"Auto-rig completado: {mesh_obj.name} → {arm_obj.name}")
     return arm_obj, mesh_obj
 
@@ -397,17 +438,20 @@ def auto_rig_character(mesh_obj, rig_type="humanoid"):
 # UTILIDADES
 # ═══════════════════════════════════════════════════════════════
 
+
 def get_bone_info(arm_obj):
     """Obtener información de todos los huesos"""
     info = []
     for bone in arm_obj.data.bones:
-        info.append({
-            "name": bone.name,
-            "head": tuple(bone.head_local),
-            "tail": tuple(bone.tail_local),
-            "parent": bone.parent.name if bone.parent else None,
-            "children": [c.name for c in bone.children]
-        })
+        info.append(
+            {
+                "name": bone.name,
+                "head": tuple(bone.head_local),
+                "tail": tuple(bone.tail_local),
+                "parent": bone.parent.name if bone.parent else None,
+                "children": [c.name for c in bone.children],
+            }
+        )
     return info
 
 
@@ -422,13 +466,13 @@ def list_rig_types():
 def validate_rig(arm_obj):
     """Validar que un rig esté correctamente configurado"""
     issues = []
-    
+
     for bone in arm_obj.data.bones:
         # Verificar que huesos tengan longitud
         length = (Vector(bone.tail_local) - Vector(bone.head_local)).length
         if length < 0.001:
             issues.append(f"Hueso {bone.name} tiene longitud cero")
-        
+
         # Verificar que no haya ciclos
         if bone.parent:
             parent = bone.parent
@@ -439,5 +483,5 @@ def validate_rig(arm_obj):
                     break
                 parent = parent.parent
                 depth += 1
-    
+
     return {"valid": len(issues) == 0, "issues": issues}

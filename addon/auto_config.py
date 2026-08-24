@@ -10,13 +10,13 @@ Clientes soportados:
 
 NO toca opencode.json principal (para no romper proveedores/modelos).
 """
-import bpy
-import os
+
 import json
+import os
 import sys
 from pathlib import Path
 
-from .platform_utils import _is_windows, _is_mac
+from .platform_utils import _is_mac, _is_windows
 
 
 def start():
@@ -72,7 +72,7 @@ def _config_opencode():
     if path.exists():
         try:
             data = json.loads(path.read_text())
-        except:
+        except Exception:
             pass
     if not isinstance(data, dict):
         data = {}
@@ -103,7 +103,7 @@ def _config_claude():
     if path.exists():
         try:
             data = json.loads(path.read_text())
-        except:
+        except Exception:
             pass
     data.setdefault("mcpServers", {})
     data["mcpServers"]["blender"] = {
@@ -123,7 +123,7 @@ def _config_cursor():
     if path.exists():
         try:
             data = json.loads(path.read_text())
-        except:
+        except Exception:
             pass
     data.setdefault("mcpServers", {})
     data["mcpServers"]["blender"] = {

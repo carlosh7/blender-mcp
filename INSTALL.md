@@ -90,8 +90,8 @@ import socket, json
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.settimeout(5)
-sock.connect(('localhost', 9876))
-sock.send(json.dumps({'command': 'ping', 'params': {}}).encode() + b'\n')
+sock.connect(("localhost", 9876))
+sock.send(json.dumps({"command": "ping", "params": {}}).encode() + b"\n")
 response = sock.recv(4096).decode()
 print(response)
 # → {"status": "success", "result": {"pong": true, "time": ...}}
@@ -103,33 +103,40 @@ sock.close()
 ```python
 import socket, json, time
 
+
 def send_command(cmd, params=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(30)
-    sock.connect(('localhost', 9876))
-    payload = json.dumps({'command': cmd, 'params': params or {}}) + '\n'
+    sock.connect(("localhost", 9876))
+    payload = json.dumps({"command": cmd, "params": params or {}}) + "\n"
     sock.send(payload.encode())
-    response = b''
+    response = b""
     deadline = time.time() + 25
     while time.time() < deadline:
         try:
             chunk = sock.recv(65536)
             if chunk:
                 response += chunk
-                if b'\n' in response:
+                if b"\n" in response:
                     break
         except socket.timeout:
             continue
     sock.close()
     data = json.loads(response.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
+
 
 # Crear un cubo
-result = send_command('execute_code', {'code': '''
+result = send_command(
+    "execute_code",
+    {
+        "code": """
 import bpy
 bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 1))
 print("Cubo creado")
-'''})
+"""
+    },
+)
 print(result)
 # → {'output': 'Cubo creado\n'}
 ```
@@ -143,25 +150,29 @@ print(result)
 ```python
 import socket, json, time
 
+
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r: break
-        except: continue
+                if b"\n" in r:
+                    break
+        except:
+            continue
     s.close()
-    return json.loads(r.decode().strip()).get('result', {})
+    return json.loads(r.decode().strip()).get("result", {})
+
 
 # Crear cubo rojo
-run('''
+run("""
 import bpy
 bpy.ops.mesh.primitive_cube_add(size=2, location=(-3, 0, 1))
 cube = bpy.context.active_object
@@ -171,10 +182,10 @@ mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.8
 mat.node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 0.3
 cube.data.materials.append(mat)
 print(f"Cubo: {cube.name}")
-''')
+""")
 
 # Crear esfera azul metálica
-run('''
+run("""
 import bpy
 bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 1))
 sphere = bpy.context.active_object
@@ -184,10 +195,10 @@ mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.0
 mat.node_tree.nodes["Principled BSDF"].inputs["Metallic"].default_value = 0.9
 sphere.data.materials.append(mat)
 print(f"Esfera: {sphere.name}")
-''')
+""")
 
 # Crear plano suelo
-run('''
+run("""
 import bpy
 bpy.ops.mesh.primitive_plane_add(size=20)
 plane = bpy.context.active_object
@@ -196,13 +207,13 @@ mat.use_nodes = True
 mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.3, 0.3, 0.3, 1)
 plane.data.materials.append(mat)
 print("Suelo creado")
-''')
+""")
 ```
 
 ### Ejemplo 2: Animación
 
 ```python
-run('''
+run("""
 import bpy, math
 
 # Configurar escena
@@ -226,13 +237,13 @@ cube.location = (-3, 0, 1)
 cube.keyframe_insert("location", frame=60)
 
 print("Animación creada: 60 frames")
-''')
+""")
 ```
 
 ### Ejemplo 3: Geometry Nodes (Scatter)
 
 ```python
-run('''
+run("""
 import bpy
 
 # Crear plano para scatter
@@ -277,13 +288,13 @@ links.new(oi.outputs["Geometry"], inst.inputs["Instance"])
 links.new(inst.outputs["Instances"], out.inputs[0])
 
 print(f"GeoNodes: {ng.name}")
-''')
+""")
 ```
 
 ### Ejemplo 4: Shader Nodes (Material Ladrillo)
 
 ```python
-run('''
+run("""
 import bpy
 
 # Crear pared
@@ -317,16 +328,16 @@ links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
 wall.data.materials.append(mat)
 print(f"Material ladrillo: {mat.name}")
-''')
+""")
 ```
 
 ### Ejemplo 5: Obtener info de la escena
 
 ```python
-result = send_command('get_scene_info')
+result = send_command("get_scene_info")
 print(f"Escena: {result['name']}")
 print(f"Objetos: {result['object_count']}")
-for obj in result['objects']:
+for obj in result["objects"]:
     print(f"  - {obj['name']} ({obj['type']})")
 ```
 

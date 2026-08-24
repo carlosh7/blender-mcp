@@ -1,34 +1,40 @@
 #!/usr/bin/env python3
 """blender-mcp — STRESS TEST: Escena Compleja 60+ objetos"""
-import socket, json, time, math
+
+import json
+import socket
+import time
 
 
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r: break
-        except: continue
+                if b"\n" in r:
+                    break
+        except Exception:
+            continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
 
 
 def phase(name):
-    print(f"\n{'='*60}\n{name}\n{'='*60}")
+    print(f"\n{'=' * 60}\n{name}\n{'=' * 60}")
 
 
 # FASE 1: CLEAN
 phase("FASE 1: CLEAN")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete()
@@ -36,11 +42,13 @@ for m in bpy.data.materials: bpy.data.materials.remove(m)
 for mesh in bpy.data.meshes: bpy.data.meshes.remove(mesh)
 s = bpy.context.scene; s.frame_start=1; s.frame_end=240; s.render.fps=30
 print("Clean: 240 frames @ 30fps")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 2: GRID 8x8
 phase("FASE 2: GRID 8x8 = 64 CUBOS")
-print(run('''
+print(
+    run("""
 import bpy, math
 colors = [
     (0.9,0.1,0.1,1),(0.1,0.8,0.1,1),(0.1,0.1,0.9,1),(0.9,0.9,0.1,1),
@@ -60,11 +68,13 @@ for x in range(8):
         o.data.materials.append(mats[(x+y)%8])
         o.scale = (1,1,(0.5+0.5*math.sin(x*0.5)*math.cos(y*0.5))*2)
 print("Grid: 64 tiles, 8 colors")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 3: SPHERES
 phase("FASE 3: SPECIAL SPHERES")
-print(run('''
+print(
+    run("""
 import bpy
 # Glass
 bpy.ops.mesh.primitive_uv_sphere_add(radius=1.5, location=(-6,6,1.5))
@@ -92,11 +102,13 @@ em.inputs["Color"].default_value=(0,1,0.5,1); em.inputs["Strength"].default_valu
 m3.node_tree.links.new(em.outputs["Emission"], m3.node_tree.nodes["Material Output"].inputs["Surface"])
 gl.data.materials.append(m3)
 print("Glass + Chrome + Glow spheres")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 4: TORUS + PILLARS
 phase("FASE 4: TORUS + 12 PILLARS")
-print(run('''
+print(
+    run("""
 import bpy, math
 bpy.ops.mesh.primitive_torus_add(major_radius=3, minor_radius=0.3, location=(0,-6,1))
 t = bpy.context.active_object; t.name = "Torus"
@@ -114,11 +126,13 @@ for i in range(12):
         math.sin(h*6.28)*0.5+0.5, math.sin((h+0.33)*6.28)*0.5+0.5, math.sin((h+0.66)*6.28)*0.5+0.5, 1)
     p.data.materials.append(pm)
 print("Torus + 12 rainbow pillars")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 5: ANIMATION
 phase("FASE 5: ANIMATION (240 frames)")
-print(run('''
+print(
+    run("""
 import bpy, math
 t = bpy.data.objects.get("Torus")
 if t:
@@ -137,11 +151,13 @@ if gl:
         em.inputs["Strength"].default_value = 2+8*math.sin(p*math.pi*8)
         em.keyframe_insert("inputs[2].default_value", frame=f)
 print("Glow: emission pulse")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 6: LIGHTS + CAMERA
 phase("FASE 6: LIGHTS + CAMERA")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.object.light_add(type="AREA", location=(8,-8,10))
 bpy.context.active_object.data.energy = 800; bpy.context.active_object.data.size = 6
@@ -158,11 +174,13 @@ bpy.context.scene.camera = cam
 bpy.context.scene.render.resolution_x = 1920
 bpy.context.scene.render.resolution_y = 1080
 print("4 lights + camera 1920x1080")
-''').get('output',''))
+""").get("output", "")
+)
 
 # FASE 7: GROUND + SCATTER
 phase("FASE 7: GROUND + SCATTER")
-print(run('''
+print(
+    run("""
 import bpy
 bpy.ops.mesh.primitive_plane_add(size=30, location=(0,2,0))
 g = bpy.context.active_object; g.name = "Ground"
@@ -189,11 +207,13 @@ links.new(dist.outputs["Points"], inst.inputs["Points"])
 links.new(oi.outputs["Geometry"], inst.inputs["Instance"])
 links.new(inst.outputs["Instances"], out.inputs[0])
 print("Ground 30x30 + Scatter 15 pts/m2")
-''').get('output',''))
+""").get("output", "")
+)
 
 # RESUMEN
 phase("RESUMEN FINAL")
-print(run('''
+print(
+    run("""
 import bpy
 s = bpy.context.scene
 types = {}
@@ -204,8 +224,9 @@ print(f"Materials: {len(bpy.data.materials)}")
 print(f"Meshes: {len(bpy.data.meshes)}")
 print(f"Node Groups: {len(bpy.data.node_groups)}")
 print(f"Frames: {s.frame_start}-{s.frame_end} @ {s.render.fps}fps")
-''').get('output',''))
+""").get("output", "")
+)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("STRESS TEST COMPLETADO")
-print("="*60)
+print("=" * 60)

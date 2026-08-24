@@ -5,17 +5,17 @@ Carga dinámica de herramientas MCP para reducir tokens.
 Problema: Registrar 118 herramientas simultáneamente consume miles de tokens.
 Solución: Cargar ~15 herramientas base y exponer avanzadas bajo demanda.
 """
-from typing import Dict, List, Set, Callable, Any
 
 
 # ═══════════════════════════════════════════════════════════════
 # TOOL REGISTRY
 # ═══════════════════════════════════════════════════════════════
 
+
 class ToolRegistry:
     """
     Registro de herramientas MCP con carga lazy.
-    
+
     Categorías:
     - core: Siempre cargadas (15 herramientas base)
     - modeling: BMesh, primitivas avanzadas
@@ -28,7 +28,7 @@ class ToolRegistry:
     - physics: Simulación
     - ai: Text-to-3D, vision
     """
-    
+
     CORE_TOOLS = {
         "get_scene_info",
         "get_viewport_screenshot",
@@ -46,7 +46,7 @@ class ToolRegistry:
         "get_state",
         "create_collection",
     }
-    
+
     CATEGORY_TOOLS = {
         "modeling": {
             "create_primitive",
@@ -133,50 +133,50 @@ class ToolRegistry:
             "analyze_image",
         },
     }
-    
+
     def __init__(self):
-        self._loaded_categories: Set[str] = {"core"}
+        self._loaded_categories: set[str] = {"core"}
         self._all_tools = set(self.CORE_TOOLS)
         for cat, tools in self.CATEGORY_TOOLS.items():
             self._all_tools.update(tools)
-    
-    def get_loaded_tools(self) -> Set[str]:
+
+    def get_loaded_tools(self) -> set[str]:
         """Obtener herramientas actualmente cargadas."""
         tools = set(self.CORE_TOOLS)
         for cat in self._loaded_categories:
             if cat in self.CATEGORY_TOOLS:
                 tools.update(self.CATEGORY_TOOLS[cat])
         return tools
-    
+
     def load_category(self, category: str) -> bool:
         """
         Cargar categoría de herramientas.
-        
+
         Args:
             category: Nombre de la categoría
-        
+
         Returns:
             True si se cargó, False si no existe
         """
         if category not in self.CATEGORY_TOOLS:
             return False
-        
+
         self._loaded_categories.add(category)
         return True
-    
-    def load_categories(self, categories: List[str]) -> Dict[str, bool]:
+
+    def load_categories(self, categories: list[str]) -> dict[str, bool]:
         """
         Cargar múltiples categorías.
-        
+
         Args:
             categories: Lista de categorías
-        
+
         Returns:
             Dict con resultado por categoría
         """
         return {cat: self.load_category(cat) for cat in categories}
-    
-    def get_tool_count(self) -> Dict[str, int]:
+
+    def get_tool_count(self) -> dict[str, int]:
         """Obtener conteo de herramientas."""
         loaded = self.get_loaded_tools()
         total = len(self._all_tools)
@@ -186,28 +186,28 @@ class ToolRegistry:
             "categories_loaded": len(self._loaded_categories),
             "categories_total": len(self.CATEGORY_TOOLS),
         }
-    
+
     def is_tool_available(self, tool_name: str) -> bool:
         """Verificar si una herramienta está disponible."""
         return tool_name in self.get_loaded_tools()
-    
-    def get_missing_tools(self) -> Set[str]:
+
+    def get_missing_tools(self) -> set[str]:
         """Obtener herramientas no cargadas."""
         return self._all_tools - self.get_loaded_tools()
-    
-    def auto_load_for_task(self, task_description: str) -> List[str]:
+
+    def auto_load_for_task(self, task_description: str) -> list[str]:
         """
         Cargar automáticamente categorías según la tarea.
-        
+
         Args:
             task_description: Descripción de la tarea
-        
+
         Returns:
             Lista de categorías cargadas
         """
         task_lower = task_description.lower()
         loaded = []
-        
+
         keyword_map = {
             "modeling": ["model", "mesh", "create", "primitive", "boolean", "extrude"],
             "texturing": ["texture", "material", "pbr", "uv", "color"],
@@ -219,12 +219,12 @@ class ToolRegistry:
             "physics": ["physics", "rigid", "cloth", "fluid", "particle"],
             "ai": ["ai", "text to 3d", "image to 3d", "generate"],
         }
-        
+
         for category, keywords in keyword_map.items():
             if any(kw in task_lower for kw in keywords):
                 if self.load_category(category):
                     loaded.append(category)
-        
+
         return loaded
 
 
@@ -239,47 +239,52 @@ tool_registry = ToolRegistry()
 # TOOL LIST GENERATOR
 # ═══════════════════════════════════════════════════════════════
 
-def get_tool_list_for_llm() -> List[Dict[str, str]]:
+
+def get_tool_list_for_llm() -> list[dict[str, str]]:
     """
     Generar lista de herramientas formateada para el LLM.
-    
+
     Returns:
         Lista de dicts con name, description, category
     """
     tools = []
-    
+
     # Core tools
     for tool in sorted(ToolRegistry.CORE_TOOLS):
-        tools.append({
-            "name": tool,
-            "description": f"Core tool: {tool}",
-            "category": "core",
-        })
-    
+        tools.append(
+            {
+                "name": tool,
+                "description": f"Core tool: {tool}",
+                "category": "core",
+            }
+        )
+
     # Category tools
     for category in tool_registry._loaded_categories:
         if category in ToolRegistry.CATEGORY_TOOLS:
             for tool in sorted(ToolRegistry.CATEGORY_TOOLS[category]):
-                tools.append({
-                    "name": tool,
-                    "description": f"{category.title()} tool: {tool}",
-                    "category": category,
-                })
-    
+                tools.append(
+                    {
+                        "name": tool,
+                        "description": f"{category.title()} tool: {tool}",
+                        "category": category,
+                    }
+                )
+
     return tools
 
 
 def get_compact_tool_list() -> str:
     """
     Generar lista compacta de herramientas.
-    
+
     Returns:
         String con herramientas formateadas
     """
     tools = get_tool_list_for_llm()
-    
+
     lines = [f"Available tools ({len(tools)} total):"]
     for tool in tools:
         lines.append(f"  - {tool['name']} ({tool['category']})")
-    
+
     return "\n".join(lines)

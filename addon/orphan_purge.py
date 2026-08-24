@@ -5,19 +5,20 @@ Limpieza automática de datos huérfanos en RAM.
 Problema: Al crear/eliminar objetos, materiales y texturas quedan en memoria.
 Solución: Purga periódica y bajo demanda.
 """
-import bpy
-from typing import Dict, List, Optional
+
 from datetime import datetime
 
+import bpy
 
 # ═══════════════════════════════════════════════════════════════
 # ORPHAN DATA PURGE
 # ═══════════════════════════════════════════════════════════════
 
-def get_orphan_stats() -> Dict[str, int]:
+
+def get_orphan_stats() -> dict[str, int]:
     """
     Obtener estadísticas de datos huérfanos.
-    
+
     Returns:
         Dict con conteo por tipo de dato
     """
@@ -33,85 +34,83 @@ def get_orphan_stats() -> Dict[str, int]:
         "actions": 0,
         "total": 0,
     }
-    
+
     # Count meshes without users
     for mesh in bpy.data.meshes:
         if mesh.users == 0:
             stats["meshes"] += 1
-    
+
     # Count materials without users
     for mat in bpy.data.materials:
         if mat.users == 0:
             stats["materials"] += 1
-    
+
     # Count textures without users
     for tex in bpy.data.textures:
         if tex.users == 0:
             stats["textures"] += 1
-    
+
     # Count images without users
     for img in bpy.data.images:
         if img.users == 0:
             stats["images"] += 1
-    
+
     # Count cameras without users
     for cam in bpy.data.cameras:
         if cam.users == 0:
             stats["cameras"] += 1
-    
+
     # Count lights without users
     for light in bpy.data.lights:
         if light.users == 0:
             stats["lights"] += 1
-    
+
     # Count curves without users
     for curve in bpy.data.curves:
         if curve.users == 0:
             stats["curves"] += 1
-    
+
     # Count armatures without users
     for arm in bpy.data.armatures:
         if arm.users == 0:
             stats["armatures"] += 1
-    
+
     # Count actions without users
     for action in bpy.data.actions:
         if action.users == 0:
             stats["actions"] += 1
-    
+
     stats["total"] = sum(stats.values())
-    
+
     return stats
 
 
-def purge_orphans(do_local_ids: bool = True, 
-                  do_linked_ids: bool = True,
-                  do_recursive: bool = True) -> Dict[str, any]:
+def purge_orphans(
+    do_local_ids: bool = True, do_linked_ids: bool = True, do_recursive: bool = True
+) -> dict[str, any]:
     """
     Purgar todos los datos huérfanos.
-    
+
     Args:
         do_local_ids: Purgar IDs locales
         do_linked_ids: Purgar IDs linked
         do_recursive: Purgar recursivamente
-    
+
     Returns:
         Dict con resultado de la purga
     """
     # Get stats before purge
     stats_before = get_orphan_stats()
-    
+
     try:
         # Use Blender's built-in purge
         bpy.ops.outliner.orphans_purge(
-            do_local_ids=do_local_ids,
-            do_linked_ids=do_linked_ids,
-            do_recursive=do_recursive
+            do_local_ids=do_local_ids, do_linked_ids=do_linked_ids, do_recursive=do_recursive
         )
-        
+
         # Get stats after purge
         stats_after = get_orphan_stats()
-        
+
         # Calculate freed
         freed = {
             "meshes": stats_before["meshes"] - stats_after["meshes"],
@@ -125,7 +124,7 @@ def purge_orphans(do_local_ids: bool = True,
             "actions": stats_before["actions"] - stats_after["actions"],
         }
         freed["total"] = sum(freed.values())
-        
+
         return {
             "success": True,
             "before": stats_before,
@@ -133,7 +132,7 @@ def purge_orphans(do_local_ids: bool = True,
             "freed": freed,
             "timestamp": datetime.now().isoformat(),
         }
-        
+
     except Exception as e:
         return {
             "success": False,
@@ -183,22 +182,22 @@ def purge_images() -> int:
     return count
 
 
-def auto_purge_if_needed(threshold: int = 50) -> Optional[Dict]:
+def auto_purge_if_needed(threshold: int = 50) -> dict | None:
     """
     Purgar automáticamente si hay demasiados datos huérfanos.
-    
+
     Args:
         threshold: Umbral para activar purga automática
-    
+
     Returns:
         Dict con resultado o None si no se purgó
     """
     stats = get_orphan_stats()
-    
+
     if stats["total"] > threshold:
         print(f"[orphan_purge] Auto-purging {stats['total']} orphan blocks...")
         return purge_orphans()
-    
+
     return None
 
 
@@ -206,23 +205,26 @@ def auto_purge_if_needed(threshold: int = 50) -> Optional[Dict]:
 # MEMORY MONITOR
 # ═══════════════════════════════════════════════════════════════
 
-def get_memory_usage() -> Dict[str, any]:
+
+def get_memory_usage() -> dict[str, any]:
     """
     Obtener uso de memoria de Blender.
-    
+
     Returns:
         Dict con estadísticas de memoria
     """
     import sys
-    
+
     # Get Python memory usage
-    python_memory = sys.getsizeof(bpy.data.objects) + \
-                    sys.getsizeof(bpy.data.materials) + \
-                    sys.getsizeof(bpy.data.meshes)
-    
+    (
+        sys.getsizeof(bpy.data.objects)
+        + sys.getsizeof(bpy.data.materials)
+        + sys.getsizeof(bpy.data.meshes)
+    )
+
     # Get orphan stats
     orphans = get_orphan_stats()
-    
+
     return {
         "python_objects": len(bpy.data.objects),
         "python_materials": len(bpy.data.materials),
@@ -235,13 +237,13 @@ def get_memory_usage() -> Dict[str, any]:
 def get_memory_report() -> str:
     """
     Generar reporte legible de memoria.
-    
+
     Returns:
         String con reporte formateado
     """
     stats = get_orphan_stats()
     usage = get_memory_usage()
-    
+
     lines = [
         "=== MEMORY REPORT ===",
         f"Objects: {usage['python_objects']}",
@@ -261,5 +263,5 @@ def get_memory_report() -> str:
         f"  Actions: {stats['actions']}",
         "=======================",
     ]
-    
+
     return "\n".join(lines)

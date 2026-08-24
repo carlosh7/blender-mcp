@@ -15,16 +15,16 @@ def sysinfo_print():
     Report basic system information.
     """
 
-    import pprint
     import platform
+    import pprint
     import textwrap
 
     width = 80
     indent = 2
 
-    print("Blender {:s}".format(bpy.app.version_string))
-    print("Running on: {:s}-{:s}".format(platform.platform(), platform.machine()))
-    print("Processors: {!r}".format(os.cpu_count()))
+    print(f"Blender {bpy.app.version_string:s}")
+    print(f"Running on: {platform.platform():s}-{platform.machine():s}")
+    print(f"Processors: {os.cpu_count()!r}")
     print()
 
     # Dump `bpy.app`.

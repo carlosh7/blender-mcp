@@ -5,23 +5,75 @@ Implements TF-IDF ranking with section title and path boosting.
 
 Incluye timeout 2s con fallback a introspección de bpy.types.*
 """
+
+import glob
+import logging
+import math
 import os
 import re
-import math
-import glob
 import threading
-import logging
 
 logger = logging.getLogger("blender-mcp-rst")
 
-_STOPWORDS = frozenset({
-    "a", "an", "the", "is", "it", "in", "on", "of", "to", "for", "and",
-    "or", "but", "with", "as", "at", "by", "from", "so", "this", "that",
-    "are", "was", "be", "been", "have", "has", "had", "do", "does", "did",
-    "will", "would", "can", "could", "may", "might", "should", "about",
-    "into", "over", "such", "only", "than", "then", "also", "very", "just",
-    "how", "what", "when", "where", "which", "who", "why",
-})
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "is",
+        "it",
+        "in",
+        "on",
+        "of",
+        "to",
+        "for",
+        "and",
+        "or",
+        "but",
+        "with",
+        "as",
+        "at",
+        "by",
+        "from",
+        "so",
+        "this",
+        "that",
+        "are",
+        "was",
+        "be",
+        "been",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "can",
+        "could",
+        "may",
+        "might",
+        "should",
+        "about",
+        "into",
+        "over",
+        "such",
+        "only",
+        "than",
+        "then",
+        "also",
+        "very",
+        "just",
+        "how",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+    }
+)
 
 _TITLE_MATCH_WEIGHT = 15.0
 _PATH_MATCH_WEIGHT = 10.0
@@ -44,7 +96,12 @@ def _get_title(filepath):
     with open(filepath, errors="replace") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith("#") and not line.startswith("=") and not line.startswith("-"):
+            if (
+                line
+                and not line.startswith("#")
+                and not line.startswith("=")
+                and not line.startswith("-")
+            ):
                 return line[:120]
     return os.path.basename(filepath)
 
@@ -121,7 +178,10 @@ def _search(subdir, query, max_results=10):
             rel = os.path.relpath(fp, _DATA_DIR)
             scored.append((score, rel, _extract_snippet(content, query), title))
     scored.sort(key=lambda x: -x[0])
-    results = [{"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)} for r in scored[:max_results]]
+    results = [
+        {"file": r[1], "snippet": r[2], "title": r[3], "score": round(r[0], 2)}
+        for r in scored[:max_results]
+    ]
     return {"query": query, "results": results, "total": len(scored), "source": "rst"}
 
 
@@ -147,8 +207,10 @@ def _search_with_timeout(subdir, query, max_results=10, timeout=2.0):
 
 # ─── Fallback por introspección (0 MB, siempre disponible) ───
 
-def _introspect_ops(query):
+
+def _introspect_ops(query, max_results=10):
     import bpy
+
     tokens = _tokenize(query)
     if not tokens:
         return []
@@ -178,13 +240,21 @@ def _introspect_ops(query):
                     score += 2.0
             if score > 0:
                 snippet = _extract_snippet(doc, query, width=150)
-                results.append({"file": full_name, "snippet": snippet, "title": full_name, "score": round(score, 2)})
+                results.append(
+                    {
+                        "file": full_name,
+                        "snippet": snippet,
+                        "title": full_name,
+                        "score": round(score, 2),
+                    }
+                )
     results.sort(key=lambda x: -x["score"])
     return results[:max_results]
 
 
 def _introspect_topic(topic):
     import bpy
+
     parts = topic.replace("bpy.", "").split(".")
     obj = bpy
     chain = "bpy"
@@ -217,7 +287,7 @@ def search_api_docs(query, max_results=10):
     if result:
         _SEARCH_CACHE[query] = result
         return result
-    intro = _introspect_ops(query)
+    intro = _introspect_ops(query, max_results)
     result = {"query": query, "results": intro, "total": len(intro), "source": "introspect"}
     _SEARCH_CACHE[query] = result
     return result
@@ -240,7 +310,13 @@ def get_python_api_docs(topic):
             with open(fp, errors="replace") as f:
                 content = f.read()
             rel = os.path.relpath(fp, _DATA_DIR)
-            result = {"topic": topic, "file": rel, "title": _get_title(fp), "content": content[:8000], "source": "rst"}
+            result = {
+                "topic": topic,
+                "file": rel,
+                "title": _get_title(fp),
+                "content": content[:8000],
+                "source": "rst",
+            }
             _SEARCH_CACHE[f"doc:{topic}"] = result
             return result
     result = _introspect_topic(topic)

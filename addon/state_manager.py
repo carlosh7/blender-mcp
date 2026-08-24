@@ -4,14 +4,14 @@ Persistencia, backup, historial de acciones, anti-loop.
 
 Regla de oro: SIEMPRE guardar estado después de cada operación.
 """
-import bpy
+
 import json
 import os
-import time
 import shutil
 from datetime import datetime
 from pathlib import Path
 
+import bpy
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
@@ -53,24 +53,24 @@ def _ensure_dirs():
 def init_state(project_name=None):
     """
     Inicializar el estado del agente.
-    
+
     Args:
         project_name: Nombre del proyecto (opcional)
     """
     _ensure_dirs()
-    
+
     if project_name:
         _agent_state["project_name"] = project_name
-    
+
     _agent_state["session_start"] = datetime.now().isoformat()
     _agent_state["created_objects"] = []
     _agent_state["action_history"] = []
     _agent_state["attempts"] = {}
     _agent_state["total_actions"] = 0
-    
+
     # Tomar snapshot de la escena actual
     _agent_state["scene_snapshot"] = _take_snapshot()
-    
+
     _save_state()
     print(f"[state] Inicializado: {_agent_state['project_name']}")
 
@@ -89,15 +89,15 @@ def _save_state():
     """Guardar estado a archivo."""
     _ensure_dirs()
     _agent_state["last_save"] = datetime.now().isoformat()
-    
-    with open(STATE_FILE, 'w') as f:
+
+    with open(STATE_FILE, "w") as f:
         json.dump(_agent_state, f, indent=2)
 
 
 def load_state():
     """Cargar estado desde archivo."""
     if STATE_FILE.exists():
-        with open(STATE_FILE, 'r') as f:
+        with open(STATE_FILE) as f:
             loaded = json.load(f)
             _agent_state.update(loaded)
             print(f"[state] Cargado: {_agent_state['project_name']}")
@@ -114,10 +114,11 @@ def get_state():
 # HISTORIAL DE ACCIONES
 # ═══════════════════════════════════════════════════════════════
 
+
 def log_action(action_type, details=None, success=True):
     """
     Registrar una acción en el historial.
-    
+
     Args:
         action_type: Tipo de acción (create, modify, delete, save, etc.)
         details: Detalles adicionales (diccionario)
@@ -130,17 +131,17 @@ def log_action(action_type, details=None, success=True):
         "timestamp": datetime.now().isoformat(),
         "objects_before": len(bpy.data.objects),
     }
-    
+
     _agent_state["action_history"].append(entry)
     _agent_state["last_action"] = action_type
     _agent_state["total_actions"] += 1
-    
+
     # Limitar historial
     if len(_agent_state["action_history"]) > MAX_ACTION_HISTORY:
         _agent_state["action_history"] = _agent_state["action_history"][-MAX_ACTION_HISTORY:]
-    
+
     _save_state()
-    
+
     # También log a archivo
     _log_to_file(entry)
 
@@ -148,19 +149,19 @@ def log_action(action_type, details=None, success=True):
 def _log_to_file(entry):
     """Agregar entrada al archivo de log."""
     _ensure_dirs()
-    
+
     logs = []
     if LOG_FILE.exists():
-        with open(LOG_FILE, 'r') as f:
+        with open(LOG_FILE) as f:
             logs = json.load(f)
-    
+
     logs.append(entry)
-    
+
     # Mantener solo los últimos 1000
     if len(logs) > 1000:
         logs = logs[-1000:]
-    
-    with open(LOG_FILE, 'w') as f:
+
+    with open(LOG_FILE, "w") as f:
         json.dump(logs, f, indent=2)
 
 
@@ -178,13 +179,14 @@ def get_actions_by_type(action_type):
 # ANTI-LOOP SYSTEM
 # ═══════════════════════════════════════════════════════════════
 
+
 def check_loop(action_name):
     """
     Verificar si una acción está en loop.
-    
+
     Args:
         action_name: Nombre de la acción a verificar
-    
+
     Returns:
         dict con {is_loop: bool, count: int, message: str}
     """
@@ -192,20 +194,20 @@ def check_loop(action_name):
     recent = _agent_state["action_history"][-5:]
     same_action = [a for a in recent if a["action"] == action_name]
     count = len(same_action)
-    
+
     is_loop = count >= _agent_state["max_attempts"]
-    
+
     if is_loop:
         _agent_state["attempts"][action_name] = _agent_state["attempts"].get(action_name, 0) + 1
         _save_state()
-        
+
         return {
             "is_loop": True,
             "count": count,
             "total_attempts": _agent_state["attempts"][action_name],
             "message": f"LOOP DETECTADO: '{action_name}' ejecutada {count} veces seguidas",
         }
-    
+
     return {
         "is_loop": False,
         "count": count,
@@ -241,25 +243,26 @@ def unregister_object(obj_name):
 # BACKUP SYSTEM
 # ═══════════════════════════════════════════════════════════════
 
+
 def create_backup(label=None):
     """
     Crear backup del archivo .blend actual.
-    
+
     Args:
         label: Etiqueta opcional para el backup
-    
+
     Returns:
         Ruta del backup creado
     """
     _ensure_dirs()
-    
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_name = f"backup_{timestamp}"
     if label:
         backup_name += f"_{label}"
-    
+
     backup_path = BACKUP_DIR / f"{backup_name}.blend"
-    
+
     # Guardar archivo actual
     filepath = bpy.data.filepath
     if filepath:
@@ -269,17 +272,17 @@ def create_backup(label=None):
         # Si no hay archivo guardado, guardar uno nuevo
         bpy.ops.wm.save_as_mainfile(filepath=str(backup_path))
         print(f"[state] Backup creado (nuevo): {backup_path}")
-    
+
     # Limpiar backups antiguos
     _cleanup_old_backups()
-    
+
     return str(backup_path)
 
 
 def _cleanup_old_backups():
     """Eliminar backups antiguos manteniendo solo los últimos MAX_BACKUPS."""
     backups = sorted(BACKUP_DIR.glob("backup_*.blend"), key=os.path.getmtime)
-    
+
     while len(backups) > MAX_BACKUPS:
         oldest = backups.pop(0)
         oldest.unlink()
@@ -289,20 +292,20 @@ def _cleanup_old_backups():
 def list_backups():
     """Listar backups disponibles."""
     backups = sorted(BACKUP_DIR.glob("backup_*.blend"), key=os.path.getmtime, reverse=True)
-    
+
     print("\n📋 Backups disponibles:")
     for i, backup in enumerate(backups):
         mtime = datetime.fromtimestamp(backup.stat().st_mtime)
         size = backup.stat().st_size / 1024  # KB
-        print(f"  {i+1}. {backup.name} ({size:.1f} KB) - {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
-    
+        print(f"  {i + 1}. {backup.name} ({size:.1f} KB) - {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+
     return backups
 
 
 def restore_backup(backup_path=None, index=0):
     """
     Restaurar desde backup.
-    
+
     Args:
         backup_path: Ruta del backup (opcional)
         index: Índice del backup a restaurar (si no se especifica path)
@@ -315,11 +318,11 @@ def restore_backup(backup_path=None, index=0):
             print("[state] No hay backups disponibles")
             return False
         path = backups[index]
-    
+
     if not path.exists():
         print(f"[state] Backup no encontrado: {path}")
         return False
-    
+
     # Cargar el backup
     bpy.ops.wm.open_mainfile(filepath=str(path))
     print(f"[state] Backup restaurado: {path.name}")
@@ -330,16 +333,17 @@ def restore_backup(backup_path=None, index=0):
 # AUTO-SAVE
 # ═══════════════════════════════════════════════════════════════
 
+
 def auto_save():
     """
     Guardar automáticamente el archivo actual.
-    
+
     Returns:
         Ruta del archivo guardado o None
     """
     project_name = _agent_state["project_name"]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
+
     if bpy.data.filepath:
         # Archivo ya existe, guardar
         bpy.ops.wm.save_mainfile()
@@ -350,34 +354,34 @@ def auto_save():
         filepath = f"/tmp/{project_name}_{timestamp}.blend"
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
         print(f"[state] Auto-guardado (nuevo): {filepath}")
-    
+
     _agent_state["last_save"] = datetime.now().isoformat()
     _save_state()
-    
+
     return filepath
 
 
 def save_project(name=None):
     """
     Guardar proyecto con nombre específico.
-    
+
     Args:
         name: Nombre del proyecto (sin extensión)
-    
+
     Returns:
         Ruta del archivo guardado
     """
     if name:
         _agent_state["project_name"] = name
-    
+
     project_name = _agent_state["project_name"]
     filepath = f"/tmp/{project_name}.blend"
-    
+
     bpy.ops.wm.save_as_mainfile(filepath=filepath)
-    
+
     _agent_state["last_save"] = datetime.now().isoformat()
     _save_state()
-    
+
     print(f"[state] Proyecto guardado: {filepath}")
     return filepath
 
@@ -397,6 +401,7 @@ def get_file_status():
 # SCENE SNAPSHOT
 # ═══════════════════════════════════════════════════════════════
 
+
 def update_snapshot():
     """Actualizar snapshot de la escena."""
     _agent_state["scene_snapshot"] = _take_snapshot()
@@ -406,22 +411,22 @@ def update_snapshot():
 def compare_with_snapshot():
     """
     Comparar escena actual con el último snapshot.
-    
+
     Returns:
         dict con diferencias encontradas
     """
     current = _take_snapshot()
     previous = _agent_state.get("scene_snapshot", {})
-    
+
     if not previous:
         return {"changed": False, "message": "No hay snapshot previo"}
-    
+
     old_objects = set(previous.get("objects", []))
     new_objects = set(current.get("objects", []))
-    
+
     added = new_objects - old_objects
     removed = old_objects - new_objects
-    
+
     return {
         "changed": bool(added or removed),
         "added": list(added),
@@ -434,27 +439,28 @@ def compare_with_snapshot():
 # RESUMEN
 # ═══════════════════════════════════════════════════════════════
 
+
 def print_state_summary():
     """Imprimir resumen del estado actual."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("ESTADO DEL AGENTE")
-    print("="*60)
+    print("=" * 60)
     print(f"Proyecto: {_agent_state['project_name']}")
     print(f"Sesión: {_agent_state.get('session_start', 'N/A')}")
     print(f"Acciones totales: {_agent_state['total_actions']}")
     print(f"Objetos creados: {len(_agent_state['created_objects'])}")
     print(f"Última acción: {_agent_state.get('last_action', 'N/A')}")
     print(f"Último save: {_agent_state.get('last_save', 'N/A')}")
-    
+
     file_status = get_file_status()
     print(f"\nArchivo: {file_status['filepath'] or 'UNSAVED'}")
     print(f"Guardado: {'Sí' if file_status['is_saved'] else 'No'}")
     print(f"Sin guardar: {'Sí' if file_status['has_unsaved'] else 'No'}")
-    
+
     if _agent_state["action_history"]:
-        print(f"\nÚltimas 5 acciones:")
+        print("\nÚltimas 5 acciones:")
         for action in _agent_state["action_history"][-5:]:
             status = "✅" if action["success"] else "❌"
             print(f"  {status} {action['action']} - {action['timestamp']}")
-    
-    print("="*60)
+
+    print("=" * 60)

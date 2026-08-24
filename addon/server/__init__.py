@@ -3,9 +3,11 @@ blender-mcp — Embedded Server (simplified)
 HTTP API (:9877) for basic health checks.
 MCP tool execution now goes through _axsock.py socket.
 """
-import bpy
-import threading
+
 import logging
+import threading
+
+import bpy
 
 logger = logging.getLogger("blender-mcp-embedded")
 _server_instance = None
@@ -23,6 +25,7 @@ def start_embedded_server():
     _server_instance = True
     try:
         from .mini_http import start as start_http
+
         start_http()
         _http_instance = True
     except Exception as e:
@@ -36,7 +39,8 @@ def stop_embedded_server():
     if _http_instance:
         try:
             from .mini_http import stop as stop_http
+
             stop_http()
-        except:
+        except Exception:
             pass
         _http_instance = None

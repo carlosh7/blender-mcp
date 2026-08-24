@@ -1,0 +1,17 @@
+# gitleaks — allowlist de falsos positivos verificados (auditoría 2026-08-24)
+# La clave demo real (Rodin/Hyper3D) fue purgada de la historia con git-filter-repo.
+title = "blender-mcp-ultra gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Falsos positivos verificados"
+paths = '''(
+    data/manual/.*\.rst
+)'''
+regexes = [
+    '''\*\*\*REMOVED\*\*\*''',
+    '''default\s*=\s*""''',
+    '''abc29832befb92983423abcaef93001''',
+]

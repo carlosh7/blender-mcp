@@ -35,6 +35,7 @@ fully undo the changes before returning.
    requires some understanding of the actual undo system in Blender code.
 
 """
+
 import bpy
 
 
@@ -43,11 +44,11 @@ class DataEditOperator(bpy.types.Operator):
     bl_label = "Data Editing Operator"
     # The default value is only 'REGISTER', 'UNDO' is mandatory when Blender data is modified
     # (and does require 'REGISTER' as well).
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         context.object.location.x += 1.0
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 # Only needed if you want to add into a dynamic menu.

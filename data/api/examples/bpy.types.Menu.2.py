@@ -8,6 +8,7 @@ Instead, the add-on can add menu items to existing menus.
 
 The function menu_draw acts like :class:`Menu.draw`.
 """
+
 import bpy
 
 

@@ -22,16 +22,18 @@ def argparse_create():
     )
 
     parser.add_argument(
-        "-o", "--output",
+        "-o",
+        "--output",
         dest="output",
-        metavar='OUTPUT',
+        metavar="OUTPUT",
         type=str,
         help="The path to write the keymap to.",
         required=True,
     )
 
     parser.add_argument(
-        "-a", "--all",
+        "-a",
+        "--all",
         dest="all",
         action="store_true",
         help="Write all key-maps (not only customized key-maps).",

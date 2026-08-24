@@ -1,5 +1,6 @@
-import mathutils
 import math
+
+import mathutils
 
 # Create a location matrix.
 mat_loc = mathutils.Matrix.Translation((2.0, 3.0, 4.0))
@@ -8,7 +9,7 @@ mat_loc = mathutils.Matrix.Translation((2.0, 3.0, 4.0))
 mat_sca = mathutils.Matrix.Scale(0.5, 4, (0.0, 0.0, 1.0))
 
 # Create a rotation matrix.
-mat_rot = mathutils.Matrix.Rotation(math.radians(45.0), 4, 'X')
+mat_rot = mathutils.Matrix.Rotation(math.radians(45.0), 4, "X")
 
 # Combine transformations.
 mat_out = mat_loc @ mat_rot @ mat_sca

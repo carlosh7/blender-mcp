@@ -9,11 +9,13 @@ Currently almost all of the execution time is spent in the last line.
 In the future this will hopefully be solved by implementing the Python buffer protocol
 for :class:`gpu.types.Buffer` and :class:`bpy.types.Image.pixels` (aka ``bpy_prop_array``).
 """
+
+import random
+
 import bpy
 import gpu
-import random
-from mathutils import Matrix
 from gpu_extras.presets import draw_circle_2d
+from mathutils import Matrix
 
 IMAGE_NAME = "Generated Image"
 WIDTH = 512
@@ -34,11 +36,12 @@ with offscreen.bind():
         for i in range(RING_AMOUNT):
             draw_circle_2d(
                 (random.uniform(-1, 1), random.uniform(-1, 1)),
-                (1, 1, 1, 1), random.uniform(0.1, 1),
+                (1, 1, 1, 1),
+                random.uniform(0.1, 1),
                 segments=20,
             )
 
-    buffer = fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, 'UBYTE')
+    buffer = fb.read_color(0, 0, WIDTH, HEIGHT, 4, 0, "UBYTE")
 
 offscreen.free()
 

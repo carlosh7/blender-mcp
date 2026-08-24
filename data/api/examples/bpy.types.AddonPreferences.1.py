@@ -13,8 +13,8 @@ bl_info = {
 
 
 import bpy
-from bpy.types import Operator, AddonPreferences
-from bpy.props import StringProperty, IntProperty, BoolProperty
+from bpy.props import BoolProperty, IntProperty, StringProperty
+from bpy.types import AddonPreferences, Operator
 
 
 class ExampleAddonPreferences(AddonPreferences):
@@ -24,7 +24,7 @@ class ExampleAddonPreferences(AddonPreferences):
 
     filepath: StringProperty(
         name="Example File Path",
-        subtype='FILE_PATH',
+        subtype="FILE_PATH",
     )
     number: IntProperty(
         name="Example Number",
@@ -45,21 +45,20 @@ class ExampleAddonPreferences(AddonPreferences):
 
 class OBJECT_OT_addon_prefs_example(Operator):
     """Display example preferences"""
+
     bl_idname = "object.addon_prefs_example"
     bl_label = "Add-on Preferences Example"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         preferences = context.preferences
         addon_prefs = preferences.addons[__name__].preferences
 
-        info = "Path: {:s}, Number: {:d}, Boolean {!r}".format(
-            addon_prefs.filepath, addon_prefs.number, addon_prefs.boolean,
-        )
-        self.report({'INFO'}, info)
+        info = f"Path: {addon_prefs.filepath:s}, Number: {addon_prefs.number:d}, Boolean {addon_prefs.boolean!r}"
+        self.report({"INFO"}, info)
         print(info)
 
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 # Registration

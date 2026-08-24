@@ -1,11 +1,14 @@
 """
 blender-mcp — Chat Operators (embedded-first + fallback)
 """
-import bpy
-import time
-import threading
+
 import os
+import threading
+import time
+
+import bpy
 from bpy.types import Operator
+
 from .. import _axsock as bsock
 
 
@@ -17,16 +20,20 @@ class OP_Send(Operator):
         bsock._stop_agent = False
         txt = ctx.scene.aimcp_input.strip()
         if not txt:
-            return {'CANCELLED'}
+            return {"CANCELLED"}
 
         # Check if model is configured
         model = ctx.scene.aimcp_model
         if not model:
-            ctx.scene.aimcp_chat.add("system", "⚠️ No AI model configured. Go to Scene Properties → Axiom Engine Config → Refresh Models → select one.", scene=ctx.scene)
+            ctx.scene.aimcp_chat.add(
+                "system",
+                "⚠️ No AI model configured. Go to Scene Properties → Axiom Engine Config → Refresh Models → select one.",
+                scene=ctx.scene,
+            )
             ctx.scene.aimcp_input = ""
             if ctx.area:
                 ctx.area.tag_redraw()
-            return {'FINISHED'}
+            return {"FINISHED"}
 
         ctx.scene.aimcp_chat.add("user", txt, scene=ctx.scene)
         ctx.scene.aimcp_input = ""
@@ -38,9 +45,10 @@ class OP_Send(Operator):
         # ── 1. Try embedded client (inside Blender, no external process) ──
         try:
             from ..operators.embedded import _embedded_client
+
             if _embedded_client is not None:
                 self._send_embedded(ctx, txt)
-                return {'FINISHED'}
+                return {"FINISHED"}
         except Exception:
             pass
 
@@ -52,10 +60,11 @@ class OP_Send(Operator):
 
         # Start polling (auto_process handles timeout messages)
         bpy.app.timers.register(self._make_poller(ctx, msg_id), first_interval=0.5)
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     def _make_poller(self, ctx, msg_id):
         """Create polling function that checks for response."""
+
         def check():
             scene = getattr(bpy.context, "scene", None)
             if not scene:
@@ -70,7 +79,11 @@ class OP_Send(Operator):
                 resp = bsock._chat_responses.pop(mid, None)
             if resp is None:
                 return 0.5
-            if len(scene.aimcp_chat.msgs) > 0 and scene.aimcp_chat.msgs[-1].role == 'status' and scene.aimcp_chat.msgs[-1].text.endswith("..."):
+            if (
+                len(scene.aimcp_chat.msgs) > 0
+                and scene.aimcp_chat.msgs[-1].role == "status"
+                and scene.aimcp_chat.msgs[-1].text.endswith("...")
+            ):
                 scene.aimcp_chat.msgs.remove(len(scene.aimcp_chat.msgs) - 1)
             scene.aimcp_chat.add("assistant", resp, scene=scene)
             scene.aimcp_status = ""
@@ -78,19 +91,25 @@ class OP_Send(Operator):
             scene.aimcp_pending_msg_id = ""
             bsock._chat_responses.pop(mid + "_status", None)
             return None
+
         return check
 
     def _send_embedded(self, ctx, txt):
         """Send via embedded client inside Blender."""
-        from ..operators.embedded import _embedded_client
         from ..config_cache import get_provider_config
+        from ..operators.embedded import _embedded_client
 
         provider = ctx.scene.aimcp_provider or "opencode-go"
-        model = ctx.scene.aimcp_model or getattr(_embedded_client, 'default_model', 'gpt-4o-mini')
+        model = ctx.scene.aimcp_model or getattr(_embedded_client, "default_model", "gpt-4o-mini")
 
-        env_map = {"opencode-go": "OPENAI_API_KEY", "openai": "OPENAI_API_KEY",
-                   "deepseek": "DEEPSEEK_API_KEY", "openrouter": "OPENROUTER_API_KEY",
-                   "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_API_KEY"}
+        env_map = {
+            "opencode-go": "OPENAI_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "deepseek": "DEEPSEEK_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "google": "GOOGLE_API_KEY",
+        }
         api_key = os.environ.get(env_map.get(provider, ""))
         if not api_key:
             cfg = get_provider_config(provider)
@@ -112,16 +131,21 @@ class OP_Send(Operator):
                 )
                 content = result.get("content", "")
                 if content:
+
                     def update():
                         ctx.scene.aimcp_chat.add("assistant", content, scene=ctx.scene)
                         ctx.scene.aimcp_waiting = False
                         return None
+
                     bpy.app.timers.register(update, first_interval=0.0)
             except Exception as e:
+                _err = str(e)[:80]
+
                 def update():
-                    ctx.scene.aimcp_chat.add("system", f"Error: {str(e)[:80]}", scene=ctx.scene)
+                    ctx.scene.aimcp_chat.add("system", f"Error: {_err}", scene=ctx.scene)
                     ctx.scene.aimcp_waiting = False
                     return None
+
                 bpy.app.timers.register(update, first_interval=0.0)
 
         threading.Thread(target=process, daemon=True).start()
@@ -138,7 +162,7 @@ class OP_StopAgent(Operator):
         ctx.scene.aimcp_status = "STOPPED"
         if ctx.area:
             ctx.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 class OP_ClearChat(Operator):
@@ -151,7 +175,7 @@ class OP_ClearChat(Operator):
         ctx.scene.aimcp_chat_index = -1
         if ctx.area:
             ctx.area.tag_redraw()
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 class OP_CopyChat(Operator):
@@ -166,8 +190,8 @@ class OP_CopyChat(Operator):
             lines.append(f"[{tag}] {msg.text}")
         text = "\n".join(lines)
         context.window_manager.clipboard = text
-        self.report({'INFO'}, f"Chat copied ({len(lines)} messages)")
-        return {'FINISHED'}
+        self.report({"INFO"}, f"Chat copied ({len(lines)} messages)")
+        return {"FINISHED"}
 
 
 class OP_ExportLog(Operator):
@@ -187,24 +211,27 @@ class OP_ExportLog(Operator):
             tag = "User" if msg.role == "user" else "AI" if msg.role == "assistant" else "System"
             txt.write(f"[{tag}] {msg.text}\n")
         # Also write to fixed log file
-        import json, os
+        import os
+
         log_path = os.path.expanduser("~/.config/blender-mcp/chat_log_export.txt")
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        with open(log_path, 'w') as f:
+        with open(log_path, "w") as f:
             f.write("=== AXIOM Chat Log ===\n\n")
             for msg in scene.aimcp_chat.msgs:
-                tag = "User" if msg.role == "user" else "AI" if msg.role == "assistant" else "System"
+                tag = (
+                    "User" if msg.role == "user" else "AI" if msg.role == "assistant" else "System"
+                )
                 f.write(f"[{tag}] {msg.text}\n")
-        self.report({'INFO'}, f"Chat log saved to ~/.config/blender-mcp/chat_log_export.txt")
+        self.report({"INFO"}, "Chat log saved to ~/.config/blender-mcp/chat_log_export.txt")
         # Open in Text Editor
         for screen in bpy.data.screens:
             for area in screen.areas:
-                if area.type == 'TEXT_EDITOR':
+                if area.type == "TEXT_EDITOR":
                     area.spaces[0].text = txt
-                    return {'FINISHED'}
+                    return {"FINISHED"}
         # If no text editor open, show in info
-        self.report({'INFO'}, f"Log also available as text block '{text_name}'")
-        return {'FINISHED'}
+        self.report({"INFO"}, f"Log also available as text block '{text_name}'")
+        return {"FINISHED"}
 
 
 CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat, OP_CopyChat, OP_ExportLog]
@@ -212,12 +239,16 @@ CHAT_OPERATORS = [OP_Send, OP_StopAgent, OP_ClearChat, OP_CopyChat, OP_ExportLog
 
 def register_chat_operators():
     from bpy.utils import register_class
+
     for cls in CHAT_OPERATORS:
-        try: register_class(cls)
-        except: pass
+        try:
+            register_class(cls)
+        except Exception:
+            pass
 
 
 def unregister_chat_operators():
     from bpy.utils import unregister_class
+
     for cls in reversed(CHAT_OPERATORS):
         unregister_class(cls)

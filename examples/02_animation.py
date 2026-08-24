@@ -3,35 +3,36 @@
 Ejemplo 2: Animación de objetos
 Requiere: Blender abierto con addon MCP activo
 """
-import socket
+
 import json
+import socket
 import time
 
 
 def run(code):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(30)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+    r = b""
     dl = time.time() + 25
     while time.time() < dl:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r:
+                if b"\n" in r:
                     break
-        except socket.timeout:
+        except TimeoutError:
             continue
     s.close()
     data = json.loads(r.decode().strip())
-    return data.get('result', data)
+    return data.get("result", data)
 
 
 # Configurar escena de animación
 print("Configurando animación...")
-run('''
+run("""
 import bpy, math
 
 # Limpiar
@@ -96,11 +97,11 @@ plane.data.materials.append(mat3)
 print("Animación creada: 120 frames")
 print("  - Cubo: salto lateral (4 puntos)")
 print("  - Esfera: rotación 360°")
-''')
+""")
 
 # Luces
 print("Agregando luces...")
-run('''
+run("""
 import bpy
 bpy.ops.object.light_add(type="AREA", location=(5, -5, 8))
 bpy.context.active_object.data.energy = 500
@@ -109,7 +110,7 @@ bpy.context.active_object.data.energy = 200
 bpy.ops.object.light_add(type="AREA", location=(0, 6, 7))
 bpy.context.active_object.data.energy = 300
 print("Luces creadas")
-''')
+""")
 
 print("\nAnimación lista!")
 print("En Blender: presiona Alt+A o el botón Play para ver la animación")

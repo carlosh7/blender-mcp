@@ -2,18 +2,19 @@
 blender-mcp — Download RST Documentation Operator
 Downloads and extracts the Blender API RST documentation files.
 """
-import bpy
+
 import os
-import json
 import tarfile
 import tempfile
 import threading
 import urllib.request
+
+import bpy
 from bpy.types import Operator
-from pathlib import Path
 
 # URL de los RSTs comprimidos (ajustar cuando se suban al release)
 RST_API_URL = "https://github.com/carlosh7/blender-mcp/releases/download/docs/api_docs.tar.gz"
+
 
 def _get_docs_dir():
     return os.path.join(os.path.dirname(__file__), "..", "data")
@@ -47,6 +48,7 @@ class OP_DownloadDocs(Operator):
             api_dir = os.path.join(docs_dir, "api")
             if os.path.exists(api_dir):
                 import shutil
+
                 shutil.rmtree(api_dir)
 
             self._status = "Descargando documentación..."
@@ -71,7 +73,11 @@ class OP_DownloadDocs(Operator):
 
             os.unlink(temp_path)
 
-            total = len([f for f in os.listdir(api_dir) if f.endswith(".rst")]) if os.path.exists(api_dir) else 0
+            total = (
+                len([f for f in os.listdir(api_dir) if f.endswith(".rst")])
+                if os.path.exists(api_dir)
+                else 0
+            )
             self._status = f"✅ {total} documentos instalados"
             self._progress = 1.0
             self._success = True
@@ -95,7 +101,7 @@ class OP_DownloadDocs(Operator):
 
         self._timer = bpy.app.timers.register(self._tick, first_interval=0.1)
         ctx.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
     def _tick(self):
         ctx = bpy.context
@@ -113,9 +119,9 @@ class OP_DownloadDocs(Operator):
             ctx.area.tag_redraw()
 
     def modal(self, ctx, event):
-        if event.type == 'TIMER':
+        if event.type == "TIMER":
             ctx.area.tag_redraw()
-        return {'PASS_THROUGH'}
+        return {"PASS_THROUGH"}
 
 
 DOWNLOAD_OPERATORS = [OP_DownloadDocs]
@@ -123,17 +129,19 @@ DOWNLOAD_OPERATORS = [OP_DownloadDocs]
 
 def register_download_operators():
     from bpy.utils import register_class
+
     for cls in DOWNLOAD_OPERATORS:
         try:
             register_class(cls)
-        except:
+        except Exception:
             pass
 
 
 def unregister_download_operators():
     from bpy.utils import unregister_class
+
     for cls in reversed(DOWNLOAD_OPERATORS):
         try:
             unregister_class(cls)
-        except:
+        except Exception:
             pass

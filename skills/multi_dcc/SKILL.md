@@ -24,41 +24,41 @@ You are an expert in multi-DCC (Digital Content Creation) workflows. You bridge 
 ### Unity
 ```python
 # Export for Unity
-io.export_fbx(filepath='/tmp/model.fbx', use_selection=True)
+io.export_fbx(filepath="/tmp/model.fbx", use_selection=True)
 # Settings: Scale=1, Apply Transform, Smoothing=Normal
 ```
 
 ### Unreal Engine
 ```python
 # Export for Unreal
-io.export_fbx(filepath='/tmp/model.fbx', use_selection=True)
+io.export_fbx(filepath="/tmp/model.fbx", use_selection=True)
 # Settings: Scale=100, Combine Meshes, Export Textures
 ```
 
 ### Maya
 ```python
 # Export for Maya
-io.export_fbx(filepath='/tmp/model.fbx', use_selection=True)
+io.export_fbx(filepath="/tmp/model.fbx", use_selection=True)
 # Settings: Apply Transform, Smooth Normals
 ```
 
 ### 3ds Max
 ```python
 # Export for 3ds Max
-io.export_fbx(filepath='/tmp/model.fbx', use_selection=True)
+io.export_fbx(filepath="/tmp/model.fbx", use_selection=True)
 # Settings: Scale=1, Apply Transform
 ```
 
 ### Cinema 4D
 ```python
 # Export for C4D (use glTF)
-io.export_gltf(filepath='/tmp/model.glb', format='GLB')
+io.export_gltf(filepath="/tmp/model.glb", format="GLB")
 ```
 
 ### Web (Three.js/Babylon.js)
 ```python
 # Export for web
-io.export_gltf(filepath='/tmp/model.glb', format='GLB')
+io.export_gltf(filepath="/tmp/model.glb", format="GLB")
 # Settings: Draco compression, Embed textures
 ```
 

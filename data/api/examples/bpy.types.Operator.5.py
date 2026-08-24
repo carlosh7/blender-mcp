@@ -9,6 +9,7 @@ If you need more control you can create your own layout with a
 This works like the :class:`Panel` and :class:`Menu` draw functions, its used
 for dialogs and file selectors.
 """
+
 import bpy
 
 
@@ -24,7 +25,7 @@ class CustomDrawOperator(bpy.types.Operator):
 
     def execute(self, context):
         print("Test", self)
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     def invoke(self, context, event):
         wm = context.window_manager
@@ -52,4 +53,4 @@ bpy.utils.register_class(CustomDrawOperator)
 bpy.types.VIEW3D_MT_object.append(menu_func)
 
 # Test call.
-bpy.ops.object.custom_draw('INVOKE_DEFAULT')
+bpy.ops.object.custom_draw("INVOKE_DEFAULT")

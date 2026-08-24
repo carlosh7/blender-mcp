@@ -28,13 +28,16 @@ class ShaderScriptImport(bpy.types.Operator, ImportHelper):
     """
     Creates one or more Shader Script nodes from text files.
     """
+
     bl_idname = "shader.script_import"
     bl_label = "Import a text file as a script node"
 
     # This Operator supports processing multiple `.txt` files at a time. The following properties
     # must be defined.
-    directory: bpy.props.StringProperty(subtype='DIR_PATH', options={'SKIP_SAVE', 'HIDDEN'})
-    files: bpy.props.CollectionProperty(type=bpy.types.OperatorFileListElement, options={'SKIP_SAVE', 'HIDDEN'})
+    directory: bpy.props.StringProperty(subtype="DIR_PATH", options={"SKIP_SAVE", "HIDDEN"})
+    files: bpy.props.CollectionProperty(
+        type=bpy.types.OperatorFileListElement, options={"SKIP_SAVE", "HIDDEN"}
+    )
 
     # Allow the user to choose whether the node's label is set or not
     set_label: bpy.props.BoolProperty(name="Set Label", default=False)
@@ -42,16 +45,19 @@ class ShaderScriptImport(bpy.types.Operator, ImportHelper):
     @classmethod
     def poll(cls, context):
         return (
-            context.region and context.region.type == 'WINDOW' and
-            context.area and context.area.ui_type == 'ShaderNodeTree' and
-            context.object and context.object.type == 'MESH' and
-            context.material
+            context.region
+            and context.region.type == "WINDOW"
+            and context.area
+            and context.area.ui_type == "ShaderNodeTree"
+            and context.object
+            and context.object.type == "MESH"
+            and context.material
         )
 
     def execute(self, context):
         # The directory property must be set.
         if not self.directory:
-            return {'CANCELLED'}
+            return {"CANCELLED"}
 
         x = 0.0
         y = 0.0
@@ -60,11 +66,12 @@ class ShaderScriptImport(bpy.types.Operator, ImportHelper):
             # files are ones that are supported.
             if file.name.endswith(".txt"):
                 import os
+
                 filepath = os.path.join(self.directory, file.name)
 
                 node_tree = context.material.node_tree
                 text_node = node_tree.nodes.new(type="ShaderNodeScript")
-                text_node.mode = 'EXTERNAL'
+                text_node.mode = "EXTERNAL"
                 text_node.filepath = filepath
                 text_node.location = Vector((x, y))
 
@@ -75,7 +82,7 @@ class ShaderScriptImport(bpy.types.Operator, ImportHelper):
                 x += 20.0
                 y -= 20.0
 
-        return {'FINISHED'}
+        return {"FINISHED"}
 
     # Use ImportHelper's invoke_popup() to handle the invocation so that this operator's properties
     # are shown in a popup. This allows the user to configure additional settings on the operator
@@ -100,8 +107,10 @@ class SHADER_FH_script_import(bpy.types.FileHandler):
     @classmethod
     def poll_drop(cls, context):
         return (
-            context.region and context.region.type == 'WINDOW' and
-            context.area and context.area.ui_type == 'ShaderNodeTree'
+            context.region
+            and context.region.type == "WINDOW"
+            and context.area
+            and context.area.ui_type == "ShaderNodeTree"
         )
 
 

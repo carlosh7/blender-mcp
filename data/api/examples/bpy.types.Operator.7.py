@@ -5,6 +5,7 @@ Enum Search Popup
 You may want to have an operator prompt the user to select an item
 from a search field, this can be done using :class:`bpy.types.Operator.invoke_search_popup`.
 """
+
 import bpy
 from bpy.props import EnumProperty
 
@@ -17,19 +18,19 @@ class SearchEnumOperator(bpy.types.Operator):
     my_search: EnumProperty(
         name="My Search",
         items=(
-            ('FOO', "Foo", ""),
-            ('BAR', "Bar", ""),
-            ('BAZ', "Baz", ""),
+            ("FOO", "Foo", ""),
+            ("BAR", "Bar", ""),
+            ("BAZ", "Baz", ""),
         ),
     )
 
     def execute(self, context):
-        self.report({'INFO'}, "Selected:" + self.my_search)
-        return {'FINISHED'}
+        self.report({"INFO"}, "Selected:" + self.my_search)
+        return {"FINISHED"}
 
     def invoke(self, context, event):
         context.window_manager.invoke_search_popup(self)
-        return {'RUNNING_MODAL'}
+        return {"RUNNING_MODAL"}
 
 
 # Only needed if you want to add into a dynamic menu.
@@ -42,4 +43,4 @@ bpy.utils.register_class(SearchEnumOperator)
 bpy.types.VIEW3D_MT_object.append(menu_func)
 
 # Test call.
-bpy.ops.object.search_enum_operator('INVOKE_DEFAULT')
+bpy.ops.object.search_enum_operator("INVOKE_DEFAULT")

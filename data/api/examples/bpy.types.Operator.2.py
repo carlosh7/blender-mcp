@@ -25,13 +25,15 @@ to typical class properties because Blender registers them with the
 operator, to use as arguments when called, saved for operator undo/redo and
 automatically added into the user interface.
 """
+
 import bpy
 
 
 class SimpleMouseOperator(bpy.types.Operator):
-    """ This operator shows the mouse location,
-        this string is used for the tooltip and API docs
+    """This operator shows the mouse location,
+    this string is used for the tooltip and API docs
     """
+
     bl_idname = "wm.mouse_position"
     bl_label = "Invoke Mouse Operator"
 
@@ -41,8 +43,8 @@ class SimpleMouseOperator(bpy.types.Operator):
     def execute(self, context):
         # Rather than printing, use the report function,
         # this way the message appears in the header.
-        self.report({'INFO'}, "Mouse coords are {:d} {:d}".format(self.x, self.y))
-        return {'FINISHED'}
+        self.report({"INFO"}, f"Mouse coords are {self.x:d} {self.y:d}")
+        return {"FINISHED"}
 
     def invoke(self, context, event):
         self.x = event.mouse_x
@@ -62,7 +64,7 @@ bpy.types.VIEW3D_MT_view.append(menu_func)
 # Test call to the newly defined operator.
 # Here we call the operator and invoke it,
 # meaning that the settings are taken from the mouse.
-bpy.ops.wm.mouse_position('INVOKE_DEFAULT')
+bpy.ops.wm.mouse_position("INVOKE_DEFAULT")
 
 # Another test call, this time call execute() directly with pre-defined settings.
-bpy.ops.wm.mouse_position('EXEC_DEFAULT', x=20, y=66)
+bpy.ops.wm.mouse_position("EXEC_DEFAULT", x=20, y=66)

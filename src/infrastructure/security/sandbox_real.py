@@ -3,19 +3,21 @@ blender-mcp-ultra — Real Sandbox (Subprocess-based)
 Executes LLM-generated code in an isolated subprocess.
 True isolation - code cannot escape or access Blender memory.
 """
-import sys
+
+import json
 import os
 import subprocess
+import sys
 import tempfile
-import json
 import time
-from typing import Dict, Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
 class SandboxResult:
     """Result of sandbox execution."""
+
     success: bool
     stdout: str
     stderr: str
@@ -27,7 +29,7 @@ class SandboxResult:
 class RealSandbox:
     """
     Real sandbox using subprocess isolation.
-    
+
     Features:
     - True process isolation
     - Timeout enforcement
@@ -35,7 +37,7 @@ class RealSandbox:
     - No access to Blender memory
     - Safe for untrusted code
     """
-    
+
     def __init__(
         self,
         timeout: int = 10,
@@ -44,7 +46,7 @@ class RealSandbox:
     ):
         """
         Initialize sandbox.
-        
+
         Args:
             timeout: Maximum execution time in seconds
             memory_limit_mb: Maximum memory usage in MB
@@ -53,62 +55,59 @@ class RealSandbox:
         self.timeout = timeout
         self.memory_limit_mb = memory_limit_mb
         self.python_path = python_path or sys.executable
-        
+
         # Statistics
         self.execution_count = 0
         self.error_count = 0
         self.timeout_count = 0
-    
-    def execute(self, code: str, context: Dict[str, Any] = None) -> SandboxResult:
+
+    def execute(self, code: str, context: dict[str, Any] = None) -> SandboxResult:
         """
         Execute code in isolated subprocess.
-        
+
         Args:
             code: Python code to execute
             context: Additional context variables (passed as JSON)
-            
+
         Returns:
             SandboxResult with stdout, stderr, etc.
         """
         start_time = time.time()
-        
+
         # Create temporary script file
         with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.py',
-            delete=False,
-            dir=tempfile.gettempdir()
+            mode="w", suffix=".py", delete=False, dir=tempfile.gettempdir()
         ) as f:
             # Write wrapper script
             wrapper = self._create_wrapper(code, context)
             f.write(wrapper)
             script_path = f.name
-        
+
         try:
             # Execute in subprocess
             result = self._execute_subprocess(script_path)
-            
+
             execution_time = time.time() - start_time
-            
+
             # Parse output
             stdout = result.stdout
             stderr = result.stderr
-            
+
             # Try to parse JSON output from wrapper
             try:
                 output_data = json.loads(stdout)
-                stdout = output_data.get('stdout', '')
-                if output_data.get('error'):
-                    stderr = output_data['error']
+                stdout = output_data.get("stdout", "")
+                if output_data.get("error"):
+                    stderr = output_data["error"]
             except json.JSONDecodeError:
                 pass
-            
+
             self.execution_count += 1
             if result.returncode != 0:
                 self.error_count += 1
             if result.timed_out:
                 self.timeout_count += 1
-            
+
             return SandboxResult(
                 success=result.returncode == 0,
                 stdout=stdout,
@@ -117,18 +116,18 @@ class RealSandbox:
                 execution_time=execution_time,
                 timed_out=result.timed_out,
             )
-            
+
         finally:
             # Cleanup
             try:
                 os.unlink(script_path)
             except OSError:
                 pass
-    
-    def _create_wrapper(self, code: str, context: Dict[str, Any] = None) -> str:
+
+    def _create_wrapper(self, code: str, context: dict[str, Any] = None) -> str:
         """Create wrapper script with safety measures."""
         context_json = json.dumps(context or {})
-        
+
         return f'''#!/usr/bin/env python3
 """
 Sandbox wrapper - executes code in isolation.
@@ -171,7 +170,7 @@ sys.stderr = capture_err
 try:
     # Load context
     context = json.loads('{context_json}')
-    
+
     # Create safe namespace
     namespace = {{
         '__builtins__': {{
@@ -209,18 +208,18 @@ try:
         }}
     }}
     namespace.update(context)
-    
+
     # Execute code
     compiled = compile({repr(code)}, '<sandbox>', 'exec')
     exec(compiled, namespace)
-    
+
     output['stdout'] = ''.join(capture_out.buffer)
     output['stderr'] = ''.join(capture_err.buffer)
-    
+
 except Exception as e:
     output['error'] = f"{{type(e).__name__}}: {{e}}"
     output['stderr'] = ''.join(capture_err.buffer)
-    
+
 finally:
     sys.stdout = original_stdout
     sys.stderr = original_stderr
@@ -228,7 +227,7 @@ finally:
 # Output result as JSON
 print(json.dumps(output))
 '''
-    
+
     def _execute_subprocess(self, script_path: str) -> subprocess.CompletedProcess:
         """Execute script in subprocess with timeout."""
         try:
@@ -239,32 +238,33 @@ print(json.dumps(output))
                 timeout=self.timeout,
                 cwd=tempfile.gettempdir(),
                 env={
-                    'PATH': '/usr/bin:/bin:/usr/local/bin',
-                    'HOME': tempfile.gettempdir(),
-                    'PYTHONDONTWRITEBYTECODE': '1',
+                    "PATH": "/usr/bin:/bin:/usr/local/bin",
+                    "HOME": tempfile.gettempdir(),
+                    "PYTHONDONTWRITEBYTECODE": "1",
                 },
             )
             result.timed_out = False
             return result
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired:
             result = subprocess.CompletedProcess(
                 args=[],
                 returncode=1,
-                stdout='',
+                stdout="",
                 stderr=f"Execution timed out after {self.timeout}s",
             )
             result.timed_out = True
             return result
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get sandbox statistics."""
         return {
-            'execution_count': self.execution_count,
-            'error_count': self.error_count,
-            'timeout_count': self.timeout_count,
-            'success_rate': (
+            "execution_count": self.execution_count,
+            "error_count": self.error_count,
+            "timeout_count": self.timeout_count,
+            "success_rate": (
                 (self.execution_count - self.error_count) / self.execution_count * 100
-                if self.execution_count > 0 else 0
+                if self.execution_count > 0
+                else 0
             ),
         }
 
@@ -273,7 +273,7 @@ print(json.dumps(output))
 # SINGLETON
 # ═══════════════════════════════════════════════════════════════
 
-_sandbox: Optional[RealSandbox] = None
+_sandbox: RealSandbox | None = None
 
 
 def get_sandbox(**kwargs) -> RealSandbox:
@@ -284,6 +284,6 @@ def get_sandbox(**kwargs) -> RealSandbox:
     return _sandbox
 
 
-def execute_in_sandbox(code: str, context: Dict[str, Any] = None) -> SandboxResult:
+def execute_in_sandbox(code: str, context: dict[str, Any] = None) -> SandboxResult:
     """Convenience function to execute code in sandbox."""
     return get_sandbox().execute(code, context)

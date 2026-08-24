@@ -30,7 +30,7 @@ at its creation, all editing in the original image's buffer is 'lost' in its cop
 
 import bpy
 
-image_src = bpy.data.images.new('src', 1024, 102)
+image_src = bpy.data.images.new("src", 1024, 102)
 print(image_src.size)
 print(image_src.pixels[0:4])
 

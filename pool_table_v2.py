@@ -1,42 +1,45 @@
 #!/usr/bin/env python3
 """blender-mcp — Pool Table V2 (step by step)"""
-import socket
+
 import json
+import socket
 import time
+
 
 def send(code, label=""):
     """Send code to Blender and wait for response."""
     if label:
         print(f"  [{label}]...", end=" ", flush=True)
-    
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(45)
-    s.connect(('localhost', 9876))
-    s.send(json.dumps({'command': 'execute_code', 'params': {'code': code}}).encode() + b'\n')
-    
-    r = b''
+    s.connect(("localhost", 9876))
+    s.send(json.dumps({"command": "execute_code", "params": {"code": code}}).encode() + b"\n")
+
+    r = b""
     deadline = time.time() + 40
     while time.time() < deadline:
         try:
             c = s.recv(65536)
             if c:
                 r += c
-                if b'\n' in r:
+                if b"\n" in r:
                     break
-        except:
+        except Exception:
             continue
     s.close()
-    
+
     data = json.loads(r.decode().strip())
-    result = data.get('result', {})
-    output = result.get('output', str(result))
-    
+    result = data.get("result", {})
+    output = result.get("output", str(result))
+
     if label:
         # Extract just the last line
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
         print(lines[-1] if lines else "OK")
-    
+
     return result
+
 
 print("=" * 60)
 print("POOL TABLE V2 - Step by Step")
@@ -44,17 +47,21 @@ print("=" * 60)
 
 # Step 1: Clean
 print("\n1. Cleaning scene...")
-send('''
+send(
+    """
 import bpy
 bpy.ops.object.select_all(action="SELECT"); bpy.ops.object.delete()
 for m in bpy.data.materials: bpy.data.materials.remove(m)
 for c in bpy.data.collections: bpy.data.collections.remove(c)
 print("Scene cleaned")
-''', "clean")
+""",
+    "clean",
+)
 
 # Step 2: Materials
 print("\n2. Creating materials...")
-send('''
+send(
+    """
 import bpy
 
 def mat(name, color, rough=0.15, metal=0.0):
@@ -81,11 +88,14 @@ for i, c in enumerate(ball_colors):
     mat(f"Ball_{i}", c, 0.15)
 
 print(f"Created {len(ball_colors) + 6} materials")
-''', "materials")
+""",
+    "materials",
+)
 
 # Step 3: Room
 print("\n3. Creating room...")
-send('''
+send(
+    """
 import bpy, math
 
 # Floor
@@ -106,11 +116,14 @@ wall2.rotation_euler = (0, math.pi/2, 0)
 wall2.data.materials.append(bpy.data.materials["Wall_Cream"])
 
 print("Room: floor + 2 walls")
-''', "room")
+""",
+    "room",
+)
 
 # Step 4: Table structure
 print("\n4. Creating table structure...")
-send('''
+send(
+    """
 import bpy
 
 mat = bpy.data.materials["Wood_Dark"]
@@ -133,11 +146,14 @@ for n, l, s in [("F", (0, -0.55, 0.38), (1.22, 0.04, 0.04)),
     o.data.materials.append(mat)
 
 print("Table: 4 legs + 5 beams")
-''', "structure")
+""",
+    "structure",
+)
 
 # Step 5: Felt + Frame + Pockets
 print("\n5. Creating felt, frame, pockets...")
-send('''
+send(
+    """
 import bpy
 
 # Felt (CORRECT: 2.54m x 1.22m)
@@ -185,11 +201,14 @@ for l, s in [((-0.61, -0.57, 0.79), (0.58, 0.03, 0.015)),
     o.data.materials.append(lmat)
 
 print("Felt + frame + 6 pockets + 8 rails")
-''', "surface")
+""",
+    "surface",
+)
 
 # Step 6: Balls
 print("\n6. Creating balls...")
-send('''
+send(
+    """
 import bpy
 
 ball_z = 0.786
@@ -210,11 +229,14 @@ for row in range(5):
         idx += 1
 
 print("16 balls (1 cue + 15 rack)")
-''', "balls")
+""",
+    "balls",
+)
 
 # Step 7: Cue stick + lights + camera
 print("\n7. Creating cue, lights, camera...")
-send('''
+send(
+    """
 import bpy, math
 
 # Cue stick
@@ -247,15 +269,20 @@ s.render.engine = "BLENDER_EEVEE_NEXT"
 s.eevee.taa_render_samples = 64
 
 print("Cue + 3 lights + camera")
-''', "accessories")
+""",
+    "accessories",
+)
 
 # Step 8: Save
 print("\n8. Saving...")
-send('''
+send(
+    """
 import bpy
 bpy.ops.wm.save_as_mainfile(filepath="/tmp/pool_table_v2.blend")
 print("Saved: /tmp/pool_table_v2.blend")
-''', "save")
+""",
+    "save",
+)
 
 # Summary
 print("\n" + "=" * 60)

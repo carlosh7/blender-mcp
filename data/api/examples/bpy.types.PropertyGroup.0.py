@@ -24,6 +24,7 @@ be animated, accessed from the user interface and from Python.
 
    Property types used in class declarations are all in :mod:`bpy.props`
 """
+
 import bpy
 
 
