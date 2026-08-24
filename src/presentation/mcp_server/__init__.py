@@ -18,10 +18,14 @@ from ...core.entities import Tool
 from ...tools import ToolRegistry
 from ...tools.animation import HANDLERS as animation_handlers
 from ...tools.animation import TOOLS as animation_tools
+from ...tools.animation_advanced import HANDLERS as anim_adv_handlers
+from ...tools.animation_advanced import TOOLS as anim_adv_tools
 from ...tools.batch import HANDLERS as batch_handlers
 from ...tools.batch import TOOLS as batch_tools
 from ...tools.camera import HANDLERS as camera_handlers
 from ...tools.camera import TOOLS as camera_tools
+from ...tools.curves_text import HANDLERS as curves_text_handlers
+from ...tools.curves_text import TOOLS as curves_text_tools
 from ...tools.geometry_nodes import HANDLERS as geonodes_handlers
 from ...tools.geometry_nodes import TOOLS as geonodes_tools
 from ...tools.io import HANDLERS as io_handlers
@@ -30,10 +34,14 @@ from ...tools.lights import HANDLERS as light_handlers
 from ...tools.lights import TOOLS as light_tools
 from ...tools.materials import HANDLERS as material_handlers
 from ...tools.materials import TOOLS as material_tools
+from ...tools.mesh_edit import HANDLERS as mesh_edit_handlers
+from ...tools.mesh_edit import TOOLS as mesh_edit_tools
 from ...tools.modifiers import HANDLERS as modifier_handlers
 from ...tools.modifiers import TOOLS as modifier_tools
 from ...tools.objects import HANDLERS as object_handlers
 from ...tools.objects import TOOLS as object_tools
+from ...tools.physics import HANDLERS as physics_handlers
+from ...tools.physics import TOOLS as physics_tools
 from ...tools.printing import HANDLERS as printing_handlers
 from ...tools.printing import TOOLS as printing_tools
 from ...tools.render import HANDLERS as render_handlers
@@ -67,14 +75,18 @@ def register_all_tools(registry: ToolRegistry):
     all_tools = [
         (scene_tools, scene_handlers),
         (object_tools, object_handlers),
+        (mesh_edit_tools, mesh_edit_handlers),
         (material_tools, material_handlers),
         (light_tools, light_handlers),
         (modifier_tools, modifier_handlers),
         (animation_tools, animation_handlers),
+        (anim_adv_tools, anim_adv_handlers),
         (camera_tools, camera_handlers),
         (render_tools, render_handlers),
         (io_tools, io_handlers),
         (uv_tools, uv_handlers),
+        (physics_tools, physics_handlers),
+        (curves_text_tools, curves_text_handlers),
         (rigging_tools, rigging_handlers),
         (batch_tools, batch_handlers),
         (utils_tools, utils_handlers),

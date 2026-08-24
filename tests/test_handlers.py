@@ -31,6 +31,10 @@ REQUIRED_CATEGORIES = [
     "render",
     "uv_texture",
     "batch",
+    "mesh_edit",
+    "animation_advanced",
+    "physics",
+    "curves_text",
 ]
 
 EXPECTED_TOOLS_PER_CATEGORY = {
@@ -52,6 +56,14 @@ EXPECTED_TOOLS_PER_CATEGORY = {
     "render": ["render.set_engine"],
     "uv_texture": ["uv.smart_project"],
     "batch": ["batch.rename"],
+    "mesh_edit": ["mesh.get_topology", "mesh.extrude_faces", "mesh.bevel_edges"],
+    "animation_advanced": [
+        "animation.fcurve_info",
+        "animation.driver_add",
+        "animation.shape_key_add",
+    ],
+    "physics": ["physics.rigidbody_add", "physics.cloth_add", "physics.force_field_add"],
+    "curves_text": ["curve.bezier_add", "text.add", "metaball.add"],
 }
 
 

@@ -94,6 +94,122 @@ def render_scene(filepath: str = "/tmp/render.png", engine: str = None) -> dict:
         return {"error": "Blender not available"}
 
 
+def render_still(
+    filepath: str = "/tmp/render.png",
+    engine: str = None,
+    samples: int = None,
+    resolution: list = None,
+    frame: int = None,
+) -> dict:
+    """Render blocking de un frame con ajustes aplicados (preview de calidad)."""
+    import bpy
+
+    scene = bpy.context.scene
+    if scene.camera is None:
+        cams = [o for o in scene.objects if o.type == "CAMERA"]
+        if cams:
+            scene.camera = cams[0]
+    if engine:
+        scene.render.engine = engine
+    if samples is not None:
+        try:
+            scene.cycles.samples = int(samples)
+        except Exception:
+            pass
+        try:
+            scene.eevee.taa_render_samples = int(samples)
+        except Exception:
+            pass
+    if resolution:
+        scene.render.resolution_x, scene.render.resolution_y = (
+            int(resolution[0]),
+            int(resolution[1]),
+        )
+    if frame is not None:
+        scene.frame_set(int(frame))
+    scene.render.filepath = filepath
+    bpy.ops.render.render(write_still=True)
+    return {"success": True, "filepath": filepath, "engine": scene.render.engine}
+
+
+def render_start_bg(
+    filepath: str = "/tmp/render_bg_",
+    engine: str = None,
+    samples: int = None,
+    resolution: list = None,
+    frame: int = None,
+) -> dict:
+    """Render NO bloqueante en instancia headless aparte. Devuelve job_id.
+
+    Usa el socket command 'render_start' si está disponible (addon vivo);
+    si no, lanza el subprocess directamente desde aquí (requiere bpy).
+    """
+    import os
+    import subprocess
+    import tempfile
+    import uuid
+
+    import bpy
+
+    scene = bpy.context.scene
+    if scene.camera is None:
+        cams = [o for o in scene.objects if o.type == "CAMERA"]
+        if cams:
+            scene.camera = cams[0]
+    if engine:
+        scene.render.engine = engine
+    if samples is not None:
+        try:
+            scene.cycles.samples = int(samples)
+        except Exception:
+            pass
+    if resolution:
+        scene.render.resolution_x, scene.render.resolution_y = (
+            int(resolution[0]),
+            int(resolution[1]),
+        )
+    if filepath:
+        scene.render.filepath = filepath
+
+    job_id = uuid.uuid4().hex[:12]
+    job_dir = os.path.join(tempfile.gettempdir(), "blender_mcp_jobs")
+    os.makedirs(job_dir, exist_ok=True)
+    job_blend = os.path.join(job_dir, f"job_{job_id}.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=job_blend, copy=True)
+
+    args = [
+        bpy.app.binary_path,
+        "-b",
+        job_blend,
+        "-o",
+        (filepath if filepath.endswith(("_", "/")) else filepath + "_"),
+        "-F",
+        "PNG",
+        "-f",
+        str(int(frame or scene.frame_current)),
+    ]
+    proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _BG_JOBS[job_id] = {"proc": proc, "out": filepath, "t0": __import__("time").time()}
+    return {"job_id": job_id, "pid": proc.pid}
+
+
+_BG_JOBS = {}
+
+
+def render_job_status(job_id: str) -> dict:
+    """Estado de un job lanzado con render.render_bg."""
+    import glob
+
+    job = _BG_JOBS.get(job_id)
+    if job is None:
+        return {"error": f"job desconocido: {job_id}"}
+    rc = job["proc"].poll()
+    files = sorted(glob.glob(job["out"] + "*.png"))
+    elapsed = round(__import__("time").time() - job["t0"], 1)
+    state = "running" if rc is None else ("done" if rc == 0 else f"error({rc})")
+    return {"job_id": job_id, "state": state, "elapsed": elapsed, "files": files}
+
+
 def viewport_screenshot(filepath: str = "/tmp/viewport.png") -> dict:
     try:
         import bpy
@@ -234,6 +350,9 @@ def set_filmic(look: str = None, exposure: float = None, gamma: float = None) ->
 
 HANDLERS = {
     "render.render": render_scene,
+    "render.render_still": render_still,
+    "render.render_bg": render_start_bg,
+    "render.job_status": render_job_status,
     "render.viewport": viewport_screenshot,
     "render.settings": get_settings,
     "render.set_engine": set_engine,

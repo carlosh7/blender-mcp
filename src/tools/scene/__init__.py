@@ -32,6 +32,21 @@ TOOLS = [
         ],
     ),
     Tool(
+        name="scene.query",
+        category=ToolCategory.SCENE,
+        description="Buscar objetos por nombre/tipo/distancia (el grep de la escena)",
+        permission=ToolPermission.READ_ONLY,
+        parameters={
+            "name_contains": {"type": "str", "description": "Subcadena del nombre"},
+            "name_regex": {"type": "str", "description": "Regex sobre el nombre"},
+            "obj_type": {"type": "str", "description": "MESH/LIGHT/CAMERA/..."},
+            "near": {"type": "list", "description": "[x,y,z] centro de búsqueda"},
+            "max_distance": {"type": "float"},
+            "limit": {"type": "int"},
+        },
+        examples=["scene.query(name_contains='Cube')"],
+    ),
+    Tool(
         name="scene.create",
         category=ToolCategory.SCENE,
         description="Create a new scene",
@@ -88,6 +103,45 @@ TOOLS = [
         ],
     ),
 ]
+
+
+def query(
+    name_contains: str = "",
+    name_regex: str = "",
+    obj_type: str = "",
+    near: list = None,
+    max_distance: float = 1.0,
+    limit: int = 50,
+) -> dict[str, Any]:
+    """Buscar objetos por nombre/tipo/distancia — el 'grep' de la escena."""
+    import re
+
+    import bpy
+    from mathutils import Vector
+
+    results = []
+    rx = re.compile(name_regex) if name_regex else None
+    origin = Vector(near) if near else None
+    for obj in bpy.context.scene.objects:
+        if name_contains and name_contains.lower() not in obj.name.lower():
+            continue
+        if rx and not rx.search(obj.name):
+            continue
+        if obj_type and obj.type != obj_type.upper():
+            continue
+        entry: dict[str, Any] = {
+            "name": obj.name,
+            "type": obj.type,
+            "location": [round(c, 4) for c in obj.location],
+        }
+        if origin is not None:
+            entry["distance"] = round((obj.location - origin).length, 4)
+            if entry["distance"] > float(max_distance):
+                continue
+        results.append(entry)
+        if len(results) >= int(limit):
+            break
+    return {"matches": len(results), "objects": results}
 
 
 def get_info(include_objects: bool = True, include_materials: bool = False) -> dict[str, Any]:
@@ -241,6 +295,7 @@ def render_settings(
 # Handler mapping
 HANDLERS = {
     "scene.get_info": get_info,
+    "scene.query": query,
     "scene.create": create,
     "scene.delete": delete,
     "scene.set_active": set_active,
