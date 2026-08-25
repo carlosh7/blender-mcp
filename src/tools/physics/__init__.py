@@ -113,6 +113,77 @@ def bake_rigidbody(frames: int = 50) -> dict:
     return {"baked": True, "frame_end": rb.point_cache.frame_end}
 
 
+# ── Envolturas sobre addon/physics_realtime + physics_advanced ──
+
+
+def _realtime():
+    try:
+        import addon.physics_realtime as rt
+
+        return rt
+    except Exception as e:  # pragma: no cover
+        raise RuntimeError(f"addon.physics_realtime no disponible: {e}") from e
+
+
+_PARTICLE_PRESETS = {
+    "particle_snow": {"count": 2000, "lifetime": 100},
+    "particle_rain": {"count": 4000, "lifetime": 50},
+    "particle_sparks": {"count": 800, "lifetime": 30},
+    "particle_default": {"count": 1000, "lifetime": 100},
+}
+
+
+def particles_add(object_name: str, preset: str = "particle_snow") -> dict:
+    """Sistema de partículas por preset (compatible 4.x/5.x sin particle_mass)."""
+    obj = _get_obj(object_name)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.particle_system_add()
+    ps = obj.particle_systems.active
+    cfg = _PARTICLE_PRESETS.get(preset, _PARTICLE_PRESETS["particle_default"])
+    ps.settings.count = int(cfg["count"])
+    ps.settings.lifetime = int(cfg["lifetime"])
+    return {"object": object_name, "particles": True, "preset": preset, "count": cfg["count"]}
+
+
+def soft_body_add(object_name: str, preset: str = "soft_body_rubber") -> dict:
+    obj = _get_obj(object_name)
+    mod = obj.modifiers.new("Softbody", "SOFT_BODY")
+    mod.settings.use_goal = False
+    try:
+        mod.settings.friction = 0.5
+    except Exception:
+        pass
+    return {"object": object_name, "soft_body": True, "preset": preset}
+
+
+def physics_preset(object_name: str, preset_name: str) -> dict:
+    """Preset físico completo del addon sobre un objeto."""
+    obj = _get_obj(object_name)
+    ok = _realtime().apply_physics_preset(obj, preset_name)
+    return {"object": object_name, "preset": preset_name, "applied": bool(ok)}
+
+
+def rigidbody_constraint(
+    object_a: str, object_b: str, constraint_type: str = "HINGE", location: list = None
+) -> dict:
+    """Constraint entre dos rigid bodies (HINGE, SLIDER, FIXED...)."""
+    adv = __import__("addon.physics_advanced", fromlist=["x"])
+    a = _get_obj(object_a)
+    b = _get_obj(object_b)
+    adv.rigid_body_constraint(
+        a, b, constraint_type=constraint_type, location=tuple(location or (0, 0, 0))
+    )
+    return {"constraint": constraint_type, "a": object_a, "b": object_b}
+
+
+def bake_cache(frame_start: int = 1, frame_end: int = 250) -> dict:
+    """Cocinar TODAS las cachés de física (bloquea unos segundos)."""
+    adv = __import__("addon.physics_advanced", fromlist=["x"])
+    adv.bake_physics_cache(frame_start=int(frame_start), frame_end=int(frame_end))
+    return {"baked": True, "frame_start": frame_start, "frame_end": frame_end}
+
+
 TOOLS = [
     Tool(
         "physics.rigidbody_add",
@@ -164,6 +235,49 @@ TOOLS = [
         ToolPermission.WRITE,
         {"frames": {"type": "int"}},
     ),
+    Tool(
+        "physics.particles_add",
+        ToolCategory.OBJECTS,
+        "Sistema de partículas por preset (snow/rain/sparks...)",
+        ToolPermission.WRITE,
+        {"object_name": {"type": "str", "required": True}, "preset": {"type": "str"}},
+    ),
+    Tool(
+        "physics.soft_body_add",
+        ToolCategory.OBJECTS,
+        "Soft body por preset",
+        ToolPermission.WRITE,
+        {"object_name": {"type": "str", "required": True}, "preset": {"type": "str"}},
+    ),
+    Tool(
+        "physics.preset",
+        ToolCategory.OBJECTS,
+        "Preset físico completo del addon sobre un objeto",
+        ToolPermission.WRITE,
+        {
+            "object_name": {"type": "str", "required": True},
+            "preset_name": {"type": "str", "required": True},
+        },
+    ),
+    Tool(
+        "physics.rigidbody_constraint",
+        ToolCategory.OBJECTS,
+        "Constraint entre dos rigid bodies (HINGE/SLIDER/FIXED...)",
+        ToolPermission.WRITE,
+        {
+            "object_a": {"type": "str", "required": True},
+            "object_b": {"type": "str", "required": True},
+            "constraint_type": {"type": "str"},
+            "location": {"type": "list"},
+        },
+    ),
+    Tool(
+        "physics.bake_cache",
+        ToolCategory.OBJECTS,
+        "Cocinar todas las cachés de física",
+        ToolPermission.WRITE,
+        {"frame_start": {"type": "int"}, "frame_end": {"type": "int"}},
+    ),
 ]
 
 HANDLERS = {
@@ -172,4 +286,9 @@ HANDLERS = {
     "physics.cloth_add": cloth_add,
     "physics.force_field_add": force_field_add,
     "physics.bake_rigidbody": bake_rigidbody,
+    "physics.particles_add": particles_add,
+    "physics.soft_body_add": soft_body_add,
+    "physics.preset": physics_preset,
+    "physics.rigidbody_constraint": rigidbody_constraint,
+    "physics.bake_cache": bake_cache,
 }

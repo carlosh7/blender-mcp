@@ -1,3 +1,4 @@
+# DEPRECATED (v2.2): usar mcp_adapter.py (stdio→socket con 171 tools MCP). Se elimina en v3.0.
 #!/usr/bin/env python3
 """
 stdio_bridge.py — STDIO MCP bridge para opencode y clientes STDIO.

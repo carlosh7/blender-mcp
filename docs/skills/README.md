@@ -2,6 +2,8 @@
 
 Recetas operativas para agentes, probadas E2E en Blender 5.1.
 
+Nuevas familias: `physics.particles/soft_body/constraint`, `export.*` (game/web/print), `perf.*`, `collab.*` (locks por objeto, tareas, assets), `blueprint.*`, `plan.*`, `docs.*`, `vc.*`, `vlm.*` (feedback visual), `scene.list_scenes/copy_object_to`, `compositor.*`, `scene_utils.undo/redo/ray_pick`.
+
 | Skill | Contenido |
 |---|---|
 | [modeling.md](modeling.md) | Edición por componentes, bmesh, anti-blockout, validación |
@@ -12,7 +14,7 @@ Recetas operativas para agentes, probadas E2E en Blender 5.1.
 ## Descubrimiento de tools en runtime
 
 ```
-list_tools                      # 147 tools con schema de parámetros
+list_tools                      # 217 tools con schema de parámetros
 scene.query {name_contains}     # el grep de la escena
 ```
 

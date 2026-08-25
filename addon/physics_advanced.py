@@ -83,7 +83,12 @@ def rigid_body_constraint(obj_a, obj_b, constraint_type="HINGE", location=(0, 0,
     rbc_empty.select_set(True)
     bpy.ops.rigidbody.constraint_add()
 
-    con = rbc_empty.rigidbody_constraint
+    # 4.x: rigidbody_constraint · 5.x: rigid_body_constraint
+    con = getattr(rbc_empty, "rigid_body_constraint", None) or getattr(
+        rbc_empty, "rigidbody_constraint", None
+    )
+    if con is None:
+        raise RuntimeError("No se pudo crear la restricción rigid body")
     con.type = constraint_type
     con.object1 = obj_a
     con.object2 = obj_b

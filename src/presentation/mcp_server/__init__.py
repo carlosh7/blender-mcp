@@ -26,6 +26,8 @@ from ...tools.batch import HANDLERS as batch_handlers
 from ...tools.batch import TOOLS as batch_tools
 from ...tools.camera import HANDLERS as camera_handlers
 from ...tools.camera import TOOLS as camera_tools
+from ...tools.collab import HANDLERS as collab_handlers
+from ...tools.collab import TOOLS as collab_tools
 from ...tools.compositor import HANDLERS as compositor_handlers
 from ...tools.compositor import TOOLS as compositor_tools
 from ...tools.curves_text import HANDLERS as curves_text_handlers
@@ -60,6 +62,8 @@ from ...tools.shader_nodes import HANDLERS as shader_handlers
 from ...tools.shader_nodes import TOOLS as shader_tools
 from ...tools.uv_texture import HANDLERS as uv_handlers
 from ...tools.uv_texture import TOOLS as uv_tools
+from ...tools.vlm_feedback import HANDLERS as vlm_handlers
+from ...tools.vlm_feedback import TOOLS as vlm_tools
 
 logger = logging.getLogger("blender-mcp-ultra")
 
@@ -93,6 +97,8 @@ def register_all_tools(registry: ToolRegistry):
         (curves_text_tools, curves_text_handlers),
         (compositor_tools, compositor_handlers),
         (bridge_tools, bridge_handlers),
+        (collab_tools, collab_handlers),
+        (vlm_tools, vlm_handlers),
         (rigging_tools, rigging_handlers),
         (batch_tools, batch_handlers),
         (utils_tools, utils_handlers),

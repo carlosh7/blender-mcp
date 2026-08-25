@@ -47,6 +47,25 @@ TOOLS = [
         examples=["scene.query(name_contains='Cube')"],
     ),
     Tool(
+        name="scene.list_scenes",
+        category=ToolCategory.SCENE,
+        description="Listar escenas con conteos e indicar la activa",
+        permission=ToolPermission.READ_ONLY,
+        parameters={},
+        examples=["scene.list_scenes()"],
+    ),
+    Tool(
+        name="scene.copy_object_to",
+        category=ToolCategory.SCENE,
+        description="Copiar o linkear un objeto a otra escena",
+        permission=ToolPermission.WRITE,
+        parameters={
+            "object_name": {"type": "str", "required": True},
+            "target_scene": {"type": "str", "required": True},
+            "link": {"type": "bool", "description": "Linkear en vez de copiar"},
+        },
+    ),
+    Tool(
         name="scene.create",
         category=ToolCategory.SCENE,
         description="Create a new scene",
@@ -103,6 +122,43 @@ TOOLS = [
         ],
     ),
 ]
+
+
+def list_scenes() -> dict[str, Any]:
+    """Listar todas las escenas con conteos y la activa."""
+    import bpy
+
+    scenes = []
+    for sc in bpy.data.scenes:
+        scenes.append(
+            {
+                "name": sc.name,
+                "objects": len(sc.objects),
+                "active": sc == bpy.context.scene,
+                "frame_start": sc.frame_start,
+                "frame_end": sc.frame_end,
+            }
+        )
+    return {"scenes": scenes, "active": bpy.context.scene.name}
+
+
+def copy_object_to(object_name: str, target_scene: str, link: bool = False) -> dict[str, Any]:
+    """Copiar (o linkear) un objeto a otra escena."""
+    import bpy
+
+    obj = bpy.data.objects.get(object_name)
+    if obj is None:
+        raise ValueError(f"Objeto no encontrado: {object_name}")
+    dst = bpy.data.scenes.get(target_scene)
+    if dst is None:
+        raise ValueError(f"Escena destino no encontrada: {target_scene}")
+    if link:
+        if obj.name not in dst.objects:
+            dst.collection.objects.link(obj)
+        return {"linked": object_name, "scene": target_scene}
+    dup = obj.copy()
+    dst.collection.objects.link(dup)
+    return {"copied": dup.name, "scene": target_scene, "original": object_name}
 
 
 def query(
@@ -296,6 +352,8 @@ def render_settings(
 HANDLERS = {
     "scene.get_info": get_info,
     "scene.query": query,
+    "scene.list_scenes": list_scenes,
+    "scene.copy_object_to": copy_object_to,
     "scene.create": create,
     "scene.delete": delete,
     "scene.set_active": set_active,

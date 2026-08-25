@@ -20,6 +20,23 @@ _auth_token_cache = None
 
 # Comandos que modifican la escena: sujetos al lock multi-agente
 _MUTATING_COMMANDS = {"execute_code", "tool", "create_object", "cleanup_scene"}
+
+# ── Bus de eventos (ring buffer) para polling de agentes ──
+import collections as _collections
+
+_EVENT_BUFFER: _collections.deque = _collections.deque(maxlen=500)
+_EVENT_SEQ = 0
+
+
+def emit_event(kind: str, data=None):
+    """Publicar un evento en el bus (poll con cmd_poll_events)."""
+    global _EVENT_SEQ
+    _EVENT_SEQ += 1
+    _EVENT_BUFFER.append(
+        {"seq": _EVENT_SEQ, "time": round(time.time(), 3), "kind": kind, "data": data or {}}
+    )
+
+
 _chat_queue = []
 _chat_responses = {}
 _chat_lock = threading.Lock()
@@ -625,6 +642,11 @@ class BlenderSocketServer:
         except Exception as e:
             return {"topic": topic, "error": str(e), "source": "error"}
 
+    def cmd_poll_events(self, since: int = 0, limit: int = 100):
+        """Eventos del bus con seq > since (streaming por polling)."""
+        events = [e for e in _EVENT_BUFFER if e["seq"] > int(since)][: int(limit)]
+        return {"events": events, "last_seq": _EVENT_SEQ}
+
     # ── Lock de escena multi-agente (advisory) ──
 
     def cmd_scene_lock(self, action="status", token="", ttl=300.0):
@@ -648,11 +670,13 @@ class BlenderSocketServer:
                 return {"locked": True, "owner": "otro-agente", "acquired": False}
             scene["mcp_scene_lock"] = token or "default"
             scene["mcp_scene_lock_ts"] = _time.time()
+            emit_event("lock_acquired", {"owner": token or "default"})
             return {"locked": True, "owner": token or "default", "acquired": True}
         if action == "release":
             if current and current != token:
                 return {"locked": True, "owner": "otro-agente", "released": False}
             scene["mcp_scene_lock"] = ""
+            emit_event("lock_released", {"by": token or "default"})
             return {"locked": False, "released": True}
         return {"locked": bool(current), "owner": current or None}
 
@@ -768,6 +792,7 @@ class BlenderSocketServer:
         args += ["-a"] if animation else ["-f", str(int(frame or scene.frame_current))]
 
         proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        emit_event("render_started", {"job_id": job_id, "pid": proc.pid, "out_prefix": out_prefix})
         self._render_jobs[job_id] = {
             "proc": proc,
             "out_prefix": out_prefix,
@@ -790,6 +815,12 @@ class BlenderSocketServer:
         rc = proc.poll()
         pattern = job["out_prefix"] + ("*" if job["animation"] else "*.png")
         files = sorted(glob.glob(pattern))
+        if rc is not None and not job.get("_notified"):
+            job["_notified"] = True
+            emit_event(
+                "render_done" if rc == 0 else "render_error",
+                {"job_id": job_id, "files": len(files)},
+            )
         progress = None
         if job.get("animation") and job.get("frame_end"):
             total = int(job["frame_end"]) - int(job.get("frame_start", 1)) + 1
@@ -835,6 +866,7 @@ class BlenderSocketServer:
 
         path = os.path.join(self._tx_dir(), f"{label}.blend")
         bpy.ops.wm.save_as_mainfile(filepath=path, copy=True)
+        emit_event("snapshot_saved", {"label": label})
         return {"label": label, "path": path}
 
     def cmd_scene_restore(self, label="snap"):

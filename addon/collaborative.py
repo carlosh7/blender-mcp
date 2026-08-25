@@ -1,6 +1,8 @@
 """
 blender-mcp — Collaborative Editing
 Edición colaborativa con locks, mensajes y tareas compartidas.
+
+.. DEPRECATED (v2.2): usar src/tools/collab (locks por objeto de multi_agent). Se elimina en v3.0.
 """
 
 import json

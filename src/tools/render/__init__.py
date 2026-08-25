@@ -138,6 +138,7 @@ def render_start_bg(
     samples: int = None,
     resolution: list = None,
     frame: int = None,
+    scene: str = None,
 ) -> dict:
     """Render NO bloqueante en instancia headless aparte. Devuelve job_id.
 
@@ -181,6 +182,10 @@ def render_start_bg(
         bpy.app.binary_path,
         "-b",
         job_blend,
+    ]
+    if scene:
+        args += ["-S", scene]
+    args += [
         "-o",
         (filepath if filepath.endswith(("_", "/")) else filepath + "_"),
         "-F",

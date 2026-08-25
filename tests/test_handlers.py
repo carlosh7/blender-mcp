@@ -37,6 +37,8 @@ REQUIRED_CATEGORIES = [
     "curves_text",
     "compositor",
     "addon_bridge",
+    "collab",
+    "vlm_feedback",
 ]
 
 EXPECTED_TOOLS_PER_CATEGORY = {
@@ -68,6 +70,8 @@ EXPECTED_TOOLS_PER_CATEGORY = {
     "curves_text": ["curve.bezier_add", "text.add", "metaball.add"],
     "compositor": ["compositor.node_add", "compositor.node_set_input"],
     "addon_bridge": ["material.pbr", "sculpt.base", "scene.check_blockout"],
+    "collab": ["collab.lock_acquire", "asset.save", "blueprint.save"],
+    "vlm_feedback": ["vlm.capture", "vlm.analyze"],
 }
 
 

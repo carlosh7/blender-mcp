@@ -3,6 +3,8 @@ blender-mcp — Export Manager
 Exportación automática: glTF, FBX, OBJ, STL, render.
 
 Regla de oro: SIEMPRE ofrecer exportación al finalizar.
+
+.. DEPRECATED (v2.2): usar src/tools/io + export.for_target (addon_bridge). Se elimina en v3.0.
 """
 
 import os

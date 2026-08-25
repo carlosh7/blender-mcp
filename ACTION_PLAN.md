@@ -83,3 +83,22 @@ Ver evidencia completa en `AUDIT_REPORT.md` § Anexo runtime.
 | Progreso % en render jobs | ✅ (animación) |
 
 **Total final: 165 tools registry · 171 vía MCP · 469 tests passed.**
+
+
+---
+
+# Sesión "deuda restante" (2026-08-25)
+
+| Ítem | Estado |
+|---|---|
+| Bus de eventos (ring buffer + poll_events) | ✅ emite render/lock/snapshots; polling ligero para agentes |
+| Multi-escena real | ✅ scene.list_scenes + copy_object_to + render_bg(scene=); fix object.select cross-escena |
+| physics_realtime/advanced cableados | ✅ particles/soft_body/preset/constraint/bake_cache (compat 5.x: particle_mass y rigid_body_constraint) |
+| export_advanced + optimizadores | ✅ export.game_collision/lods/batch/for_target + perf.* (9 tools) |
+| vlm_feedback | ✅ capture (viewport o render EEVEE headless) + analyze/quick/composition/lighting |
+| collab | ✅ locks por objeto, mensajería, tareas, workflows + asset_library + akb blueprints 27-pt (20 tools) |
+| planner/docs/version_control | ✅ plan.*/docs.*/vc.* (10 tools) |
+| Deprecaciones | ✅ stdio_bridge, export_manager, collaborative marcados (v3.0 los elimina) |
+| Bugs legacy arreglados | physics_advanced constraint attr 5.x · doc_generator firma · vc.list nombre |
+
+**Total final: 217 tools registry · 223 vía MCP · 479 tests passed.**

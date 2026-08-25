@@ -1,6 +1,6 @@
 # blender-mcp-ultra
 
-**MCP server para Blender** — 165 tools del registry (171 vía MCP), headless, multi-agente.
+**MCP server para Blender** — 217 tools del registry (223 vía MCP), headless, multi-agente, feedback visual VLM.
 
 > Estado: **beta funcional**. Verificado E2E en Blender 5.1; ver `docs/skills/` para recetas probadas.
 
@@ -10,7 +10,7 @@ blender-mcp-ultra connects Blender to any AI assistant (Claude, Cursor, Windsurf
 
 ## Features
 
-- **165 tools** en 21 módulos (modelado por componentes, animación, física, compositor, render por jobs)
+- **217 tools** en 24 módulos (modelado por componentes, animación, física completa, compositor, render por jobs, VLM, multi-agente, assets)
 - **19 Skills** for Claude Code/Cursor
 - **Enterprise Security**: AST validation, sandboxed execution, rate limiting
 - **Multi-Provider**: OpenAI, Anthropic, Google, DeepSeek, Ollama

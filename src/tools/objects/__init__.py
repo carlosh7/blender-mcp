@@ -223,16 +223,17 @@ def select(
         # Deselect all
         bpy.ops.object.select_all(action="DESELECT")
 
+        scene_objects = set(bpy.context.scene.objects.keys())
         selected = []
 
         if name:
             obj = bpy.data.objects.get(name)
-            if obj:
+            if obj and obj.name in scene_objects:
                 obj.select_set(True)
                 bpy.context.view_layer.objects.active = obj
                 selected.append(name)
         elif type:
-            for obj in bpy.data.objects:
+            for obj in bpy.context.scene.objects:
                 if obj.type == type.upper():
                     obj.select_set(True)
                     selected.append(obj.name)
