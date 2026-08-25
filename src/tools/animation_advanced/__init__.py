@@ -172,6 +172,22 @@ def shape_key_set(
     return {"object": object_name, "shape_key": name, "value": key.value}
 
 
+def nla_track_add(object_name: str, track_name: str = "Track") -> dict:
+    """Añadir track NLA y meter la acción actual como strip."""
+    obj = _get_obj(object_name)
+    if obj.animation_data is None:
+        obj.animation_data_create()
+    ad = obj.animation_data
+    track = ad.nla_tracks.new()
+    track.name = track_name
+    if ad.action:
+        strip = track.strips.new(
+            name=ad.action.name, start=int(ad.action.frame_range[0]), action=ad.action
+        )
+        return {"track": track.name, "strip": strip.name, "action": ad.action.name}
+    return {"track": track.name, "strip": None, "note": "sin acción que strip-ear"}
+
+
 TOOLS = [
     Tool(
         "animation.fcurve_info",
@@ -242,6 +258,16 @@ TOOLS = [
             "move_verts": {"type": "dict"},
         },
     ),
+    Tool(
+        "animation.nla_track_add",
+        ToolCategory.ANIMATION,
+        "Añadir track NLA con la acción actual como strip",
+        ToolPermission.WRITE,
+        {
+            "object_name": {"type": "str", "required": True},
+            "track_name": {"type": "str"},
+        },
+    ),
 ]
 
 HANDLERS = {
@@ -251,4 +277,5 @@ HANDLERS = {
     "animation.constraint_add": constraint_add,
     "animation.shape_key_add": shape_key_add,
     "animation.shape_key_set": shape_key_set,
+    "animation.nla_track_add": nla_track_add,
 }

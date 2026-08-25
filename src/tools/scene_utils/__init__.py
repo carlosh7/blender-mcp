@@ -63,7 +63,72 @@ TOOLS = [
         ToolPermission.WRITE,
         {"object_name": {"type": "str"}},
     ),
+    Tool(
+        "scene_utils.undo",
+        ToolCategory.SCENE_UTILS,
+        "Deshacer N pasos del stack de undo de Blender",
+        ToolPermission.WRITE,
+        {"steps": {"type": "int"}},
+    ),
+    Tool(
+        "scene_utils.redo",
+        ToolCategory.SCENE_UTILS,
+        "Rehacer N pasos",
+        ToolPermission.WRITE,
+        {"steps": {"type": "int"}},
+    ),
+    Tool(
+        "scene_utils.ray_pick",
+        ToolCategory.SCENE_UTILS,
+        "Raycast 3D: primer objeto tocado desde origen en dirección dada",
+        ToolPermission.READ_ONLY,
+        {
+            "origin": {"type": "list", "required": True},
+            "direction": {"type": "list", "required": True},
+        },
+    ),
 ]
+
+
+def undo(steps: int = 1) -> dict:
+    """Deshacer los últimos N pasos (stack de undo de Blender)."""
+    import bpy
+
+    for _ in range(max(1, int(steps))):
+        bpy.ops.ed.undo()
+    return {"undone": max(1, int(steps))}
+
+
+def redo(steps: int = 1) -> dict:
+    """Rehacer los últimos N pasos."""
+    import bpy
+
+    for _ in range(max(1, int(steps))):
+        bpy.ops.ed.redo()
+    return {"redone": max(1, int(steps))}
+
+
+def ray_pick(origin: list, direction: list) -> dict:
+    """Raycast en la escena: primer objeto tocado desde origen+dirección.
+
+    Permite 'pick' 3D sin viewport: p.ej. desde la cámara hacia un punto.
+    """
+    import bpy
+    from mathutils import Vector
+
+    dg = bpy.context.evaluated_depsgraph_get()
+    hit, location, normal, index, obj, matrix = bpy.context.scene.ray_cast(
+        dg, Vector(origin), Vector(direction).normalized()
+    )
+    if not hit:
+        return {"hit": False}
+    return {
+        "hit": True,
+        "object": obj.name,
+        "location": [round(c, 4) for c in location],
+        "normal": [round(c, 3) for c in normal],
+        "distance": round((Vector(location) - Vector(origin)).length, 4),
+    }
 
 
 def cleanup() -> dict:
@@ -214,6 +279,9 @@ def triangulate(object_name: str = None) -> dict:
 
 
 HANDLERS = {
+    "scene_utils.undo": undo,
+    "scene_utils.redo": redo,
+    "scene_utils.ray_pick": ray_pick,
     "scene_utils.cleanup": cleanup,
     "scene_utils.purge_orphans": purge_orphans,
     "scene_utils.mesh_analysis": mesh_analysis,

@@ -63,3 +63,23 @@ Ver evidencia completa en `AUDIT_REPORT.md` § Anexo runtime.
 - [x] 18. **Añadir `pyyaml` a dependencies** (pyproject) o arreglar `_parse_yaml_basic` para YAML anidado; `get_settings()` crashea en installs limpios (`settings.py:160`).
 - [x] 19. **Imports de `helpers` en tests**: añadir `tests` a `pythonpath` en pyproject o convertir a `from tests.helpers import …`. Hoy la suite no se recolecta sin `PYTHONPATH=tests`.
 - [x] 20. **Eliminar handlers duplicados** en `addon/_axsock.py` (`cmd_snap_and_parent`, `cmd_snap_to_anchor`: líneas 248/257 vs 769/782) y alinear la doc de anclas de `mcp_server.py:70-71` con `ANCHOR_NAMES` real (`FRONT_BOTTOM_LEFT`, `CENTROID`, …).
+
+---
+
+# Sesión "completar pendientes" (2026-08-24 noche)
+
+| Ítem | Estado |
+|---|---|
+| CI con e2e headless reales | ✅ workflow lanza Blender -b + serve_forever; flujo verificado localmente (459 passed contra headless) |
+| Compositor (5.x `compositing_node_group`) | ✅ 4 tools: node_add/set_input/connect/list_nodes |
+| Geo nodes `node_set_input` | ✅ |
+| Undo/redo + ray_pick | ✅ en scene_utils |
+| NLA + Grease Pencil | ✅ |
+| sculpt/pbr/anti_blockout cableados | ✅ addon_bridge (8 tools; requiere repo en Blender) |
+| Auditoría cmd_* (patrón None) | ✅ sin más instancias del bug |
+| Consolidación de servidores | ✅ mcp_server.py = gateway único: 6 base + 165 registry = **171 tools MCP** (registro dinámico por socket) |
+| Claims de marketing | ✅ README/ULTRA/GUIDE a "beta funcional" apuntando a docs/skills |
+| Empaquetado extensión | ✅ blender_manifest.toml + scripts/build_extension.py (zip 89 archivos) |
+| Progreso % en render jobs | ✅ (animación) |
+
+**Total final: 165 tools registry · 171 vía MCP · 469 tests passed.**

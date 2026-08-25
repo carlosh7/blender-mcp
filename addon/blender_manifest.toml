@@ -1,9 +1,30 @@
 schema_version = "1.0.0"
+
 id = "blender_mcp_ultra"
+version = "2.2.0"
 name = "blender-mcp-ultra"
-tagline = "The most complete MCP server for Blender — 118+ tools, enterprise security"
-version = "1.0.0"
+tagline = "Control total de Blender para agentes IA vía MCP"
+maintainer = "carlosh7"
 type = "add-on"
-maintainer = "CarlosH"
-license = ["MIT"]
-blender_version_min = "4.0.0"
+website = "https://github.com/carlosh7/blender-mcp"
+
+tags = ["Interface", "Development", "Modeling", "Animation"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+network = "Servidor socket local (localhost:9876) para el puente MCP"
+files = "Guardar snapshots, renders y screenshots en /tmp"
+
+[build]
+paths_exclude_pattern = [
+    "__pycache__/",
+    ".*.pyc",
+    "tests/",
+    "docs/",
+    "benchmarks/",
+    "data/",
+    "skills/",
+]

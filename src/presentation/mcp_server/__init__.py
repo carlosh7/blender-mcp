@@ -16,6 +16,8 @@ from typing import Any
 
 from ...core.entities import Tool
 from ...tools import ToolRegistry
+from ...tools.addon_bridge import HANDLERS as bridge_handlers
+from ...tools.addon_bridge import TOOLS as bridge_tools
 from ...tools.animation import HANDLERS as animation_handlers
 from ...tools.animation import TOOLS as animation_tools
 from ...tools.animation_advanced import HANDLERS as anim_adv_handlers
@@ -24,6 +26,8 @@ from ...tools.batch import HANDLERS as batch_handlers
 from ...tools.batch import TOOLS as batch_tools
 from ...tools.camera import HANDLERS as camera_handlers
 from ...tools.camera import TOOLS as camera_tools
+from ...tools.compositor import HANDLERS as compositor_handlers
+from ...tools.compositor import TOOLS as compositor_tools
 from ...tools.curves_text import HANDLERS as curves_text_handlers
 from ...tools.curves_text import TOOLS as curves_text_tools
 from ...tools.geometry_nodes import HANDLERS as geonodes_handlers
@@ -87,6 +91,8 @@ def register_all_tools(registry: ToolRegistry):
         (uv_tools, uv_handlers),
         (physics_tools, physics_handlers),
         (curves_text_tools, curves_text_handlers),
+        (compositor_tools, compositor_handlers),
+        (bridge_tools, bridge_handlers),
         (rigging_tools, rigging_handlers),
         (batch_tools, batch_handlers),
         (utils_tools, utils_handlers),

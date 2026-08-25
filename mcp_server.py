@@ -128,8 +128,100 @@ def resource_scene_info() -> str:
     return json.dumps(b.send_command("get_scene_info"), indent=2)
 
 
+# ── Registro dinámico: expone TODOS los tools del registry vía socket ──
+
+_TYPE_MAP = {
+    "str": str,
+    "string": str,
+    "int": int,
+    "float": float,
+    "bool": bool,
+    "list": list,
+    "dict": dict,
+    "tuple": list,
+    "any": object,
+}
+
+_BASE_TOOLS = {
+    "ping",
+    "get_scene_info",
+    "execute_blender_code",
+    "get_viewport_screenshot",
+    "search_api_docs",
+    "get_python_api_docs",
+    "snap_and_parent",
+}
+
+
+def _register_dynamic_tools() -> int:
+    """Exponer el registry completo (165 tools) como tools MCP reales.
+
+    Usa `list_tools` por socket; si Blender no responde, el servidor arranca
+    igual con las 6 tools base. Los nombres `a.b` se publican como `a_b`.
+    """
+    import inspect
+    from inspect import Parameter
+
+    try:
+        b = get_blender()
+        resp = b.send_command("list_tools")
+    except Exception as e:
+        logger.warning(f"Blender no disponible para tools dinámicas: {e}")
+        return 0
+
+    tools = resp.get("tools", []) if isinstance(resp, dict) else []
+    count = 0
+    for tool in tools:
+        raw_name = str(tool.get("name", "")).strip()
+        if not raw_name:
+            continue
+        name = raw_name.replace(".", "_")
+        if name in _BASE_TOOLS or name.startswith("_"):
+            continue
+        desc = tool.get("description") or raw_name
+        params = tool.get("parameters") or {}
+
+        def _make_handler(tname: str):
+            def handler(**kwargs):
+                b2 = get_blender()
+                return json.dumps(
+                    b2.send_command("tool", {"tool_name": tname, "params": kwargs}),
+                    indent=2,
+                )
+
+            return handler
+
+        fn = _make_handler(raw_name)
+        sig_params = []
+        for pname, pdef in params.items():
+            ann = _TYPE_MAP.get(str(pdef.get("type", "str")), str)
+            if pdef.get("required"):
+                sig_params.append(Parameter(pname, Parameter.KEYWORD_ONLY, annotation=ann))
+            else:
+                default = pdef.get("default")
+                if default is None and ann is not object:
+                    try:
+                        default = ann()
+                    except Exception:
+                        default = None
+                sig_params.append(
+                    Parameter(pname, Parameter.KEYWORD_ONLY, default=default, annotation=ann)
+                )
+        try:
+            fn.__signature__ = inspect.Signature(sig_params)
+        except Exception:
+            fn.__signature__ = inspect.Signature([Parameter("kwargs", Parameter.VAR_KEYWORD)])
+        try:
+            mcp.tool(name=name, description=desc)(fn)
+            count += 1
+        except Exception as e:
+            logger.warning(f"Tool dinámica '{name}' no registrada: {e}")
+    return count
+
+
 def main():
-    logger.info("Starting MCP Server (6 tools)...")
+    dynamic = _register_dynamic_tools()
+    logger.info(f"Starting MCP Server ({6 + dynamic} tools: 6 base + {dynamic} registry)...")
 
     try:
         if "--sse" in sys.argv:

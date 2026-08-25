@@ -772,6 +772,8 @@ class BlenderSocketServer:
             "proc": proc,
             "out_prefix": out_prefix,
             "animation": bool(animation),
+            "frame_start": int(frame_start),
+            "frame_end": int(frame_end),
             "started": time.time(),
             "blend": job_blend,
         }
@@ -788,12 +790,22 @@ class BlenderSocketServer:
         rc = proc.poll()
         pattern = job["out_prefix"] + ("*" if job["animation"] else "*.png")
         files = sorted(glob.glob(pattern))
-        return {
+        progress = None
+        if job.get("animation") and job.get("frame_end"):
+            total = int(job["frame_end"]) - int(job.get("frame_start", 1)) + 1
+            if total > 0:
+                progress = round(min(100.0, 100.0 * len(files) / total), 1)
+        elif rc is None:
+            progress = None  # still: sin progreso incremental fiable
+        out = {
             "job_id": job_id,
             "state": "running" if rc is None else ("done" if rc == 0 else f"error({rc})"),
             "elapsed": round(time.time() - job["started"], 1),
             "files": files,
         }
+        if progress is not None:
+            out["progress_pct"] = progress
+        return out
 
     def cmd_render_list(self):
         """Listar todos los jobs de render lanzados en esta sesión."""

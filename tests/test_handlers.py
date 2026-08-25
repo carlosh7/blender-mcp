@@ -35,6 +35,8 @@ REQUIRED_CATEGORIES = [
     "animation_advanced",
     "physics",
     "curves_text",
+    "compositor",
+    "addon_bridge",
 ]
 
 EXPECTED_TOOLS_PER_CATEGORY = {
@@ -64,6 +66,8 @@ EXPECTED_TOOLS_PER_CATEGORY = {
     ],
     "physics": ["physics.rigidbody_add", "physics.cloth_add", "physics.force_field_add"],
     "curves_text": ["curve.bezier_add", "text.add", "metaball.add"],
+    "compositor": ["compositor.node_add", "compositor.node_set_input"],
+    "addon_bridge": ["material.pbr", "sculpt.base", "scene.check_blockout"],
 }
 
 

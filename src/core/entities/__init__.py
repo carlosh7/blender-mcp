@@ -70,18 +70,22 @@ class ToolResult:
     success: bool
     data: Any = None
     error: str | None = None
+    hint: str | None = None
     execution_time: float = 0.0
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        return {
+        out = {
             "success": self.success,
             "data": self.data,
             "error": self.error,
             "execution_time": self.execution_time,
             "timestamp": self.timestamp,
         }
+        if self.hint:
+            out["hint"] = self.hint
+        return out
 
 
 @dataclass

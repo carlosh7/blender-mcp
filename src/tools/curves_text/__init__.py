@@ -108,6 +108,15 @@ def metaball_add_element(object_name: str, location: list[float], radius: float 
     return {"object": object_name, "elements": len(obj.data.elements)}
 
 
+def grease_pencil_add(name: str = "GPencil") -> dict:
+    """Objeto Grease Pencil vacío (dibujo 2D/3D, anotaciones)."""
+    gp = bpy.data.grease_pencils.new(name)
+    layer = gp.layers.new("Layer", set_active=True)
+    obj = bpy.data.objects.new(name, gp)
+    bpy.context.collection.objects.link(obj)
+    return {"object": obj.name, "layers": len(gp.layers)}
+
+
 TOOLS = [
     Tool(
         "curve.bezier_add",
@@ -180,6 +189,13 @@ TOOLS = [
             "radius": {"type": "float"},
         },
     ),
+    Tool(
+        "grease_pencil.add",
+        ToolCategory.OBJECTS,
+        "Objeto Grease Pencil vacío con una capa",
+        ToolPermission.WRITE,
+        {"name": {"type": "str"}},
+    ),
 ]
 
 HANDLERS = {
@@ -189,4 +205,5 @@ HANDLERS = {
     "text.set_body": text_set_body,
     "metaball.add": metaball_add,
     "metaball.add_element": metaball_add_element,
+    "grease_pencil.add": grease_pencil_add,
 }

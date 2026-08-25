@@ -69,8 +69,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
-      - name: Run tests (e2e se auto-saltan sin Blender)
+      - name: Install Blender 5.1 (para e2e reales)
+        run: |
+          wget -q https://download.blender.org/release/Blender5.1/blender-5.1.2-linux-x64.tar.xz
+          tar -xf blender-5.1.2-linux-x64.tar.xz
+          echo "$PWD/blender-5.1.2-linux-x64" >> $GITHUB_PATH
+
+      - name: Start headless MCP server
+        run: |
+          blender -b --factory-startup --python scripts/headless_server_ci.py > /tmp/blender_ci.log 2>&1 &
+          for i in $(seq 1 30); do
+            nc -z localhost 9876 && break || sleep 2
+          done
+          nc -z localhost 9876 || { cat /tmp/blender_ci.log; exit 1; }
+
+      - name: Run tests (e2e incluidos contra Blender headless)
         run: pytest -q
+
+      - name: Stop Blender
+        if: always()
+        run: pkill blender || true
 
   security:
     runs-on: ubuntu-latest

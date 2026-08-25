@@ -32,6 +32,18 @@ TOOLS = [
         },
     ),
     Tool(
+        "geonodes.node_set_input",
+        ToolCategory.GEOMETRY_NODES,
+        "Fijar valor default de un input de nodo (sin link)",
+        ToolPermission.WRITE,
+        {
+            "group_name": {"type": "str", "required": True},
+            "node_name": {"type": "str", "required": True},
+            "input_name": {"type": "str", "required": True},
+            "value": {"type": "any", "required": True},
+        },
+    ),
+    Tool(
         "geonodes.connect",
         ToolCategory.GEOMETRY_NODES,
         "Connect nodes in geometry node group",
@@ -119,6 +131,25 @@ def add_node_to_group(group_name: str, node_type: str) -> dict:
         return {"success": True, "node": node.name, "type": node_type}
     except Exception as e:
         return {"error": str(e)}
+
+
+def set_node_input(group_name: str, node_name: str, input_name: str, value) -> dict:
+    """Fijar el default value de un input de nodo (valores, no links)."""
+    import bpy
+
+    ng = bpy.data.node_groups.get(group_name)
+    if not ng:
+        return {"error": f"Node group not found: {group_name}"}
+    node = ng.nodes.get(node_name)
+    if node is None:
+        return {"error": f"Node not found: {node_name}"}
+    sock = node.inputs.get(input_name)
+    if sock is None:
+        return {"error": f"Input '{input_name}' no existe en {node_name}"}
+    if not hasattr(sock, "default_value"):
+        return {"error": f"Input '{input_name}' no acepta valor directo"}
+    sock.default_value = value
+    return {"success": True, "set": f"{node_name}.{input_name}", "value": str(value)}
 
 
 def connect_in_group(
@@ -240,6 +271,7 @@ HANDLERS = {
     "geonodes.add_modifier": add_modifier,
     "geonodes.create_group": create_group,
     "geonodes.add_node": add_node_to_group,
+    "geonodes.node_set_input": set_node_input,
     "geonodes.connect": connect_in_group,
     "geonodes.list_groups": list_groups,
     "geonodes.scatter": scatter,
