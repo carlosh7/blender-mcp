@@ -17,6 +17,9 @@ import bpy
 SOCKET_PORT = 9876
 _socket_server = None
 _auth_token_cache = None
+
+# Comandos que modifican la escena: sujetos al lock multi-agente
+_MUTATING_COMMANDS = {"execute_code", "tool", "create_object", "cleanup_scene"}
 _chat_queue = []
 _chat_responses = {}
 _chat_lock = threading.Lock()
@@ -209,6 +212,23 @@ class BlenderSocketServer:
         expected = self._get_auth_token()
         if expected and not secrets.compare_digest(str(cmd.get("token", "")), expected):
             return {"status": "error", "message": "unauthorized: invalid or missing token"}
+
+        # Lock de escena (advisory, multi-agente): comandos mutadores requieren
+        # el lock_token del dueño mientras exista un lock activo.
+        if cmd_type in _MUTATING_COMMANDS:
+            lock_owner = None
+            try:
+                lock_owner = bpy.context.scene.get("mcp_scene_lock", "") or ""
+            except Exception:
+                lock_owner = ""
+            if lock_owner and str(cmd.get("lock_token", "")) != lock_owner:
+                return {
+                    "status": "error",
+                    "message": (
+                        "escena bloqueada por otro agente (lock activo). "
+                        "Adquiere el lock o espera; release con scene_lock(action='release', token=...)."
+                    ),
+                }
 
         # Try direct method on self first (legacy commands)
         handler = getattr(self, f"cmd_{cmd_type}", None)
@@ -604,6 +624,37 @@ class BlenderSocketServer:
             return get_python_api_docs(topic)
         except Exception as e:
             return {"topic": topic, "error": str(e), "source": "error"}
+
+    # ── Lock de escena multi-agente (advisory) ──
+
+    def cmd_scene_lock(self, action="status", token="", ttl=300.0):
+        """Adquirir/liberar/consultar el lock de escena.
+
+        Mientras haya lock, execute_code/tool/create_object/cleanup_scene
+        exigen lock_token=token. TTL de seguridad evita locks huérfanos.
+        """
+        import time as _time
+
+        import bpy
+
+        scene = bpy.context.scene
+        current = scene.get("mcp_scene_lock", "") or ""
+        ts = scene.get("mcp_scene_lock_ts", 0.0)
+        if current and _time.time() - float(ts) > float(ttl) * 4:
+            current = ""  # expirado
+
+        if action == "acquire":
+            if current and current != token:
+                return {"locked": True, "owner": "otro-agente", "acquired": False}
+            scene["mcp_scene_lock"] = token or "default"
+            scene["mcp_scene_lock_ts"] = _time.time()
+            return {"locked": True, "owner": token or "default", "acquired": True}
+        if action == "release":
+            if current and current != token:
+                return {"locked": True, "owner": "otro-agente", "released": False}
+            scene["mcp_scene_lock"] = ""
+            return {"locked": False, "released": True}
+        return {"locked": bool(current), "owner": current or None}
 
     def cmd_diagnose(self):
         """Diagnose socket and MCP connections."""

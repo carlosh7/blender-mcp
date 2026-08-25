@@ -16,6 +16,39 @@ from ..infrastructure.logging import get_logger
 from ..infrastructure.security import validate_code_strict
 
 
+def _remediation_hint(tool_name: str, exc: Exception) -> str:
+    """Sugerencia de remediación según el tipo de fallo — errores que enseñan."""
+    msg = str(exc)
+    low = msg.lower()
+    if isinstance(exc, TypeError) and "unexpected keyword" in low:
+        kw = msg.split("'")[-2] if msg.count("'") >= 2 else "?"
+        return (
+            f"El parámetro '{kw}' no existe en este tool. "
+            "Consulta su definición en list_tools (campo parameters)."
+        )
+    if isinstance(exc, KeyError):
+        return f"Falta el parámetro obligatorio '{exc}'. Revisa 'required' en list_tools."
+    if "no encontrado" in low or "not found" in low or "not found:" in low:
+        return (
+            "El objeto/recurso no existe (¿nombre exacto?). "
+            "Usa scene.query(name_contains=...) para listar nombres reales."
+        )
+    if "nonetype" in low:
+        return (
+            "Algo interno es None: puede que el objeto tenga un slot de material "
+            "vacío o falte cámara activa. Verifica con mesh.get_topology o "
+            "scene.get_info antes de reintentar."
+        )
+    if "fuera de rango" in low or "out of range" in low or "index" in low:
+        return (
+            "Índice inválido: la topología cambió. Vuelve a llamar a "
+            "mesh.get_topology para re-obtener índices frescos."
+        )
+    if "permission" in low or "destructive" in low:
+        return "Este tool requiere permiso elevado; pásalo en el contexto del agente."
+    return ""
+
+
 class ToolRegistry(IToolRegistry):
     """
     Registry for managing tools.
@@ -125,6 +158,7 @@ class ToolRegistry(IToolRegistry):
             return ToolResult(
                 success=False,
                 error=str(e),
+                hint=_remediation_hint(tool_name, e),
                 execution_time=execution_time,
                 timestamp=datetime.now().isoformat(),
             )
