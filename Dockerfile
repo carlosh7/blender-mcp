@@ -26,5 +26,7 @@ ENV MCP_SSE_HOST=0.0.0.0
 ENV MCP_SSE_PORT=9879
 EXPOSE 9879
 
-# Transporte SSE para acceso remoto (stdio no aplica en contenedor)
-CMD ["python", "mcp_server.py", "--sse"]
+# Por defecto: transporte stdio MCP (estándar para clientes e introspección,
+# p.ej. Glama). Para el modo servidor SSE remoto:
+#   docker run -p 9879:9879 blender-mcp-gateway python mcp_server.py --sse
+CMD ["python", "mcp_server.py"]
