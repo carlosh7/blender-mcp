@@ -1,5 +1,16 @@
 # blender-mcp-ultra — Changelog
 
+## v3.0.1 (2026-08-26)
+
+### Fixed
+- Publicación en PyPI con todos los fixes incluidos (3.0.0 se subió antes de
+  los últimos commits): anotaciones `bpy` lazy en py<3.14, rutas cross-OS
+  del addon, fixes de CI
+
+### Added
+- docs/clients/claude-code.md, galería de renders showcase en el README
+- SEO: topics, descripción y social preview del repo
+
 ## Unreleased (post-v3.0.0)
 
 ### Added

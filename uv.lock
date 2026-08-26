@@ -121,7 +121,7 @@ wheels = [
 
 [[package]]
 name = "blender-mcp-ultra"
-version = "3.0.0"
+version = "3.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "mcp", extra = ["cli"] },
