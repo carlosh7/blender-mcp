@@ -243,7 +243,7 @@ print(json.dumps(output))
                     "PYTHONDONTWRITEBYTECODE": "1",
                 },
             )
-            result.timed_out = False
+            result.timed_out = result.returncode < 0  # kill por señal (SIGXCPU/SIGKILL) = límite de recursos
             return result
         except subprocess.TimeoutExpired:
             result = subprocess.CompletedProcess(

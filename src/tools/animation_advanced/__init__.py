@@ -1,7 +1,7 @@
-"""
-blender-mcp-ultra — Advanced Animation Tools
+"""blender-mcp-ultra — Advanced Animation Tools
 Fcurves, drivers, constraints y shape keys para animación real.
 """
+from __future__ import annotations
 
 from typing import Any, Dict, List
 

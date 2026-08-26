@@ -53,11 +53,15 @@ class TestRealSandbox:
         assert "ZeroDivisionError" in result.stderr or "error" in result.stderr.lower()
 
     def test_execute_timeout(self):
-        """Should timeout on long execution."""
+        """Should timeout on long execution.
+
+        Nota: el sandbox bloquea __import__, así que el código usuario no
+        puede hacer sleep(). El loop puro agota RLIMIT_CPU y el proceso muere
+        por señal (SIGXCPU) → el sandbox lo reporta como timed_out.
+        """
         from src.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=2)
-        # Use a loop that takes a long time
         result = s.execute("x = 0\nfor i in range(10**9):\n    x += 1")
         assert result.success is False
         assert result.timed_out is True
