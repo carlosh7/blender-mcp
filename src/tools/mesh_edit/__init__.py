@@ -7,6 +7,7 @@ Convención para agentes:
 - CUALQUIER operación que cambie la topología invalida índices:
   vuelve a llamar a get_topology antes de la siguiente edición.
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List

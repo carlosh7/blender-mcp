@@ -1,6 +1,7 @@
 """blender-mcp-ultra — Physics Tools
 Rigid body, cloth y force fields (la categoría que el catálogo prometía).
 """
+
 from __future__ import annotations
 
 from typing import Dict
