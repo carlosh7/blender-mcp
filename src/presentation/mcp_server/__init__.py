@@ -18,6 +18,8 @@ from ...core.entities import Tool
 from ...tools import ToolRegistry
 from ...tools.addon_bridge import HANDLERS as bridge_handlers
 from ...tools.addon_bridge import TOOLS as bridge_tools
+from ...tools.agent_experience import HANDLERS as agent_exp_handlers
+from ...tools.agent_experience import TOOLS as agent_exp_tools
 from ...tools.animation import HANDLERS as animation_handlers
 from ...tools.animation import TOOLS as animation_tools
 from ...tools.animation_advanced import HANDLERS as anim_adv_handlers
@@ -30,10 +32,14 @@ from ...tools.collab import HANDLERS as collab_handlers
 from ...tools.collab import TOOLS as collab_tools
 from ...tools.compositor import HANDLERS as compositor_handlers
 from ...tools.compositor import TOOLS as compositor_tools
+from ...tools.context_search import HANDLERS as ctx_handlers
+from ...tools.context_search import TOOLS as ctx_tools
 from ...tools.curves_text import HANDLERS as curves_text_handlers
 from ...tools.curves_text import TOOLS as curves_text_tools
 from ...tools.geometry_nodes import HANDLERS as geonodes_handlers
 from ...tools.geometry_nodes import TOOLS as geonodes_tools
+from ...tools.inspect import HANDLERS as inspect_handlers
+from ...tools.inspect import TOOLS as inspect_tools
 from ...tools.io import HANDLERS as io_handlers
 from ...tools.io import TOOLS as io_tools
 from ...tools.lights import HANDLERS as light_handlers
@@ -48,6 +54,8 @@ from ...tools.objects import HANDLERS as object_handlers
 from ...tools.objects import TOOLS as object_tools
 from ...tools.physics import HANDLERS as physics_handlers
 from ...tools.physics import TOOLS as physics_tools
+from ...tools.presets import HANDLERS as presets_handlers
+from ...tools.presets import TOOLS as presets_tools
 from ...tools.printing import HANDLERS as printing_handlers
 from ...tools.printing import TOOLS as printing_tools
 from ...tools.render import HANDLERS as render_handlers
@@ -56,10 +64,14 @@ from ...tools.rigging import HANDLERS as rigging_handlers
 from ...tools.rigging import TOOLS as rigging_tools
 from ...tools.scene import HANDLERS as scene_handlers
 from ...tools.scene import TOOLS as scene_tools
+from ...tools.scene_explain import HANDLERS as explain_handlers
+from ...tools.scene_explain import TOOLS as explain_tools
 from ...tools.scene_utils import HANDLERS as utils_handlers
 from ...tools.scene_utils import TOOLS as utils_tools
 from ...tools.shader_nodes import HANDLERS as shader_handlers
 from ...tools.shader_nodes import TOOLS as shader_tools
+from ...tools.spatial_intel import HANDLERS as spatial_handlers
+from ...tools.spatial_intel import TOOLS as spatial_tools
 from ...tools.uv_texture import HANDLERS as uv_handlers
 from ...tools.uv_texture import TOOLS as uv_tools
 from ...tools.vlm_feedback import HANDLERS as vlm_handlers
@@ -99,6 +111,12 @@ def register_all_tools(registry: ToolRegistry):
         (bridge_tools, bridge_handlers),
         (collab_tools, collab_handlers),
         (vlm_tools, vlm_handlers),
+        (agent_exp_tools, agent_exp_handlers),
+        (ctx_tools, ctx_handlers),
+        (spatial_tools, spatial_handlers),
+        (inspect_tools, inspect_handlers),
+        (explain_tools, explain_handlers),
+        (presets_tools, presets_handlers),
         (rigging_tools, rigging_handlers),
         (batch_tools, batch_handlers),
         (utils_tools, utils_handlers),

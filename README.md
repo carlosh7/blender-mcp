@@ -9,7 +9,7 @@
 
 **The most complete MCP server for Blender** — control Blender with natural language from any AI agent: Claude Code, Claude Desktop, Cursor, opencode, Windsurf, Antigravity, LM Studio, Ollama and any Model Context Protocol (MCP) client.
 
-> **223 tools** · Windows / macOS / Linux · headless-ready · production-grade security
+> **239 tools** · Windows / macOS / Linux · headless-ready · production-grade security
 
 ![Demo scene created entirely by an AI agent with blender-mcp-ultra: wooden table, Pixar-style lamp, coffee mug and metal towers](docs/img/demo-scene.png)
 
@@ -155,7 +155,7 @@ Full reference generated from the live registry: `docs_scene` tool · skills/rec
 ## Architecture
 
 ```
-AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 223 tools)
+AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 239 tools)
                                                   │ socket :9876 (localhost + token)
                                                   ▼
                                     Blender + addon blender-mcp-ultra

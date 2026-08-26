@@ -19,14 +19,26 @@ from helpers import skip_without_blender
 def send_command(command, params=None):
     """Send command to Blender MCP server."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(10)
+    sock.settimeout(30)
     sock.connect(("localhost", 9876))
     cmd = json.dumps({"command": command, "params": params or {}})
     sock.sendall(cmd.encode())
-    time.sleep(0.3)
-    resp = sock.recv(65536)
+    time.sleep(0.1)
+    # loop de recepción: respuestas grandes (list_tools ~500KB) llegan fragmentadas
+    buf = b""
+    resp = None
+    while True:
+        chunk = sock.recv(262144)
+        if not chunk:
+            break
+        buf += chunk
+        try:
+            resp = json.loads(buf.decode())
+            break
+        except json.JSONDecodeError:
+            continue
     sock.close()
-    return json.loads(resp.decode()) if resp else None
+    return resp
 
 
 def payload(resp):

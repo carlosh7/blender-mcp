@@ -25,9 +25,22 @@ def send_command(command, params=None):
     cmd = json.dumps({"command": command, "params": params or {}})
     sock.sendall(cmd.encode())
     time.sleep(0.1)
-    resp = sock.recv(65536)
+    # loop de recepción: las respuestas grandes (escenas con cientos de
+    # objetos) llegan fragmentadas — un solo recv trunca el JSON
+    buf = b""
+    resp = None
+    while True:
+        chunk = sock.recv(262144)
+        if not chunk:
+            break
+        buf += chunk
+        try:
+            resp = json.loads(buf.decode())
+            break
+        except json.JSONDecodeError:
+            continue
     sock.close()
-    return json.loads(resp.decode()) if resp else None
+    return resp
 
 
 def payload(resp):

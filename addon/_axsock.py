@@ -132,14 +132,20 @@ class BlenderSocketServer:
 
         Solo válido cuando el hilo principal es este (blender --background
         con script bloqueante): bpy es seguro porque somos el main loop.
+        Tras cada comando, si el cliente no envía otro en 0.5s se cierra la
+        conexión para ceder el turno a otros clientes (el gateway reconecta
+        de forma transparente). El primer comando espera hasta 300s.
         """
         buffer = b""
         client.settimeout(300)
+        served = 0
         while True:
             try:
                 data = client.recv(1024 * 1024)
             except TimeoutError:
-                break
+                if served:
+                    break
+                continue
             if not data:
                 break
             buffer += data
@@ -157,6 +163,8 @@ class BlenderSocketServer:
                     "traceback": traceback.format_exc(),
                 }
             client.sendall(json.dumps(resp).encode("utf-8"))
+            served += 1
+            client.settimeout(0.5)
 
     def _handle(self, client):
         """Handle client connection with proper thread-safe execution."""
@@ -259,8 +267,12 @@ class BlenderSocketServer:
         return {"status": "error", "message": f"Unknown command: {cmd_type}"}
 
     def _get_tool_registry(self):
-        """Cargar (una vez) el ToolRegistry de src/ si el repo está disponible.
+        """Cargar (una vez) el ToolRegistry de src/ si está disponible.
 
+        Dos layouts soportados:
+        - Repo:   <repo>/addon/_axsock.py → raíz = padre del addon
+        - Extensión: <ext>/blender_mcp_ultra/_axsock.py → raíz = la propia
+          extensión (build_extension.py empaqueta src/ y blender_mcp/ dentro).
         Los handlers de src/tools se ejecutan in-process dentro de Blender,
         por lo que necesitan bpy: este puente solo funciona con Blender vivo.
         """
@@ -270,15 +282,29 @@ class BlenderSocketServer:
             import os
             import sys
 
-            # raíz del repo (PADRE del paquete src): es lo que permite `import src`
-            repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            if repo_root not in sys.path:
-                sys.path.insert(0, repo_root)
-            from src.presentation.mcp_server import register_all_tools
-            from src.tools import ToolRegistry
+            here = os.path.dirname(os.path.abspath(__file__))
+            candidates = [
+                os.path.dirname(here),  # layout repo: <repo>/addon/ → <repo>
+                here,  # layout extensión: <ext>/blender_mcp_ultra/ → <ext>
+            ]
+            registry = None
+            for root in candidates:
+                if not os.path.isdir(os.path.join(root, "src")):
+                    continue
+                if root not in sys.path:
+                    sys.path.insert(0, root)
+                try:
+                    from src.presentation.mcp_server import register_all_tools
+                    from src.tools import ToolRegistry
 
-            registry = ToolRegistry(use_cache=False)
-            register_all_tools(registry)
+                    registry = ToolRegistry(use_cache=False)
+                    register_all_tools(registry)
+                    break
+                except Exception:
+                    registry = None
+                    continue
+            if registry is None:
+                raise RuntimeError("src/ no encontrado en ninguna raíz candidata")
             self._tool_registry = registry
             print(f"[BLENDER SOCKET] Registry cargado: {len(registry.list_tools())} tools")
         except Exception as e:

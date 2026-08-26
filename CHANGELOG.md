@@ -1,5 +1,27 @@
 # blender-mcp-ultra — Changelog
 
+## v3.1.0 (2026-08-26) — "Spatial & Eyes + Agent Experience"
+
+### Added (22 tools nuevas → 239 total)
+- **Agent Experience** (de ciclos reales agente↔Blender): `scene.mark/diff`,
+  `object.place_bottom` (colocación bbox-aware), `object.snap_to`,
+  `render.preview`, `camera.check` (frustum), `physics.bake/free_cache`,
+  `scene.cleanup` (duplicados/empties/escala/huérfanos)
+- **Inteligencia espacial**: `spatial.place/query/check_move/dimensions/floorplan/stack`
+  + DB de dimensiones reales (60 objetos)
+- **Eyes sin VLM**: `inspect.view` (silhouette/wireframe/uv_checker/normals),
+  `inspect.turntable`, `inspect.topology` (score 0-100)
+- **Economía de contexto**: `tools.search` (índice generado en build)
+- **scene.explain** — objeto/materiales/nodos explicados en NL
+- **Presets & Moods**: `scene.preset` (10 entornos), `scene.mood` (6 iluminaciones)
+- `docs/skills/scene-building-guide.md` — guía de construcción para agentes
+
+### Fixed
+- **Crítico**: la extensión instalada limpia no exponía el registry (0 tools):
+  ahora empaqueta src/ + blender_mcp/ y el loader prueba múltiples raíces
+- Servidor headless: ceder turno entre clientes (0.5s idle) — concurrencia 10/10
+- Helpers de tests: recepción en loop (respuestas >64KB llegan fragmentadas)
+
 ## v3.0.2 (2026-08-26)
 
 ### Fixed

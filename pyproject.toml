@@ -1,7 +1,7 @@
 [project]
 name = "blender-mcp-ultra"
-version = "3.0.2"
-description = "The most complete MCP server for Blender — 217 tools, 19 skills, enterprise security"
+version = "3.1.0"
+description = "The most complete MCP server for Blender — 239 tools, 19 skills, enterprise security"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"

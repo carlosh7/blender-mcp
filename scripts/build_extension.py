@@ -25,7 +25,26 @@ INCLUDE = [
     "libraries/*.py",
     "handlers/*.py",
     "ai/*.py",
+    "data/**/*.json",
 ]
+
+# El registry completo (217 tools) vive en src/ + blender_mcp/ y se empaqueta
+# DENTRO de la extensión para que `list_tools`/`tool` funcionen en
+# instalaciones limpias (sin repo). Ver addon/_axsock.py::_get_tool_registry.
+BUNDLED_PACKAGES = ["src", "blender_mcp"]
+
+EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", "tests", "node_modules"}
+
+
+def _iter_pkg_files(base: Path):
+    """.py + .json de los paquetes bundled (el índice de tools es JSON)."""
+    for f in sorted(base.rglob("*")):
+        if f.suffix not in {".py", ".json"}:
+            continue
+        if any(part in EXCLUDE_DIRS for part in f.parts):
+            continue
+        if f.is_file():
+            yield f
 
 
 def main() -> int:
@@ -47,6 +66,14 @@ def main() -> int:
                 if not f.is_file() or "__pycache__" in f.parts:
                     continue
                 zf.write(f, arcname=str(f.relative_to(ADDON)))
+                n += 1
+        for pkg in BUNDLED_PACKAGES:
+            pkg_dir = REPO / pkg
+            if not pkg_dir.exists():
+                print(f"AVISO: bundle omitido, no existe {pkg_dir}", file=sys.stderr)
+                continue
+            for f in _iter_pkg_files(pkg_dir):
+                zf.write(f, arcname=str(f.relative_to(REPO)))
                 n += 1
     print(f"OK: {zip_path} ({n} archivos)")
     return 0

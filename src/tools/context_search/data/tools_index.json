@@ -1,0 +1,3820 @@
+[
+ {
+  "name": "scene.get_info",
+  "category": "scene",
+  "description": "Get information about the current scene",
+  "permission": "read_only",
+  "parameters": {
+   "include_objects": {
+    "type": "bool",
+    "default": true,
+    "description": "Include object list"
+   },
+   "include_materials": {
+    "type": "bool",
+    "default": false,
+    "description": "Include material list"
+   }
+  }
+ },
+ {
+  "name": "scene.query",
+  "category": "scene",
+  "description": "Buscar objetos por nombre/tipo/distancia (el grep de la escena)",
+  "permission": "read_only",
+  "parameters": {
+   "name_contains": {
+    "type": "str",
+    "description": "Subcadena del nombre"
+   },
+   "name_regex": {
+    "type": "str",
+    "description": "Regex sobre el nombre"
+   },
+   "obj_type": {
+    "type": "str",
+    "description": "MESH/LIGHT/CAMERA/..."
+   },
+   "near": {
+    "type": "list",
+    "description": "[x,y,z] centro de búsqueda"
+   },
+   "max_distance": {
+    "type": "float"
+   },
+   "limit": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "scene.list_scenes",
+  "category": "scene",
+  "description": "Listar escenas con conteos e indicar la activa",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "scene.copy_object_to",
+  "category": "scene",
+  "description": "Copiar o linkear un objeto a otra escena",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "target_scene": {
+    "type": "str",
+    "required": true
+   },
+   "link": {
+    "type": "bool",
+    "description": "Linkear en vez de copiar"
+   }
+  }
+ },
+ {
+  "name": "scene.create",
+  "category": "scene",
+  "description": "Create a new scene",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Scene name"
+   }
+  }
+ },
+ {
+  "name": "scene.delete",
+  "category": "scene",
+  "description": "Delete a scene",
+  "permission": "destructive",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Scene name"
+   }
+  }
+ },
+ {
+  "name": "scene.set_active",
+  "category": "scene",
+  "description": "Set the active scene",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Scene name"
+   }
+  }
+ },
+ {
+  "name": "scene.render_settings",
+  "category": "scene",
+  "description": "Get or set render settings",
+  "permission": "write",
+  "parameters": {
+   "engine": {
+    "type": "str",
+    "default": null,
+    "description": "Render engine (CYCLES, EEVEE)"
+   },
+   "samples": {
+    "type": "int",
+    "default": null,
+    "description": "Render samples"
+   },
+   "resolution_x": {
+    "type": "int",
+    "default": null,
+    "description": "Resolution X"
+   },
+   "resolution_y": {
+    "type": "int",
+    "default": null,
+    "description": "Resolution Y"
+   }
+  }
+ },
+ {
+  "name": "object.create",
+  "category": "objects",
+  "description": "Create a new object",
+  "permission": "write",
+  "parameters": {
+   "type": {
+    "type": "str",
+    "required": true,
+    "description": "Object type (MESH, CURVE, LIGHT, CAMERA)"
+   },
+   "name": {
+    "type": "str",
+    "default": null,
+    "description": "Object name"
+   },
+   "location": {
+    "type": "tuple",
+    "default": [
+     0,
+     0,
+     0
+    ],
+    "description": "Object location"
+   }
+  }
+ },
+ {
+  "name": "object.delete",
+  "category": "objects",
+  "description": "Delete an object",
+  "permission": "destructive",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   }
+  }
+ },
+ {
+  "name": "object.select",
+  "category": "objects",
+  "description": "Select objects",
+  "permission": "read_only",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "default": null,
+    "description": "Object name"
+   },
+   "type": {
+    "type": "str",
+    "default": null,
+    "description": "Object type"
+   },
+   "all": {
+    "type": "bool",
+    "default": false,
+    "description": "Select all objects"
+   }
+  }
+ },
+ {
+  "name": "object.transform",
+  "category": "objects",
+  "description": "Transform an object (move, rotate, scale)",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "location": {
+    "type": "tuple",
+    "default": null,
+    "description": "New location"
+   },
+   "rotation": {
+    "type": "tuple",
+    "default": null,
+    "description": "New rotation (Euler)"
+   },
+   "scale": {
+    "type": "tuple",
+    "default": null,
+    "description": "New scale"
+   }
+  }
+ },
+ {
+  "name": "object.duplicate",
+  "category": "objects",
+  "description": "Duplicate an object",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "new_name": {
+    "type": "str",
+    "default": null,
+    "description": "New object name"
+   },
+   "linked": {
+    "type": "bool",
+    "default": false,
+    "description": "Create linked duplicate"
+   }
+  }
+ },
+ {
+  "name": "object.join",
+  "category": "objects",
+  "description": "Join multiple objects",
+  "permission": "write",
+  "parameters": {
+   "names": {
+    "type": "list",
+    "required": true,
+    "description": "List of object names"
+   }
+  }
+ },
+ {
+  "name": "object.get_info",
+  "category": "objects",
+  "description": "Get information about an object",
+  "permission": "read_only",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   }
+  }
+ },
+ {
+  "name": "object.list",
+  "category": "objects",
+  "description": "List all objects in the scene",
+  "permission": "read_only",
+  "parameters": {
+   "type": {
+    "type": "str",
+    "default": null,
+    "description": "Filter by type"
+   }
+  }
+ },
+ {
+  "name": "mesh.get_topology",
+  "category": "objects",
+  "description": "Topología del mesh: conteos + caras (índice, centro, normal, vértices)",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Nombre del objeto"
+   },
+   "include_faces": {
+    "type": "bool",
+    "description": "Incluir datos por cara"
+   },
+   "max_faces": {
+    "type": "int",
+    "description": "Límite de caras listadas"
+   }
+  }
+ },
+ {
+  "name": "mesh.select",
+  "category": "objects",
+  "description": "Valida y devuelve los componentes seleccionables por índice",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "face_indices": {
+    "type": "list"
+   },
+   "edge_indices": {
+    "type": "list"
+   },
+   "vert_indices": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "mesh.extrude_faces",
+  "category": "objects",
+  "description": "Extruir caras a lo largo de su normal media",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "face_indices": {
+    "type": "list",
+    "required": true
+   },
+   "thickness": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "mesh.inset_faces",
+  "category": "objects",
+  "description": "Inset en caras (mismo plano) con profundidad opcional",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "face_indices": {
+    "type": "list",
+    "required": true
+   },
+   "thickness": {
+    "type": "float"
+   },
+   "depth": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "mesh.bevel_edges",
+  "category": "objects",
+  "description": "Biselar aristas concretas",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "edge_indices": {
+    "type": "list",
+    "required": true
+   },
+   "width": {
+    "type": "float"
+   },
+   "segments": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "mesh.subdivide_faces",
+  "category": "objects",
+  "description": "Subdividir caras (o todo el mesh si no se dan índices)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "face_indices": {
+    "type": "list"
+   },
+   "cuts": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "mesh.move_verts",
+  "category": "objects",
+  "description": "Mover vértices por offset o a posiciones absolutas",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "vert_indices": {
+    "type": "list"
+   },
+   "offset": {
+    "type": "list"
+   },
+   "positions": {
+    "type": "dict"
+   }
+  }
+ },
+ {
+  "name": "mesh.delete_elements",
+  "category": "objects",
+  "description": "Borrar caras/aristas/vértices por índice",
+  "permission": "destructive",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "face_indices": {
+    "type": "list"
+   },
+   "edge_indices": {
+    "type": "list"
+   },
+   "vert_indices": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "mesh.merge_verts",
+  "category": "objects",
+  "description": "Fusionar vértices cercanos (remove doubles) en una selección",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "vert_indices": {
+    "type": "list",
+    "required": true
+   },
+   "dist": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "mesh.smooth_verts",
+  "category": "objects",
+  "description": "Suavizar posiciones de vértices (Laplaciano simple)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "iterations": {
+    "type": "int"
+   },
+   "face_indices": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "mesh.recalc_normals",
+  "category": "objects",
+  "description": "Recalcular normales hacia fuera",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "material.create",
+  "category": "materials",
+  "description": "Create a new material",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Material name"
+   },
+   "color": {
+    "type": "tuple",
+    "default": [
+     0.8,
+     0.8,
+     0.8,
+     1.0
+    ],
+    "description": "Base color (RGBA)"
+   },
+   "metallic": {
+    "type": "float",
+    "default": 0.0,
+    "description": "Metallic value (0-1)"
+   },
+   "roughness": {
+    "type": "float",
+    "default": 0.5,
+    "description": "Roughness value (0-1)"
+   }
+  }
+ },
+ {
+  "name": "material.delete",
+  "category": "materials",
+  "description": "Delete a material",
+  "permission": "destructive",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Material name"
+   }
+  }
+ },
+ {
+  "name": "material.assign",
+  "category": "materials",
+  "description": "Assign material to object",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "material_name": {
+    "type": "str",
+    "required": true,
+    "description": "Material name"
+   }
+  }
+ },
+ {
+  "name": "material.get_info",
+  "category": "materials",
+  "description": "Get information about a material",
+  "permission": "read_only",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Material name"
+   }
+  }
+ },
+ {
+  "name": "material.list",
+  "category": "materials",
+  "description": "List all materials in the scene",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "material.update",
+  "category": "materials",
+  "description": "Update material properties",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Material name"
+   },
+   "color": {
+    "type": "tuple",
+    "default": null,
+    "description": "New base color (RGBA)"
+   },
+   "metallic": {
+    "type": "float",
+    "default": null,
+    "description": "New metallic value"
+   },
+   "roughness": {
+    "type": "float",
+    "default": null,
+    "description": "New roughness value"
+   }
+  }
+ },
+ {
+  "name": "light.create",
+  "category": "lights",
+  "description": "Create a new light",
+  "permission": "write",
+  "parameters": {
+   "type": {
+    "type": "str",
+    "required": true,
+    "description": "Light type (POINT, SUN, SPOT, AREA)"
+   },
+   "name": {
+    "type": "str",
+    "default": null,
+    "description": "Light name"
+   },
+   "location": {
+    "type": "tuple",
+    "default": [
+     0,
+     0,
+     5
+    ],
+    "description": "Light location"
+   },
+   "energy": {
+    "type": "float",
+    "default": 1000.0,
+    "description": "Light energy"
+   },
+   "color": {
+    "type": "tuple",
+    "default": [
+     1,
+     1,
+     1
+    ],
+    "description": "Light color (RGB)"
+   }
+  }
+ },
+ {
+  "name": "light.delete",
+  "category": "lights",
+  "description": "Delete a light",
+  "permission": "destructive",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Light name"
+   }
+  }
+ },
+ {
+  "name": "light.three_point",
+  "category": "lights",
+  "description": "Setup three-point lighting",
+  "permission": "write",
+  "parameters": {
+   "key_energy": {
+    "type": "float",
+    "default": 1000,
+    "description": "Key light energy"
+   },
+   "fill_energy": {
+    "type": "float",
+    "default": 500,
+    "description": "Fill light energy"
+   },
+   "rim_energy": {
+    "type": "float",
+    "default": 800,
+    "description": "Rim light energy"
+   },
+   "distance": {
+    "type": "float",
+    "default": 5,
+    "description": "Distance from center"
+   }
+  }
+ },
+ {
+  "name": "light.update",
+  "category": "lights",
+  "description": "Update light properties",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "Light name"
+   },
+   "energy": {
+    "type": "float",
+    "default": null,
+    "description": "New energy"
+   },
+   "color": {
+    "type": "tuple",
+    "default": null,
+    "description": "New color (RGB)"
+   },
+   "size": {
+    "type": "float",
+    "default": null,
+    "description": "New size"
+   }
+  }
+ },
+ {
+  "name": "light.list",
+  "category": "lights",
+  "description": "List all lights in the scene",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "modifier.add",
+  "category": "modifiers",
+  "description": "Add a modifier to an object",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "type": {
+    "type": "str",
+    "required": true,
+    "description": "Modifier type"
+   },
+   "name": {
+    "type": "str",
+    "default": null,
+    "description": "Modifier name"
+   }
+  }
+ },
+ {
+  "name": "modifier.remove",
+  "category": "modifiers",
+  "description": "Remove a modifier from an object",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "modifier_name": {
+    "type": "str",
+    "required": true,
+    "description": "Modifier name"
+   }
+  }
+ },
+ {
+  "name": "modifier.apply",
+  "category": "modifiers",
+  "description": "Apply a modifier",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "modifier_name": {
+    "type": "str",
+    "required": true,
+    "description": "Modifier name"
+   }
+  }
+ },
+ {
+  "name": "modifier.list",
+  "category": "modifiers",
+  "description": "List modifiers on an object",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   }
+  }
+ },
+ {
+  "name": "modifier.update",
+  "category": "modifiers",
+  "description": "Update modifier properties",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "modifier_name": {
+    "type": "str",
+    "required": true,
+    "description": "Modifier name"
+   },
+   "properties": {
+    "type": "dict",
+    "required": true,
+    "description": "Properties to update"
+   }
+  }
+ },
+ {
+  "name": "modifier.types",
+  "category": "modifiers",
+  "description": "List available modifier types",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "animation.keyframe_insert",
+  "category": "animation",
+  "description": "Insert a keyframe for an object property",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "property": {
+    "type": "str",
+    "required": true,
+    "description": "Property to keyframe"
+   },
+   "frame": {
+    "type": "int",
+    "default": null,
+    "description": "Frame number"
+   }
+  }
+ },
+ {
+  "name": "animation.keyframe_delete",
+  "category": "animation",
+  "description": "Delete keyframes for a property",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "property": {
+    "type": "str",
+    "required": true,
+    "description": "Property name"
+   }
+  }
+ },
+ {
+  "name": "animation.set_keyframe",
+  "category": "animation",
+  "description": "Set a keyframe value at a specific frame",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "property": {
+    "type": "str",
+    "required": true,
+    "description": "Property name"
+   },
+   "frame": {
+    "type": "int",
+    "required": true,
+    "description": "Frame number"
+   },
+   "value": {
+    "required": true,
+    "description": "Keyframe value"
+   }
+  }
+ },
+ {
+  "name": "animation.get_fcurves",
+  "category": "animation",
+  "description": "Get F-Curves for an object",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   }
+  }
+ },
+ {
+  "name": "animation.set_interpolation",
+  "category": "animation",
+  "description": "Set interpolation mode for F-Curves",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   },
+   "interpolation": {
+    "type": "str",
+    "required": true,
+    "description": "Interpolation mode"
+   }
+  }
+ },
+ {
+  "name": "animation.play",
+  "category": "animation",
+  "description": "Play animation",
+  "permission": "write",
+  "parameters": {
+   "start": {
+    "type": "int",
+    "default": null,
+    "description": "Start frame"
+   },
+   "end": {
+    "type": "int",
+    "default": null,
+    "description": "End frame"
+   }
+  }
+ },
+ {
+  "name": "animation.stop",
+  "category": "animation",
+  "description": "Stop animation",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "animation.clear",
+  "category": "animation",
+  "description": "Clear all animation data from an object",
+  "permission": "destructive",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true,
+    "description": "Object name"
+   }
+  }
+ },
+ {
+  "name": "animation.fcurve_info",
+  "category": "animation",
+  "description": "Listar fcurves y keyframes de la acción del objeto",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "data_path": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "animation.fcurve_set_key",
+  "category": "animation",
+  "description": "Keyframe en canal concreto (data_path + índice de array)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "data_path": {
+    "type": "str",
+    "required": true
+   },
+   "index": {
+    "type": "int",
+    "required": true
+   },
+   "frame": {
+    "type": "float",
+    "required": true
+   },
+   "value": {
+    "type": "float",
+    "required": true
+   },
+   "interpolation": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "animation.driver_add",
+  "category": "animation",
+  "description": "Driver con expresión y variables {nombre: 'objeto@data_path'}",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "data_path": {
+    "type": "str",
+    "required": true
+   },
+   "index": {
+    "type": "int",
+    "required": true
+   },
+   "expression": {
+    "type": "str",
+    "required": true
+   },
+   "driver_vars": {
+    "type": "dict"
+   }
+  }
+ },
+ {
+  "name": "animation.constraint_add",
+  "category": "animation",
+  "description": "Añadir constraint (Copy_Location, Track_To, Child_Of, ...) con props",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "type": {
+    "type": "str",
+    "required": true
+   },
+   "target": {
+    "type": "str"
+   },
+   "props": {
+    "type": "dict",
+    "description": "Atributos extra del constraint"
+   }
+  }
+ },
+ {
+  "name": "animation.shape_key_add",
+  "category": "animation",
+  "description": "Añadir shape key (crea Basis si falta)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "from_mix": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "animation.shape_key_set",
+  "category": "animation",
+  "description": "Valor y/o desplazamiento de vértices de una shape key",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "value": {
+    "type": "float"
+   },
+   "move_verts": {
+    "type": "dict"
+   }
+  }
+ },
+ {
+  "name": "animation.nla_track_add",
+  "category": "animation",
+  "description": "Añadir track NLA con la acción actual como strip",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "track_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "camera.create",
+  "category": "camera",
+  "description": "Create a camera",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   },
+   "location": {
+    "type": "tuple",
+    "default": [
+     0,
+     -5,
+     2
+    ]
+   },
+   "lens": {
+    "type": "float",
+    "default": 50
+   }
+  }
+ },
+ {
+  "name": "camera.delete",
+  "category": "camera",
+  "description": "Delete a camera",
+  "permission": "destructive",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "camera.set_active",
+  "category": "camera",
+  "description": "Set active camera",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "camera.update",
+  "category": "camera",
+  "description": "Update camera properties",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "lens": {
+    "type": "float"
+   },
+   "dof": {
+    "type": "float"
+   },
+   "clip_start": {
+    "type": "float"
+   },
+   "clip_end": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "camera.track_to",
+  "category": "camera",
+  "description": "Make camera track to object",
+  "permission": "write",
+  "parameters": {
+   "camera_name": {
+    "type": "str",
+    "required": true
+   },
+   "target_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "camera.list",
+  "category": "camera",
+  "description": "List all cameras",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "camera.setResolution",
+  "category": "camera",
+  "description": "Set render resolution",
+  "permission": "write",
+  "parameters": {
+   "width": {
+    "type": "int"
+   },
+   "height": {
+    "type": "int"
+   },
+   "percentage": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "camera.set_framing",
+  "category": "camera",
+  "description": "Set camera framing (center object)",
+  "permission": "write",
+  "parameters": {
+   "camera_name": {
+    "type": "str"
+   },
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "render.render",
+  "category": "render",
+  "description": "Render current scene",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str"
+   },
+   "engine": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "render.viewport",
+  "category": "render",
+  "description": "Render viewport screenshot",
+  "permission": "read_only",
+  "parameters": {
+   "filepath": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "render.settings",
+  "category": "render",
+  "description": "Get/set render settings",
+  "permission": "write",
+  "parameters": {
+   "engine": {
+    "type": "str"
+   },
+   "samples": {
+    "type": "int"
+   },
+   "resolution_x": {
+    "type": "int"
+   },
+   "resolution_y": {
+    "type": "int"
+   },
+   "denoising": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "render.set_engine",
+  "category": "render",
+  "description": "Set render engine",
+  "permission": "write",
+  "parameters": {
+   "engine": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "render.set_output",
+  "category": "render",
+  "description": "Set render output path and format",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str"
+   },
+   "format": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "render.set_cycles_settings",
+  "category": "render",
+  "description": "Set Cycles render settings",
+  "permission": "write",
+  "parameters": {
+   "samples": {
+    "type": "int"
+   },
+   "denoising": {
+    "type": "bool"
+   },
+   "max_bounces": {
+    "type": "int"
+   },
+   "use_gpu": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "render.set_eevee_settings",
+  "category": "render",
+  "description": "Set EEVEE render settings",
+  "permission": "write",
+  "parameters": {
+   "taa_render_samples": {
+    "type": "int"
+   },
+   "use_ssr": {
+    "type": "bool"
+   },
+   "use_bloom": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "render.set_filmic",
+  "category": "render",
+  "description": "Set Filmic color management",
+  "permission": "write",
+  "parameters": {
+   "look": {
+    "type": "str"
+   },
+   "exposure": {
+    "type": "float"
+   },
+   "gamma": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "io.export_fbx",
+  "category": "io",
+  "description": "Export scene to FBX",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   },
+   "use_selection": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "io.export_obj",
+  "category": "io",
+  "description": "Export scene to OBJ",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   },
+   "use_selection": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "io.export_gltf",
+  "category": "io",
+  "description": "Export scene to glTF/GLB",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   },
+   "format": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "io.export_stl",
+  "category": "io",
+  "description": "Export scene to STL",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   },
+   "use_selection": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "io.import_fbx",
+  "category": "io",
+  "description": "Import FBX file",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "io.import_obj",
+  "category": "io",
+  "description": "Import OBJ file",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "io.import_gltf",
+  "category": "io",
+  "description": "Import glTF file",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "io.import_stl",
+  "category": "io",
+  "description": "Import STL file",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "io.save_file",
+  "category": "io",
+  "description": "Save blend file",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "io.load_file",
+  "category": "io",
+  "description": "Load blend file",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "uv.unwrap",
+  "category": "uv_texture",
+  "description": "Unwrap UVs",
+  "permission": "write",
+  "parameters": {
+   "method": {
+    "type": "str"
+   },
+   "margin": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "uv.pack",
+  "category": "uv_texture",
+  "description": "Pack UV islands",
+  "permission": "write",
+  "parameters": {
+   "margin": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "uv.smart_project",
+  "category": "uv_texture",
+  "description": "Smart UV project",
+  "permission": "write",
+  "parameters": {
+   "angle_limit": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "uv.list",
+  "category": "uv_texture",
+  "description": "List UV maps",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "uv.create",
+  "category": "uv_texture",
+  "description": "Create UV map",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "uv.delete",
+  "category": "uv_texture",
+  "description": "Delete UV map",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "texture.create",
+  "category": "uv_texture",
+  "description": "Create image texture",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   },
+   "width": {
+    "type": "int"
+   },
+   "height": {
+    "type": "int"
+   },
+   "color": {
+    "type": "tuple"
+   }
+  }
+ },
+ {
+  "name": "texture.list",
+  "category": "uv_texture",
+  "description": "List all textures",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "texture.assign_to_material",
+  "category": "uv_texture",
+  "description": "Assign texture to material",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str"
+   },
+   "texture_name": {
+    "type": "str"
+   },
+   "slot": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "uv.bake",
+  "category": "uv_texture",
+  "description": "Bake textures",
+  "permission": "write",
+  "parameters": {
+   "type": {
+    "type": "str"
+   },
+   "margin": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "physics.rigidbody_add",
+  "category": "objects",
+  "description": "Rigid body (ACTIVE cae / PASSIVE obstáculo) con masa y fricción",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "body_type": {
+    "type": "str"
+   },
+   "mass": {
+    "type": "float"
+   },
+   "friction": {
+    "type": "float"
+   },
+   "restitution": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "physics.collision_add",
+  "category": "objects",
+  "description": "Modifier de colisión con rebote",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "bounce": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "physics.cloth_add",
+  "category": "objects",
+  "description": "Simulación de tela",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "quality": {
+    "type": "int"
+   },
+   "mass": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "physics.force_field_add",
+  "category": "objects",
+  "description": "Force field (WIND, FORCE, TURBULENCE, VORTEX...)",
+  "permission": "write",
+  "parameters": {
+   "kind": {
+    "type": "str"
+   },
+   "location": {
+    "type": "list"
+   },
+   "strength": {
+    "type": "float"
+   },
+   "name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "physics.bake_rigidbody",
+  "category": "objects",
+  "description": "Cocinar rigid body world hasta N frames",
+  "permission": "write",
+  "parameters": {
+   "frames": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "physics.particles_add",
+  "category": "objects",
+  "description": "Sistema de partículas por preset (snow/rain/sparks...)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "preset": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "physics.soft_body_add",
+  "category": "objects",
+  "description": "Soft body por preset",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "preset": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "physics.preset",
+  "category": "objects",
+  "description": "Preset físico completo del addon sobre un objeto",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "preset_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "physics.rigidbody_constraint",
+  "category": "objects",
+  "description": "Constraint entre dos rigid bodies (HINGE/SLIDER/FIXED...)",
+  "permission": "write",
+  "parameters": {
+   "object_a": {
+    "type": "str",
+    "required": true
+   },
+   "object_b": {
+    "type": "str",
+    "required": true
+   },
+   "constraint_type": {
+    "type": "str"
+   },
+   "location": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "physics.bake_cache",
+  "category": "objects",
+  "description": "Cocinar todas las cachés de física",
+  "permission": "write",
+  "parameters": {
+   "frame_start": {
+    "type": "int"
+   },
+   "frame_end": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "curve.bezier_add",
+  "category": "objects",
+  "description": "Curva Bézier 3D por puntos; bevel_depth > 0 la vuelve tubo",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   },
+   "points": {
+    "type": "list",
+    "description": "[[x,y,z], ...]"
+   },
+   "closed": {
+    "type": "bool"
+   },
+   "bevel_depth": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "curve.set_point",
+  "category": "objects",
+  "description": "Mover punto de control de Bézier",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "index": {
+    "type": "int",
+    "required": true
+   },
+   "co": {
+    "type": "list",
+    "required": true
+   },
+   "handle": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "text.add",
+  "category": "objects",
+  "description": "Texto 3D extruible/biselable",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   },
+   "body": {
+    "type": "str"
+   },
+   "size": {
+    "type": "float"
+   },
+   "extrude": {
+    "type": "float"
+   },
+   "bevel_depth": {
+    "type": "float"
+   },
+   "align": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "text.set_body",
+  "category": "objects",
+  "description": "Cambiar el texto de un objeto FONT",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "body": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "metaball.add",
+  "category": "objects",
+  "description": "Metaball (se fusiona con otras del mismo nombre-base)",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   },
+   "location": {
+    "type": "list"
+   },
+   "radius": {
+    "type": "float"
+   },
+   "stiffness": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "metaball.add_element",
+  "category": "objects",
+  "description": "Elemento adicional en una metaball (fusión orgánica)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "location": {
+    "type": "list",
+    "required": true
+   },
+   "radius": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "grease_pencil.add",
+  "category": "objects",
+  "description": "Objeto Grease Pencil vacío con una capa",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "compositor.node_add",
+  "category": "render",
+  "description": "Añadir nodo de composición por bl_idname (activa use_nodes)",
+  "permission": "write",
+  "parameters": {
+   "node_type": {
+    "type": "str",
+    "required": true
+   },
+   "location": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "compositor.node_set_input",
+  "category": "render",
+  "description": "Fijar valor de input o enlazar desde otro nodo (link_from='Nodo.Output')",
+  "permission": "write",
+  "parameters": {
+   "node_name": {
+    "type": "str",
+    "required": true
+   },
+   "input_name": {
+    "type": "str",
+    "required": true
+   },
+   "value": {
+    "type": "any"
+   },
+   "link_from": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "compositor.connect",
+  "category": "render",
+  "description": "Enlazar output→input entre nodos",
+  "permission": "write",
+  "parameters": {
+   "from_node": {
+    "type": "str",
+    "required": true
+   },
+   "from_socket": {
+    "type": "str"
+   },
+   "to_node": {
+    "type": "str",
+    "required": true
+   },
+   "to_socket": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "compositor.list_nodes",
+  "category": "render",
+  "description": "Listar nodos del compositor con inputs/outputs",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "material.pbr",
+  "category": "materials",
+  "description": "Material PBR procedural: wood/fabric/metal/leather/stone/glass/ceramic/plastic/rubber",
+  "permission": "write",
+  "parameters": {
+   "kind": {
+    "type": "str",
+    "required": true
+   },
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "color": {
+    "type": "list",
+    "description": "[r, g, b] 0-1"
+   }
+  }
+ },
+ {
+  "name": "sculpt.base",
+  "category": "objects",
+  "description": "Base de escultura (sphere/cube) con densidad preparada",
+  "permission": "write",
+  "parameters": {
+   "primitive_type": {
+    "type": "str"
+   },
+   "subdivisions": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "sculpt.voxel_remesh",
+  "category": "objects",
+  "description": "Voxel remesh para esculpido",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "voxel_size": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "sculpt.multires",
+  "category": "objects",
+  "description": "Multiresolution subdivide",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "levels": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "sculpt.smooth",
+  "category": "objects",
+  "description": "Suavizado completo de la malla",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "iterations": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "sculpt.brush",
+  "category": "objects",
+  "description": "Pincel de esculpido activo (nombre, fuerza, radio)",
+  "permission": "write",
+  "parameters": {
+   "brush_name": {
+    "type": "str",
+    "required": true
+   },
+   "strength": {
+    "type": "float"
+   },
+   "radius": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "scene.check_blockout",
+  "category": "scene_utils",
+  "description": "Detecta blockout (primitivas sin detalle) en un objeto o toda la escena",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene.fix_blockout",
+  "category": "scene_utils",
+  "description": "Autocorrección anti-blockout (bisel, suavizado, material)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "export.game_collision",
+  "category": "io",
+  "description": "Malla de colisión para game engine (unreal/unity/godot)",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "engine": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "export.lods",
+  "category": "io",
+  "description": "Generar niveles de LOD para un objeto",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "ratios": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "export.batch",
+  "category": "io",
+  "description": "Export batch de la escena/selección a varios formatos",
+  "permission": "write",
+  "parameters": {
+   "directory": {
+    "type": "str",
+    "required": true
+   },
+   "formats": {
+    "type": "list"
+   },
+   "selection_only": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "export.for_target",
+  "category": "io",
+  "description": "Export por destino: game/web/print/film",
+  "permission": "write",
+  "parameters": {
+   "target": {
+    "type": "str",
+    "required": true
+   },
+   "filepath": {
+    "type": "str",
+    "required": true
+   },
+   "engine": {
+    "type": "str"
+   },
+   "fmt": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "perf.optimize_scene",
+  "category": "scene_utils",
+  "description": "Optimización automática de la escena",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "perf.stats",
+  "category": "scene_utils",
+  "description": "Estadísticas de rendimiento",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "perf.render_estimate",
+  "category": "render",
+  "description": "Estimación de tiempo de render",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "perf.auto_lod",
+  "category": "objects",
+  "description": "LOD automático por distancia",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "distance_threshold": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "perf.batch_optimize",
+  "category": "scene_utils",
+  "description": "Optimizar toda la escena a un presupuesto de caras",
+  "permission": "write",
+  "parameters": {
+   "target_faces": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "perf.memory_report",
+  "category": "scene_utils",
+  "description": "Informe de uso de memoria",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "plan.create",
+  "category": "scene_utils",
+  "description": "Crear plan de construcción de escena",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "description": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "plan.add_step",
+  "category": "scene_utils",
+  "description": "Añadir paso al plan (tipo, posición, parent/anchor/material)",
+  "permission": "write",
+  "parameters": {
+   "object_type": {
+    "type": "str",
+    "required": true
+   },
+   "position": {
+    "type": "list",
+    "required": true
+   },
+   "parent": {
+    "type": "str"
+   },
+   "anchor": {
+    "type": "str"
+   },
+   "collection": {
+    "type": "str"
+   },
+   "material": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "plan.execute",
+  "category": "scene_utils",
+  "description": "Ejecutar el plan en orden calculado",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "plan.get",
+  "category": "scene_utils",
+  "description": "Ver el plan actual",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "docs.scene",
+  "category": "scene_utils",
+  "description": "Documentación completa de la escena",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "docs.object",
+  "category": "scene_utils",
+  "description": "Spec de documentación de un objeto",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "docs.export_json",
+  "category": "scene_utils",
+  "description": "Exportar documentación de escena a JSON",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "vc.snapshot",
+  "category": "scene_utils",
+  "description": "Snapshot versionado (historial persistente)",
+  "permission": "write",
+  "parameters": {
+   "label": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "vc.restore",
+  "category": "scene_utils",
+  "description": "Restaurar versión del historial",
+  "permission": "write",
+  "parameters": {
+   "version_id": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "vc.list",
+  "category": "scene_utils",
+  "description": "Listar versiones guardadas",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "collab.lock_acquire",
+  "category": "scene_utils",
+  "description": "Lock por recurso/objeto para un agente (multi-agente fino)",
+  "permission": "write",
+  "parameters": {
+   "agent_id": {
+    "type": "str",
+    "required": true
+   },
+   "resource": {
+    "type": "str",
+    "required": true
+   },
+   "timeout": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "collab.lock_release",
+  "category": "scene_utils",
+  "description": "Liberar lock de un recurso",
+  "permission": "write",
+  "parameters": {
+   "agent_id": {
+    "type": "str",
+    "required": true
+   },
+   "resource": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "collab.lock_release_all",
+  "category": "scene_utils",
+  "description": "Liberar todos los locks de un agente",
+  "permission": "write",
+  "parameters": {
+   "agent_id": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "collab.locks_list",
+  "category": "scene_utils",
+  "description": "Listar locks activos",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "collab.message_send",
+  "category": "scene_utils",
+  "description": "Mensaje directo entre agentes",
+  "permission": "write",
+  "parameters": {
+   "sender_id": {
+    "type": "str",
+    "required": true
+   },
+   "receiver_id": {
+    "type": "str",
+    "required": true
+   },
+   "message_type": {
+    "type": "str"
+   },
+   "content": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "collab.message_get",
+  "category": "scene_utils",
+  "description": "Bandeja de un agente",
+  "permission": "read_only",
+  "parameters": {
+   "agent_id": {
+    "type": "str",
+    "required": true
+   },
+   "unread_only": {
+    "type": "bool"
+   }
+  }
+ },
+ {
+  "name": "collab.broadcast",
+  "category": "scene_utils",
+  "description": "Broadcast a todos los agentes",
+  "permission": "write",
+  "parameters": {
+   "sender_id": {
+    "type": "str",
+    "required": true
+   },
+   "message_type": {
+    "type": "str"
+   },
+   "content": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "collab.task_register",
+  "category": "scene_utils",
+  "description": "Registrar tarea en el tablero",
+  "permission": "write",
+  "parameters": {
+   "task_id": {
+    "type": "str",
+    "required": true
+   },
+   "description": {
+    "type": "str",
+    "required": true
+   },
+   "assigned_to": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "collab.task_assign",
+  "category": "scene_utils",
+  "description": "Asignar tarea a un agente",
+  "permission": "write",
+  "parameters": {
+   "task_id": {
+    "type": "str",
+    "required": true
+   },
+   "agent_id": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "collab.task_complete",
+  "category": "scene_utils",
+  "description": "Marcar tarea completada",
+  "permission": "write",
+  "parameters": {
+   "task_id": {
+    "type": "str",
+    "required": true
+   },
+   "result": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "collab.task_pending",
+  "category": "scene_utils",
+  "description": "Tareas pendientes (de un agente o todas)",
+  "permission": "read_only",
+  "parameters": {
+   "agent_id": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "collab.task_status",
+  "category": "scene_utils",
+  "description": "Estado global del tablero",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "asset.save",
+  "category": "io",
+  "description": "Guardar objetos como asset reutilizable",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "object_names": {
+    "type": "list",
+    "required": true
+   },
+   "description": {
+    "type": "str"
+   },
+   "tags": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "asset.save_collection",
+  "category": "io",
+  "description": "Guardar una colección como asset",
+  "permission": "write",
+  "parameters": {
+   "collection_name": {
+    "type": "str",
+    "required": true
+   },
+   "asset_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "asset.load",
+  "category": "io",
+  "description": "Cargar un asset de la biblioteca",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "location": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "asset.search",
+  "category": "io",
+  "description": "Buscar assets por texto/tags",
+  "permission": "read_only",
+  "parameters": {
+   "query": {
+    "type": "str"
+   },
+   "tags": {
+    "type": "list"
+   }
+  }
+ },
+ {
+  "name": "blueprint.save",
+  "category": "io",
+  "description": "Guardar blueprint con anclas 27-pt (data: {name, objects:[...], dims})",
+  "permission": "write",
+  "parameters": {
+   "data": {
+    "type": "dict",
+    "required": true
+   },
+   "category": {
+    "type": "str",
+    "required": true
+   },
+   "name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "blueprint.search",
+  "category": "io",
+  "description": "Buscar blueprints por query",
+  "permission": "read_only",
+  "parameters": {
+   "query": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "blueprint.get",
+  "category": "io",
+  "description": "Obtener blueprint por nombre",
+  "permission": "read_only",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "blueprint.categories",
+  "category": "io",
+  "description": "Listar categorías de blueprints",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "vlm.capture",
+  "category": "render",
+  "description": "Captura visual actual (viewport en GUI, render EEVEE rápido en headless)",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str"
+   },
+   "resolution": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "vlm.analyze",
+  "category": "render",
+  "description": "Analizar imagen con VLM (ollama/openai/claude) según un prompt",
+  "permission": "read_only",
+  "parameters": {
+   "image_path": {
+    "type": "str",
+    "required": true
+   },
+   "prompt": {
+    "type": "str",
+    "required": true
+   },
+   "provider": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "vlm.quick_check",
+  "category": "render",
+  "description": "Chequeo visual rápido de la escena (captura + análisis)",
+  "permission": "read_only",
+  "parameters": {
+   "provider": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "vlm.composition_check",
+  "category": "render",
+  "description": "Análisis de composición",
+  "permission": "read_only",
+  "parameters": {
+   "provider": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "vlm.lighting_check",
+  "category": "render",
+  "description": "Análisis de iluminación",
+  "permission": "read_only",
+  "parameters": {
+   "provider": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene.mark",
+  "category": "scene_utils",
+  "description": "Marca el estado actual de la escena para comparar luego con scene.diff",
+  "permission": "read_only",
+  "parameters": {
+   "label": {
+    "type": "str",
+    "default": "",
+    "description": "etiqueta del marcador"
+   }
+  }
+ },
+ {
+  "name": "scene.diff",
+  "category": "scene_utils",
+  "description": "Qué cambió desde el último scene.mark (añadidos/eliminados/modificados)",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "object.place_bottom",
+  "category": "objects",
+  "description": "Coloca el punto más bajo del bbox del objeto en (x,y,z) — inmune a offsets de origen y escala",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true,
+    "description": "objeto"
+   },
+   "x": {
+    "type": "float",
+    "default": 0.0
+   },
+   "y": {
+    "type": "float",
+    "default": 0.0
+   },
+   "z": {
+    "type": "float",
+    "default": 0.0,
+    "description": "cota de apoyo"
+   }
+  }
+ },
+ {
+  "name": "object.snap_to",
+  "category": "objects",
+  "description": "Coloca un objeto en relación bbox-aware con otro (on_top/beside_x/beside_y/behind/front)",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "target": {
+    "type": "str",
+    "required": true
+   },
+   "relation": {
+    "type": "str",
+    "default": "on_top"
+   },
+   "gap": {
+    "type": "float",
+    "default": 0.0
+   }
+  }
+ },
+ {
+  "name": "render.preview",
+  "category": "render",
+  "description": "Render borrador rápido (EEVEE, resolución reducida) para validar encuadre sin esperar Cycles",
+  "permission": "write",
+  "parameters": {
+   "filepath": {
+    "type": "str",
+    "default": ""
+   },
+   "samples": {
+    "type": "int",
+    "default": 16
+   },
+   "scale": {
+    "type": "int",
+    "default": 50,
+    "description": "% de resolución"
+   }
+  }
+ },
+ {
+  "name": "camera.check",
+  "category": "camera",
+  "description": "Diagnóstico de cámara: activa, lens, qué objetos están en el frustum y a qué distancia",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "physics.bake",
+  "category": "modifiers",
+  "description": "Hornea la simulación rigid body (linkea colección RBW y hornea la caché)",
+  "permission": "write",
+  "parameters": {
+   "frame_start": {
+    "type": "int",
+    "default": 1
+   },
+   "frame_end": {
+    "type": "int",
+    "default": 50
+   }
+  }
+ },
+ {
+  "name": "physics.free_cache",
+  "category": "modifiers",
+  "description": "Invalida la caché de simulación (obligatorio tras cambiar keyframes)",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "scene.cleanup",
+  "category": "scene_utils",
+  "description": "Detecta/elimina basura: duplicados .001, empties de test, meshes vacíos, escala no aplicada, huérfanos",
+  "permission": "write",
+  "parameters": {
+   "dry_run": {
+    "type": "bool",
+    "default": true
+   },
+   "purge_orphans": {
+    "type": "bool",
+    "default": true
+   }
+  }
+ },
+ {
+  "name": "tools.search",
+  "category": "scene_utils",
+  "description": "Busca tools del registry por texto/categoría sin cargar las 223 definiciones. Ahorra contexto: úsalo antes de adivinar nombres",
+  "permission": "read_only",
+  "parameters": {
+   "query": {
+    "type": "str",
+    "default": "",
+    "description": "texto libre (p.ej. 'bevel', 'render cycles', 'colocar')"
+   },
+   "category": {
+    "type": "str",
+    "default": "",
+    "description": "filtra por categoría (objects, materials, render...)"
+   },
+   "limit": {
+    "type": "int",
+    "default": 15
+   }
+  }
+ },
+ {
+  "name": "spatial.place",
+  "category": "scene_utils",
+  "description": "Coloca un objeto respecto a otro con semántica (on_top/beside_x/beside_y/behind/front/on_floor) y chequeo de colisión",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "relation": {
+    "type": "str",
+    "default": "on_top"
+   },
+   "target": {
+    "type": "str",
+    "default": ""
+   },
+   "offset": {
+    "type": "float",
+    "default": 0.0
+   },
+   "check_collision": {
+    "type": "bool",
+    "default": true
+   }
+  }
+ },
+ {
+  "name": "spatial.query",
+  "category": "scene_utils",
+  "description": "Query espacial: qué hay SOBRE un objeto (on=), qué está CERCA (near=, radius=) o listar por nombre",
+  "permission": "read_only",
+  "parameters": {
+   "on": {
+    "type": "str",
+    "default": ""
+   },
+   "near": {
+    "type": "str",
+    "default": ""
+   },
+   "radius": {
+    "type": "float",
+    "default": 1.0
+   },
+   "name_contains": {
+    "type": "str",
+    "default": ""
+   },
+   "type_filter": {
+    "type": "str",
+    "default": "MESH"
+   }
+  }
+ },
+ {
+  "name": "spatial.check_move",
+  "category": "scene_utils",
+  "description": "¿Cuánto puede moverse un objeto en una dirección sin colisionar? No mueve nada",
+  "permission": "read_only",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "direction": {
+    "type": "str",
+    "default": "+x"
+   },
+   "distance": {
+    "type": "float",
+    "default": 1.0
+   }
+  }
+ },
+ {
+  "name": "spatial.dimensions",
+  "category": "scene_utils",
+  "description": "Dimensiones reales (ancho×profundo×alto m) de 60 objetos comunes para dimensionar escenas creíbles",
+  "permission": "read_only",
+  "parameters": {
+   "search": {
+    "type": "str",
+    "default": ""
+   }
+  }
+ },
+ {
+  "name": "spatial.floorplan",
+  "category": "scene_utils",
+  "description": "Plano ASCII de la escena (top/front/right) para que el agente 'vea' la distribución sin render",
+  "permission": "read_only",
+  "parameters": {
+   "view": {
+    "type": "str",
+    "default": "top"
+   },
+   "cells": {
+    "type": "int",
+    "default": 40
+   }
+  }
+ },
+ {
+  "name": "spatial.stack",
+  "category": "scene_utils",
+  "description": "Apila objetos en orden (base primero) con centrado y gap",
+  "permission": "write",
+  "parameters": {
+   "names": {
+    "type": "str",
+    "required": true,
+    "description": "nombres separados por coma, base primero"
+   },
+   "gap": {
+    "type": "float",
+    "default": 0.0
+   }
+  }
+ },
+ {
+  "name": "inspect.view",
+  "category": "render",
+  "description": "Render de inspección determinístico: silhouette (forma), wireframe (densidad), uv_checker (despliegue) o normals (orientación). No requiere VLM",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "mode": {
+    "type": "str",
+    "default": "silhouette"
+   },
+   "filepath": {
+    "type": "str",
+    "default": ""
+   }
+  }
+ },
+ {
+  "name": "inspect.turntable",
+  "category": "render",
+  "description": "Órbita automática: N renders equidistantes alrededor del objeto",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "frames": {
+    "type": "int",
+    "default": 6
+   }
+  }
+ },
+ {
+  "name": "inspect.topology",
+  "category": "scene_utils",
+  "description": "Salud de topología: tris/quads/ngons, poles, UV, escala, densidad y score 0-100",
+  "permission": "read_only",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "scene.explain",
+  "category": "scene_utils",
+  "description": "Explica un objeto en detalle: geometría, bbox, materiales (con resumen del árbol de nodos), modifiers, física y jerarquía",
+  "permission": "read_only",
+  "parameters": {
+   "target": {
+    "type": "str",
+    "required": true,
+    "description": "nombre del objeto"
+   }
+  }
+ },
+ {
+  "name": "scene.preset",
+  "category": "scene",
+  "description": "Crea el entorno base de un preset (luces+entorno+suelo). Presets: bosque, cocina, cyberpunk, desierto, estudio, exterior, galeria, noche, oficina, sala",
+  "permission": "destructive",
+  "parameters": {
+   "name": {
+    "type": "str",
+    "required": true
+   },
+   "keep_objects": {
+    "type": "bool",
+    "default": false,
+    "description": "False = limpia la escena primero"
+   }
+  }
+ },
+ {
+  "name": "scene.mood",
+  "category": "lights",
+  "description": "Aplica un mood de iluminación (reemplaza luces y mundo, sin tocar geometría). Moods: cinematic, cyberpunk, fantasy, horror, minimal, warm_sunset",
+  "permission": "write",
+  "parameters": {
+   "mood": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "rigging.create_armature",
+  "category": "rigging",
+  "description": "Create an armature",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   },
+   "location": {
+    "type": "tuple"
+   }
+  }
+ },
+ {
+  "name": "rigging.add_bone",
+  "category": "rigging",
+  "description": "Add a bone to armature",
+  "permission": "write",
+  "parameters": {
+   "armature_name": {
+    "type": "str",
+    "required": true
+   },
+   "name": {
+    "type": "str"
+   },
+   "head": {
+    "type": "tuple"
+   },
+   "tail": {
+    "type": "tuple"
+   }
+  }
+ },
+ {
+  "name": "rigging.add_constraint",
+  "category": "rigging",
+  "description": "Add constraint to bone",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "type": {
+    "type": "str",
+    "required": true
+   },
+   "target": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "rigging.create_vertex_group",
+  "category": "rigging",
+  "description": "Create vertex group",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "rigging.assign_vertex_group",
+  "category": "rigging",
+  "description": "Assign vertices to group",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   },
+   "group_name": {
+    "type": "str",
+    "required": true
+   },
+   "weight": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "rigging.auto_weight",
+  "category": "rigging",
+  "description": "Automatic weight painting",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "armature_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "rigging.list_bones",
+  "category": "rigging",
+  "description": "List bones in armature",
+  "permission": "read_only",
+  "parameters": {
+   "armature_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "rigging.apply_armature",
+  "category": "rigging",
+  "description": "Apply armature modifier",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "batch.rename",
+  "category": "batch",
+  "description": "Batch rename objects",
+  "permission": "write",
+  "parameters": {
+   "pattern": {
+    "type": "str"
+   },
+   "replace": {
+    "type": "str"
+   },
+   "type_filter": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "batch.delete_by_type",
+  "category": "batch",
+  "description": "Delete all objects of a type",
+  "permission": "destructive",
+  "parameters": {
+   "type": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "batch.apply_transforms",
+  "category": "batch",
+  "description": "Apply transforms to all objects",
+  "permission": "write",
+  "parameters": {
+   "type_filter": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "batch.add_modifier",
+  "category": "batch",
+  "description": "Add modifier to multiple objects",
+  "permission": "write",
+  "parameters": {
+   "object_names": {
+    "type": "list",
+    "required": true
+   },
+   "modifier_type": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "batch.set_material",
+  "category": "batch",
+  "description": "Set material for multiple objects",
+  "permission": "write",
+  "parameters": {
+   "object_names": {
+    "type": "list",
+    "required": true
+   },
+   "material_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "batch.turntable",
+  "category": "batch",
+  "description": "Create turntable animation",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "frames": {
+    "type": "int"
+   },
+   "axis": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.cleanup",
+  "category": "scene_utils",
+  "description": "Clean up scene (orphans, unused)",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "scene_utils.purge_orphans",
+  "category": "scene_utils",
+  "description": "Purge orphan data blocks",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "scene_utils.mesh_analysis",
+  "category": "scene_utils",
+  "description": "Analyze mesh for issues",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.apply_all_transforms",
+  "category": "scene_utils",
+  "description": "Apply all transforms",
+  "permission": "write",
+  "parameters": {}
+ },
+ {
+  "name": "scene_utils.origin_to_geometry",
+  "category": "scene_utils",
+  "description": "Set origin to geometry center",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.fix_normals",
+  "category": "scene_utils",
+  "description": "Recalculate normals",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.remove_doubles",
+  "category": "scene_utils",
+  "description": "Remove duplicate vertices",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "distance": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.triangulate",
+  "category": "scene_utils",
+  "description": "Triangulate mesh",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.undo",
+  "category": "scene_utils",
+  "description": "Deshacer N pasos del stack de undo de Blender",
+  "permission": "write",
+  "parameters": {
+   "steps": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.redo",
+  "category": "scene_utils",
+  "description": "Rehacer N pasos",
+  "permission": "write",
+  "parameters": {
+   "steps": {
+    "type": "int"
+   }
+  }
+ },
+ {
+  "name": "scene_utils.ray_pick",
+  "category": "scene_utils",
+  "description": "Raycast 3D: primer objeto tocado desde origen en dirección dada",
+  "permission": "read_only",
+  "parameters": {
+   "origin": {
+    "type": "list",
+    "required": true
+   },
+   "direction": {
+    "type": "list",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "printing.check_manifold",
+  "category": "printing",
+  "description": "Check if mesh is manifold",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "printing.check_watertight",
+  "category": "printing",
+  "description": "Check if mesh is watertight",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "printing.check_thinwalls",
+  "category": "printing",
+  "description": "Check for thin walls",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "min_thickness": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "printing.scale_to_mm",
+  "category": "printing",
+  "description": "Scale object to millimeters",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "scale_factor": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "printing.set_dimensions_mm",
+  "category": "printing",
+  "description": "Set object dimensions in mm",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "x": {
+    "type": "float"
+   },
+   "y": {
+    "type": "float"
+   },
+   "z": {
+    "type": "float"
+   }
+  }
+ },
+ {
+  "name": "printing.info",
+  "category": "printing",
+  "description": "Get 3D print info (volume, area, dimensions)",
+  "permission": "read_only",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "shader.add_node",
+  "category": "shader_nodes",
+  "description": "Add a shader node",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "node_type": {
+    "type": "str",
+    "required": true
+   },
+   "location": {
+    "type": "tuple"
+   }
+  }
+ },
+ {
+  "name": "shader.connect_nodes",
+  "category": "shader_nodes",
+  "description": "Connect two nodes",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "from_node": {
+    "type": "str",
+    "required": true
+   },
+   "from_socket": {
+    "type": "str",
+    "required": true
+   },
+   "to_node": {
+    "type": "str",
+    "required": true
+   },
+   "to_socket": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "shader.set_node_value",
+  "category": "shader_nodes",
+  "description": "Set a node input value",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "node_name": {
+    "type": "str",
+    "required": true
+   },
+   "input_name": {
+    "type": "str",
+    "required": true
+   },
+   "value": {
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "shader.delete_node",
+  "category": "shader_nodes",
+  "description": "Delete a shader node",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "node_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "shader.list_nodes",
+  "category": "shader_nodes",
+  "description": "List all nodes in material",
+  "permission": "read_only",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "shader.create_material_nodes",
+  "category": "shader_nodes",
+  "description": "Create common material setups",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "preset": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "shader.group_nodes",
+  "category": "shader_nodes",
+  "description": "Group selected nodes",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "node_names": {
+    "type": "list",
+    "required": true
+   },
+   "group_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "shader.ungroup_nodes",
+  "category": "shader_nodes",
+  "description": "Ungroup a node group",
+  "permission": "write",
+  "parameters": {
+   "material_name": {
+    "type": "str",
+    "required": true
+   },
+   "group_name": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "geonodes.add_modifier",
+  "category": "geometry_nodes",
+  "description": "Add Geometry Nodes modifier",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "node_group": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "geonodes.create_group",
+  "category": "geometry_nodes",
+  "description": "Create a new geometry node group",
+  "permission": "write",
+  "parameters": {
+   "name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "geonodes.add_node",
+  "category": "geometry_nodes",
+  "description": "Add a node to geometry node group",
+  "permission": "write",
+  "parameters": {
+   "group_name": {
+    "type": "str",
+    "required": true
+   },
+   "node_type": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "geonodes.node_set_input",
+  "category": "geometry_nodes",
+  "description": "Fijar valor default de un input de nodo (sin link)",
+  "permission": "write",
+  "parameters": {
+   "group_name": {
+    "type": "str",
+    "required": true
+   },
+   "node_name": {
+    "type": "str",
+    "required": true
+   },
+   "input_name": {
+    "type": "str",
+    "required": true
+   },
+   "value": {
+    "type": "any",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "geonodes.connect",
+  "category": "geometry_nodes",
+  "description": "Connect nodes in geometry node group",
+  "permission": "write",
+  "parameters": {
+   "group_name": {
+    "type": "str",
+    "required": true
+   },
+   "from_node": {
+    "type": "str",
+    "required": true
+   },
+   "from_socket": {
+    "type": "str",
+    "required": true
+   },
+   "to_node": {
+    "type": "str",
+    "required": true
+   },
+   "to_socket": {
+    "type": "str",
+    "required": true
+   }
+  }
+ },
+ {
+  "name": "geonodes.list_groups",
+  "category": "geometry_nodes",
+  "description": "List all geometry node groups",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "geonodes.scatter",
+  "category": "geometry_nodes",
+  "description": "Quick scatter setup on faces",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "density": {
+    "type": "float"
+   },
+   "instance_name": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "geonodes.array",
+  "category": "geometry_nodes",
+  "description": "Quick array setup",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "count": {
+    "type": "int"
+   },
+   "offset_axis": {
+    "type": "str"
+   }
+  }
+ },
+ {
+  "name": "geonodes.delete_geometry",
+  "category": "geometry_nodes",
+  "description": "Delete geometry by selection",
+  "permission": "write",
+  "parameters": {
+   "object_name": {
+    "type": "str"
+   },
+   "mode": {
+    "type": "str"
+   }
+  }
+ }
+]
