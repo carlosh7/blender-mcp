@@ -109,7 +109,8 @@ class URLValidator:
         # Check for IP addresses (potential SSRF)
         if self._is_ip_address(domain):
             warnings.append(f"IP address detected: {domain}")
-            if domain not in ("localhost", "127.0.0.1", "0.0.0.0"):
+            # Allowlist de hosts locales (no es un bind: validación anti-SSRF)
+            if domain not in ("localhost", "127.0.0.1", "0.0.0.0"):  # nosec B104
                 errors.append(f"External IP address not allowed: {domain}")
 
         is_safe = len(errors) == 0

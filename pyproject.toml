@@ -74,6 +74,17 @@ include = [
     "LICENSE",
 ]
 
+[tool.bandit]
+# Exclusiones JUSTIFICADAS (by-design del producto, no descuidos):
+# - B102/B307: exec/eval es la función central del addon (ejecutar código
+#   Blender desde agentes IA). Protegido por AxiomValidator/code_guard,
+#   token X-API-Token y binding localhost (tests/unit/test_code_guard.py).
+# - B310: urlopen de APIs de assets (PolyHaven/Sketchfab/Hyper3D) con URLs
+#   https de la propia integración.
+# - B108: rutas /tmp convencionales de Blender para caches/exports.
+skips = ["B102", "B307", "B310", "B108"]
+exclude_dirs = ["tests", "data", "skills"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "tests"]

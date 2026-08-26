@@ -107,7 +107,10 @@ jobs:
           pip install -e .
 
       - name: Bandit (falla en severidad MEDIUM+)
-        run: bandit -q -ll -r src addon
+        # Skips JUSTIFICADOS (by-design del producto, ver pyproject [tool.bandit]):
+        # B102/B307 exec/eval es la función central (protegida por validator+token),
+        # B310 descargas de APIs de assets, B108 rutas /tmp de Blender
+        run: bandit -q -ll --skip B102,B307,B310,B108 -r src addon
 
       - name: pip-audit (dependencias del proyecto)
         run: pip-audit --skip-editable --progress-spinner off
