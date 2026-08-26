@@ -1,5 +1,12 @@
 # blender-mcp-ultra — Changelog
 
+## v3.0.2 (2026-08-26)
+
+### Fixed
+- **El wheel ahora incluye el gateway canónico** (`mcp_server.py`,
+  `mcp_adapter.py`, `blender_connection.py`, `config.py`): el entry point
+  `blender-mcp-server` funciona sin el repo (223 tools vía socket, verificado)
+
 ## v3.0.1 (2026-08-26)
 
 ### Fixed

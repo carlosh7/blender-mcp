@@ -1,6 +1,6 @@
 [project]
 name = "blender-mcp-ultra"
-version = "3.0.1"
+version = "3.0.2"
 description = "The most complete MCP server for Blender — 217 tools, 19 skills, enterprise security"
 readme = "README.md"
 license = {text = "MIT"}
@@ -56,7 +56,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["blender_mcp", "addon", "src"]
-force-include = {"mcp_adapter.py" = "mcp_adapter.py"}
+# Gateway canónico + conexión de socket: necesarios para que el entry point
+# `blender-mcp-server` funcione sin el repo (modo socket sin bpy)
+force-include = {"mcp_server.py" = "mcp_server.py", "mcp_adapter.py" = "mcp_adapter.py", "blender_connection.py" = "blender_connection.py", "config.py" = "config.py"}
 
 [tool.hatch.build.targets.sdist]
 include = [
