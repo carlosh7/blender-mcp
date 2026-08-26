@@ -1,3 +1,5 @@
+> ⚠️ **DOC HISTÓRICA** — Este documento ya no se mantiene. La referencia canónica es [README.md](README.md) (223 tools, v3.0.0).
+
 # blender-mcp-ultra
 
 **The most complete MCP server for Blender** — 118+ tools, 15 skills, enterprise security.

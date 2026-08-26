@@ -1,290 +1,189 @@
 # blender-mcp-ultra
 
-**MCP server para Blender** — 217 tools del registry (223 vía MCP), headless, multi-agente, feedback visual VLM.
+[![CI](https://github.com/carlosh7/blender-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/carlosh7/blender-mcp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/carlosh7/blender-mcp)](https://github.com/carlosh7/blender-mcp/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)](pyproject.toml)
+[![Blender 4.2+](https://img.shields.io/badge/Blender-4.2%2B-orange)](https://www.blender.org)
+[![Tests](https://img.shields.io/badge/Tests-479%20passed-brightgreen)](ACTION_PLAN.md)
 
-> Estado: **beta funcional**. Verificado E2E en Blender 5.1; ver `docs/skills/` para recetas probadas.
+**The most complete MCP server for Blender** — control Blender with natural language from any AI agent: Claude Code, Claude Desktop, Cursor, opencode, Windsurf, Antigravity, LM Studio, Ollama and any Model Context Protocol (MCP) client.
 
-## Overview
+> **223 tools** · Windows / macOS / Linux · headless-ready · production-grade security
 
-blender-mcp-ultra connects Blender to any AI assistant (Claude, Cursor, Windsurf, opencode) via the Model Context Protocol (MCP). It provides comprehensive control over Blender with production-grade security and performance.
+![Demo scene created entirely by an AI agent with blender-mcp-ultra: wooden table, Pixar-style lamp, coffee mug and metal towers](docs/img/demo-scene.png)
 
-## Features
+*Scene above: 100% created and rendered by an AI agent through this MCP server — no manual modeling.*
 
-- **217 tools** en 24 módulos (modelado por componentes, animación, física completa, compositor, render por jobs, VLM, multi-agente, assets)
-- **19 Skills** for Claude Code/Cursor
-- **Enterprise Security**: AST validation, sandboxed execution, rate limiting
-- **Multi-Provider**: OpenAI, Anthropic, Google, DeepSeek, Ollama
-- **Asset Integration**: PolyHaven, Sketchfab
-- **Clean Architecture**: Modular, testable, maintainable
-- **Performance**: LRU cache, lazy loading, connection pooling
+---
+
+## What is it?
+
+`blender-mcp-ultra` connects **Blender** (the free open-source 3D suite) to **LLM agents** through the **Model Context Protocol**. Ask your AI assistant to model, texture, light, animate, simulate and render 3D scenes — it executes through 223 typed tools instead of fragile screenshot-guessing.
+
+```text
+You:     "Create a wooden table with a coffee mug on it and render it in Cycles"
+Claude:  → object.create, mesh ops, material PBR wood, light.three_point,
+          camera.set_framing, render.render → escena.png
+```
+
+## Highlights
+
+- 🧰 **223 MCP tools** in 24 categories — modeling, materials, shader nodes, geometry nodes, lighting, cameras, animation, physics, compositor, UV, rigging, 3D printing, export (FBX/OBJ/glTF/STL), batch, VLM visual feedback, multi-agent collab, scene planner
+- 🖥️ **Any MCP client** — stdio (Claude Code/Desktop, Cursor, opencode, VS Code, Windsurf), SSE/HTTP (Antigravity, remote), REST
+- 🧠 **VLM feedback loop** — the agent *sees* its renders (EEVEE headless capture) and iterates
+- 🔒 **Enterprise security** — AST code validation (200+ blocked patterns), sandboxed execution, rate limiting, token auth, localhost-only binding, 0 secrets in history (gitleaks)
+- 🤖 **Multi-provider** — OpenAI, Anthropic, Google, DeepSeek, Ollama (local)
+- 📦 **Asset integrations** — PolyHaven, Sketchfab, AmbientCG, Hyper3D
+- 🚀 **Headless CI** — real E2E tests against Blender in GitHub Actions (Linux + Windows + macOS)
+- 🧪 **479 tests passed** · ruff · bandit · pip-audit clean
 
 ## Quick Start
 
-### Prerequisites
+### 1. Install the Blender addon
 
-- Python 3.10+
-- Blender 4.0+ (or 5.2 LTS)
-- An MCP client (Claude Desktop, Cursor, opencode, etc.)
+Download [`blender_mcp_ultra.zip`](https://github.com/carlosh7/blender-mcp/releases/latest) → Blender → `Edit > Preferences > Add-ons > Install…` → enable **blender-mcp-ultra** → click **Connect** in the N-panel.
 
-### Installation
+Or install from this repo (Blender 4.2+/5.x):
 
 ```bash
-# Clone the repository
-git clone https://github.com/carlosh7/blender-mcp-ultra.git
-cd blender-mcp-ultra
-
-# Install dependencies
+git clone https://github.com/carlosh7/blender-mcp.git
+cd blender-mcp
 pip install -e .
-
-# Run tests
-python test_all.py
 ```
 
-### Blender Addon
+### 2. Connect your AI client
 
-1. Open Blender
-2. Go to Edit > Preferences > Add-ons
-3. Click "Install..." and select the `addon/` folder
-4. Enable "blender-mcp-ultra"
+<details open>
+<summary><b>Claude Code</b></summary>
 
-### MCP Server Configuration
+```bash
+claude mcp add blender -- python /ruta/a/blender-mcp/mcp_server.py
+```
 
-Add to your MCP client config:
+More: [docs/clients/claude-code.md](docs/clients/claude-code.md)
+</details>
+
+<details>
+<summary><b>Claude Desktop / Cursor / Windsurf / VS Code</b> (mcp.json)</summary>
 
 ```json
 {
   "mcpServers": {
     "blender": {
       "command": "python",
-      "args": ["-m", "blender_mcp.server"],
-      "env": {
-        "BLENDER_HOST": "localhost",
-        "BLENDER_PORT": "9876"
-      }
+      "args": ["/ruta/a/blender-mcp/mcp_server.py"]
     }
   }
 }
 ```
 
-## Tools
+More: [docs/clients/claude-desktop.md](docs/clients/claude-desktop.md) · [cursor.md](docs/clients/cursor.md) · [vscode.md](docs/clients/vscode.md)
+</details>
 
-### Scene Management
-- `scene.get_info()` - Get scene information
-- `scene.create(name)` - Create new scene
-- `scene.delete(name)` - Delete scene
-- `scene.set_active(name)` - Set active scene
-- `scene.render_settings()` - Get/set render settings
+<details>
+<summary><b>opencode</b></summary>
 
-### Objects
-- `object.create(type, name, location)` - Create objects
-- `object.delete(name)` - Delete objects
-- `object.select(name, type)` - Select objects
-- `object.transform(name, location, rotation, scale)` - Transform
-- `object.duplicate(name, new_name)` - Duplicate objects
-- `object.join(names)` - Join objects
-- `object.get_info(name)` - Get object info
-- `object.list(type)` - List objects
+```bash
+python mcp_server.py            # el addon auto-escribe ~/.config/opencode/mcp.json
+```
 
-### Materials
-- `material.create(name, color, metallic, roughness)` - Create materials
-- `material.delete(name)` - Delete materials
-- `material.assign(object_name, material_name)` - Assign material
-- `material.get_info(name)` - Get material info
-- `material.list()` - List materials
-- `material.update(name, color, metallic, roughness)` - Update material
+More: [docs/clients/opencode.md](docs/clients/opencode.md)
+</details>
 
-### Lights
-- `light.create(type, name, location, energy, color)` - Create lights
-- `light.delete(name)` - Delete lights
-- `light.three_point()` - Setup three-point lighting
-- `light.update(name, energy, color, size)` - Update lights
-- `light.list()` - List lights
+<details>
+<summary><b>Antigravity / clientes HTTP / remoto</b></summary>
 
-### Modifiers
-- `modifier.add(object_name, type)` - Add modifier
-- `modifier.remove(object_name, modifier_name)` - Remove modifier
-- `modifier.apply(object_name, modifier_name)` - Apply modifier
-- `modifier.list(object_name)` - List modifiers
-- `modifier.update(object_name, modifier_name, properties)` - Update modifier
-- `modifier.types()` - List modifier types
+```bash
+python mcp_server.py --sse      # SSE en :9879 (MCP_SSE_HOST para exponer)
+# REST local: http://localhost:9877 (token en preferencias del addon)
+# Docker:
+docker build -t blender-mcp-gateway . && docker run -p 9879:9879 blender-mcp-gateway
+```
 
-### Animation
-- `animation.keyframe_insert(object_name, property, frame)` - Insert keyframe
-- `animation.keyframe_delete(object_name, property)` - Delete keyframe
-- `animation.set_keyframe(object_name, property, frame, value)` - Set keyframe
-- `animation.get_fcurves(object_name)` - Get F-curves
-- `animation.set_interpolation(object_name, interpolation)` - Set interpolation
-- `animation.play(start, end)` - Play animation
-- `animation.stop()` - Stop animation
-- `animation.clear(object_name)` - Clear animation
+More: [docs/clients/antigravity.md](docs/clients/antigravity.md) · [docs/remote.md](docs/remote.md)
+</details>
 
-### Camera
-- `camera.create(name, location, lens)` - Create camera
-- `camera.delete(name)` - Delete camera
-- `camera.set_active(name)` - Set active camera
-- `camera.update(name, lens, dof)` - Update camera
-- `camera.track_to(camera_name, target_name)` - Track object
-- `camera.list()` - List cameras
-- `camera.setResolution(width, height)` - Set resolution
-- `camera.set_framing(camera_name, object_name)` - Set framing
+### 3. Ask your agent
 
-### Render
-- `render.render(filepath, engine)` - Render scene
-- `render.viewport(filepath)` - Viewport screenshot
-- `render.settings()` - Get/set render settings
-- `render.set_engine(engine)` - Set render engine
-- `render.set_output(filepath, format)` - Set output
-- `render.set_cycles_settings(samples, denoising)` - Cycles settings
-- `render.set_eevee_settings(samples, ssr, bloom)` - EEVEE settings
-- `render.set_filmic(look, exposure, gamma)` - Color management
+```
+"Modela una silla de madera con biselado y material PBR, ilumina en 3 puntos y renderiza"
+```
 
-### I/O
-- `io.export_fbx(filepath)` - Export FBX
-- `io.export_obj(filepath)` - Export OBJ
-- `io.export_gltf(filepath, format)` - Export glTF
-- `io.export_stl(filepath)` - Export STL
-- `io.import_fbx(filepath)` - Import FBX
-- `io.import_obj(filepath)` - Import OBJ
-- `io.import_gltf(filepath)` - Import glTF
-- `io.import_stl(filepath)` - Import STL
-- `io.save_file(filepath)` - Save file
-- `io.load_file(filepath)` - Load file
+## Tools (223)
 
-### UV/Texture
-- `uv.unwrap(method, margin)` - Unwrap UVs
-- `uv.pack(margin)` - Pack UV islands
-- `uv.smart_project(angle_limit)` - Smart UV project
-- `uv.list(object_name)` - List UV maps
-- `uv.create(object_name, name)` - Create UV map
-- `uv.delete(object_name, name)` - Delete UV map
-- `texture.create(name, width, height, color)` - Create texture
-- `texture.list()` - List textures
-- `texture.assign_to_material(material_name, texture_name)` - Assign texture
-- `uv.bake(type, margin)` - Bake textures
+| Category | Examples |
+|---|---|
+| **Scene** | `scene.get_info`, `scene.create`, `scene.render_settings`, `scene.query` |
+| **Objects & Mesh** | `object.create/transform/join`, `mesh.get_topology`, `mesh.bevel_edges`, `mesh.extrude_faces` |
+| **Materials & PBR** | `material_create`, `material_pbr` (wood/metal/fabric/leather/stone/glass…), `material_assign` |
+| **Shader / Geo Nodes** | `shader.add_node/connect_nodes`, `geonodes.scatter/array/create_group` |
+| **Lights & Camera** | `light.three_point`, `light_create`, `camera.track_to`, `camera.set_framing` |
+| **Animation** | `animation.set_keyframe`, `animation_get_fcurves`, NLA, drivers, shape keys |
+| **Physics** | rigid body, cloth, soft body, particles, force fields, constraints, baking |
+| **Render** | Cycles/EEVEE settings, `render_render`, `render_viewport`, filmic, jobs con progreso |
+| **I/O & Export** | FBX, OBJ, glTF, STL + `export_for_target` (game/web/print/film), LODs, colisiones |
+| **UV & Texture** | smart UV project, unwrap, bake, textures |
+| **Rigging** | armatures, bones, constraints, vertex groups, auto weights |
+| **3D Printing** | manifold/watertight checks, scale to mm, dimensions |
+| **Batch & Perf** | batch rename/materials/modifiers, turntable, LODs, memory report |
+| **VLM Feedback** | `vlm_capture`, `vlm_analyze`, composition & lighting checks |
+| **Collab & Planner** | locks por objeto, mensajes entre agentes, tareas, `plan_create/execute` |
+| **Versioning & Docs** | `vc_snapshot/restore`, `docs_scene`, eventos `poll_events` |
 
-### Rigging
-- `rigging.create_armature(name, location)` - Create armature
-- `rigging.add_bone(armature_name, name, head, tail)` - Add bone
-- `rigging.add_constraint(object_name, type, target)` - Add constraint
-- `rigging.create_vertex_group(object_name, name)` - Create vertex group
-- `rigging.assign_vertex_group(object_name, group_name, weight)` - Assign weights
-- `rigging.auto_weight(object_name, armature_name)` - Auto weight
-- `rigging.list_bones(armature_name)` - List bones
-- `rigging.apply_armature(object_name)` - Apply armature
-
-### Batch
-- `batch.rename(pattern, replace)` - Batch rename
-- `batch.delete_by_type(type)` - Delete by type
-- `batch.apply_transforms()` - Apply transforms
-- `batch.add_modifier(object_names, modifier_type)` - Add modifier to multiple
-- `batch.set_material(object_names, material_name)` - Set material for multiple
-- `batch.turntable(object_name, frames, axis)` - Create turntable
-
-### Scene Utils
-- `scene_utils.cleanup()` - Clean scene
-- `scene_utils.purge_orphans()` - Purge orphans
-- `scene_utils.mesh_analysis(object_name)` - Analyze mesh
-- `scene_utils.apply_all_transforms()` - Apply transforms
-- `scene_utils.origin_to_geometry(object_name)` - Origin to geometry
-- `scene_utils.fix_normals(object_name)` - Fix normals
-- `scene_utils.remove_doubles(object_name, distance)` - Remove doubles
-- `scene_utils.triangulate(object_name)` - Triangulate mesh
-
-### Printing (3D)
-- `printing.check_manifold(object_name)` - Check manifold
-- `printing.check_watertight(object_name)` - Check watertight
-- `printing.check_thinwalls(object_name, min_thickness)` - Check thin walls
-- `printing.scale_to_mm(object_name, scale_factor)` - Scale to mm
-- `printing.set_dimensions_mm(object_name, x, y, z)` - Set dimensions
-- `printing.info(object_name)` - Get print info
-
-### Shader Nodes
-- `shader.add_node(material_name, node_type)` - Add shader node
-- `shader.connect_nodes(material_name, from_node, from_socket, to_node, to_socket)` - Connect nodes
-- `shader.set_node_value(material_name, node_name, input_name, value)` - Set node value
-- `shader.delete_node(material_name, node_name)` - Delete node
-- `shader.list_nodes(material_name)` - List nodes
-- `shader.create_material_nodes(material_name, preset)` - Create preset
-- `shader.group_nodes(material_name, node_names)` - Group nodes
-- `shader.ungroup_nodes(material_name, group_name)` - Ungroup nodes
-
-### Geometry Nodes
-- `geonodes.add_modifier(object_name, node_group)` - Add GN modifier
-- `geonodes.create_group(name)` - Create node group
-- `geonodes.add_node(group_name, node_type)` - Add node
-- `geonodes.connect(group_name, from_node, from_socket, to_node, to_socket)` - Connect nodes
-- `geonodes.list_groups()` - List GN groups
-- `geonodes.scatter(object_name, density, instance_name)` - Scatter setup
-- `geonodes.array(object_name, count, offset_axis)` - Array setup
-- `geonodes.delete_geometry(object_name, mode)` - Delete geometry
-
-## Skills
-
-19 specialized skills for Claude Code/Cursor:
-
-1. **modeling** - Professional 3D modeling
-2. **materials** - PBR materials
-3. **lighting** - Studio lighting
-4. **animation** - Professional animation
-5. **camera** - Cinematography
-6. **rendering** - Render optimization
-7. **geometry_nodes** - Procedural systems
-8. **rigging** - Character rigging
-9. **compositing** - Post-processing
-10. **io_export** - File export/import
-11. **simulation** - Physics simulations
-12. **texturing** - Texture creation
-13. **scene_setup** - Scene organization
-14. **procedural** - Parametric creation
-15. **optimization** - Performance optimization
-16. **workflow** - Professional workflows
-17. **multi_dcc** - Multi-DCC pipelines
-18. **video** - Video production
-19. **production** - Production pipelines
+Full reference generated from the live registry: `docs_scene` tool · skills/recetas en [`docs/skills/`](docs/skills/README.md).
 
 ## Security
 
-- **AST Validation**: 200+ blocked patterns
-- **Sandboxed Execution**: Isolated namespace with timeout
-- **Rate Limiting**: Per-user token bucket algorithm
-- **Audit Logging**: Structured JSON with file rotation
-- **Input Validation**: SQL injection, XSS, path traversal prevention
+| Layer | Mechanism |
+|---|---|
+| Transport | localhost-only sockets + `X-API-Token` auth (HTTP) |
+| Code execution | AST validation (200+ blocked patterns) + sandboxed subprocess (CPU/RAM limits, timeout) |
+| Input | path traversal / injection validation |
+| Audit | structured JSON logs with rotation |
+| Supply chain | gitleaks (full history) + pip-audit in CI |
 
 ## Architecture
 
 ```
-blender-mcp-ultra/
-├── src/
-│   ├── core/           # Domain entities and interfaces
-│   ├── adapters/       # Blender, LLM, Asset adapters
-│   ├── infrastructure/ # Security, Network, Cache, Logging
-│   ├── presentation/   # MCP Server, Addon, CLI
-│   └── tools/          # 118 tools across 16 categories
-├── skills/             # 19 skill definitions
-├── tests/              # Unit and integration tests
-└── docs/               # Documentation
+AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 223 tools)
+                                                  │ socket :9876 (localhost + token)
+                                                  ▼
+                                    Blender + addon blender-mcp-ultra
+                                    (handlers, validators, PBR, physics…)
+```
+
+```
+src/        # hexagonal: core / adapters / infrastructure / presentation / tools
+addon/      # Blender addon: socket server, handlers, PBR factory, anti-blockout
+skills/     # 19+ skill definitions for Claude Code / Cursor
+docs/       # client guides, skills recipes, tutorials
+tests/      # 479 tests (unit + integration + e2e headless)
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
-pytest tests/ -v
-
-# Run unit tests only
-pytest tests/unit/ -v
-
-# Run integration tests (requires Blender running)
-pytest tests/integration/ -v
-
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
+pytest tests/unit -q          # sin Blender
+pytest -q                     # completo (requiere Blender con el addon conectado)
 ```
 
-## License
+CI ejecuta la suite completa contra Blender headless en cada push (Linux, Windows, macOS).
 
-MIT License
+## FAQ
+
+**Does it work with ChatGPT / Gemini?** Any client that speaks MCP works. For providers without MCP support, the bundled REST API (`:9877`) accepts plain HTTP.
+
+**Does Blender need to be open?** Yes for interactive work (it drives the real Blender). CI/headless render jobs run with `blender -b` — see [docs/skills/headless_ci.md](docs/skills/headless_ci.md).
+
+**Is it safe?** The agent can execute Blender Python — that's the product. Execution is sandboxed, validated by AST, rate-limited and bound to localhost with token auth. Run trusted agents only.
+
+**Blender versions?** 4.2+ (LTS) and 5.x. Python 3.10+ for the gateway.
 
 ## Contributing
 
-Contributions welcome! Please read CONTRIBUTING.md first.
+PRs welcome — read [CONTRIBUTING.md](CONTRIBUTING.md). Docs: [GUIDE.md](GUIDE.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [CHANGELOG.md](CHANGELOG.md)
+
+## License
+
+MIT — see [LICENSE](LICENSE).

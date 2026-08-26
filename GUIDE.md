@@ -1,3 +1,5 @@
+> ⚠️ **DOC HISTÓRICA (v0.8)** — Los números y rutas cambiaron. La referencia canónica es [README.md](README.md); recetas actuales en [docs/skills/](docs/skills/README.md).
+
 # blender-mcp v0.8.0 — Guía Completa
 
 > 82 tools · 4 resources · 3 prompts · 5 integraciones · 9 clientes
