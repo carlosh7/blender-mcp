@@ -15,6 +15,15 @@
 
 *Scene above: 100% created and rendered by an AI agent through this MCP server — no manual modeling.*
 
+## Gallery — what agents build with it
+
+| PBR materials | Geometry Nodes | Physics |
+|---|---|---|
+| ![8 spheres with procedural PBR materials: copper, gold, glass, ceramic, fabric, rubber, stone, plastic](docs/img/showcase_materiales.png) | ![Terrain with rocks scattered via Geometry Nodes](docs/img/showcase_geonodes.png) | ![Rigid body simulation: metal ball smashing a brick wall](docs/img/showcase_fisica.png) |
+| `material_pbr` + 3-point lighting | `geonodes` scatter + noise terrain | rigid body + baked simulation |
+
+Every image above was generated end-to-end through MCP tools — scene setup, materials, lighting, camera framing, simulation and final Cycles render.
+
 ---
 
 ## What is it?
