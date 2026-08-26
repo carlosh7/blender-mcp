@@ -1,5 +1,19 @@
 # blender-mcp-ultra — Changelog
 
+## Unreleased (post-v3.0.0)
+
+### Added
+- **Cross-OS real**: rutas temporales portables en 11 módulos del addon
+  (`addon/_paths.py`); adiós a los `/tmp` hardcodeados que rompían Windows
+- **CI multi-OS**: job `test-os` con windows-latest y macos-latest (unit tests)
+- **docs/clients/claude-code.md**: registro en un comando (`claude mcp add`)
+- **Dockerfile**: gateway MCP remoto por SSE (verificado E2E)
+
+### Fixed
+- `mcp_server --sse`: host/puerto configurables (`MCP_SSE_HOST`/`MCP_SSE_PORT`)
+- CI: anotaciones `bpy.types` sin Blender en py<3.14, race SIGXCPU en
+  `sandbox_real`, tests dependientes de máquina local
+
 ## v3.0.0 (2026-08-25) — Edición Axiom v3.0
 
 ### Features
