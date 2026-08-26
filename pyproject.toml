@@ -1,7 +1,7 @@
 [project]
 name = "blender-mcp-ultra"
-version = "1.0.0"
-description = "The most complete MCP server for Blender — 118+ tools, 19 skills, enterprise security"
+version = "3.0.0"
+description = "The most complete MCP server for Blender — 217 tools, 19 skills, enterprise security"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -10,7 +10,7 @@ authors = [
 ]
 keywords = ["mcp", "blender", "3d", "ai", "llm", "model-context-protocol", "3d-modeling"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -64,6 +64,9 @@ include = [
     "addon/",
     "skills/",
     "mcp_adapter.py",
+    "mcp_server.py",
+    "blender_connection.py",
+    "config.py",
     "start_server.py",
     "README.md",
     "CHANGELOG.md",

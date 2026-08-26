@@ -1,5 +1,11 @@
 # blender-mcp Roadmap
 
+> ⚠️ **DOCUMENTO HISTÓRICO (2025)** — Plan original de fases 0-9. La estructura real
+> del proyecto evolucionó distinto: el paquete vive en `src/` (arquitectura hexagonal:
+> `core/adapters/infrastructure/presentation/tools`), no en `src/blender_mcp/` plano.
+> Estado actual y plan vivo: **`ACTION_PLAN.md`** (cierre) y **`STATUS.md`** (análisis competitivo).
+> Resumen v3.0.0: 217 tools registry · 223 vía MCP · 479 tests · CI completo. Ver `CHANGELOG.md`.
+
 > **Visión**: El sistema MCP para Blender más completo, flexible y compatible con cualquier cliente MCP (Claude, opencode, Cursor, VS Code, Antigravity, LM Studio, Ollama, etc.)
 
 ---

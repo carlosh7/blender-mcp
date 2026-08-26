@@ -122,8 +122,13 @@ def analyze_with_vlm(image_path: str, prompt: str, provider: str = "ollama") -> 
     Returns:
         Dict con análisis del VLM
     """
+    # Normalizar: vacío/None → "ollama" (default local, no requiere API key)
+    provider = (provider or "ollama").strip().lower()
     if provider not in VLM_PROVIDERS:
-        return {"error": f"Unknown provider: {provider}"}
+        return {
+            "error": f"Unknown provider: '{provider}'. Valid: {sorted(VLM_PROVIDERS)}. "
+            "Configure credentials in preferences/env (e.g. OPENAI_API_KEY) or use 'ollama' local."
+        }
 
     config = VLM_PROVIDERS[provider]
 

@@ -377,15 +377,21 @@ def magic_texture(material_name: str, scale: float = 5.0) -> dict:
 
 
 def musgrave_texture(material_name: str, scale: float = 5.0) -> dict:
+    """Textura de vetas tipo Musgrave.
+
+    Nota: ShaderNodeTexMusgrave fue eliminado en Blender 5.x; su función
+    quedó absorbida por Noise Texture. Se crea un nodo Noise equivalente.
+    """
     try:
         import bpy
 
         mat = bpy.data.materials.get(material_name)
         if not mat or not mat.node_tree:
             return {"error": f"Material not found: {material_name}"}
-        node = mat.node_tree.nodes.new("ShaderNodeTexMusgrave")
+        node = mat.node_tree.nodes.new("ShaderNodeTexNoise")
         node.inputs["Scale"].default_value = scale
-        return {"success": True, "node": node.name}
+        node.inputs["Roughness"].default_value = 0.6
+        return {"success": True, "node": node.name, "note": "Musgrave → Noise (Blender 5.x)"}
     except Exception as e:
         return {"error": str(e)}
 

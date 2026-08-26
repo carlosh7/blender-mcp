@@ -123,11 +123,11 @@
   {
     "name": "torre_mcp",
     "category": "estructuras",
-    "display_name": "torre",
+    "display_name": "Torre MCP",
     "dimensions": [
       1,
       1,
-      1
+      2
     ],
     "source": "manual"
   }

@@ -283,11 +283,11 @@ def create_pbr_stone(name, color=(0.5, 0.48, 0.45), detail=6):
     bsdf.inputs["Roughness"].default_value = 0.8
     bsdf.inputs["Metallic"].default_value = 0.0
 
-    # Musgrave (vetas de piedra)
-    musgrave = nodes.new("ShaderNodeTexMusgrave")
-    musgrave.location = (0, 100)
-    musgrave.inputs["Scale"].default_value = 3.0
-    musgrave.inputs["Detail"].default_value = detail
+    # Noise grande (vetas de piedra) — sustituye a Musgrave (nodo eliminado en Blender 5.x)
+    veins = nodes.new("ShaderNodeTexNoise")
+    veins.location = (0, 100)
+    veins.inputs["Scale"].default_value = 3.0
+    veins.inputs["Detail"].default_value = detail
 
     # Noise (variación)
     noise = nodes.new("ShaderNodeTexNoise")
@@ -299,9 +299,16 @@ def create_pbr_stone(name, color=(0.5, 0.48, 0.45), detail=6):
     bump.location = (0, -100)
     bump.inputs["Strength"].default_value = 0.5
 
+    # Mezcla de ambas octavas de ruido
+    mix = nodes.new("ShaderNodeMath")
+    mix.operation = "ADD"
+    mix.location = (0, -50)
+    mix.inputs[0].default_value = 0.0
+
     # Conectar
-    links.new(musgrave.outputs["Fac"], noise.inputs["Fac"])
-    links.new(noise.outputs["Fac"], bump.inputs["Height"])
+    links.new(veins.outputs["Fac"], mix.inputs[0])
+    links.new(noise.outputs["Fac"], mix.inputs[1])
+    links.new(mix.outputs["Value"], bump.inputs["Height"])
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 
@@ -584,16 +591,16 @@ def create_pbr_concrete(name, color=(0.5, 0.48, 0.45)):
     bsdf.inputs["Roughness"].default_value = 0.9
     bsdf.inputs["Metallic"].default_value = 0.0
 
-    # Musgrave (textura de concreto)
-    musgrave = nodes.new("ShaderNodeTexMusgrave")
-    musgrave.location = (0, 100)
-    musgrave.inputs["Scale"].default_value = 5
+    # Noise (textura de concreto) — sustituye a Musgrave (nodo eliminado en Blender 5.x)
+    noise_tex = nodes.new("ShaderNodeTexNoise")
+    noise_tex.location = (0, 100)
+    noise_tex.inputs["Scale"].default_value = 5
 
     bump = nodes.new("ShaderNodeBump")
     bump.location = (0, 0)
     bump.inputs["Strength"].default_value = 0.3
 
-    links.new(musgrave.outputs["Fac"], bump.inputs["Height"])
+    links.new(noise_tex.outputs["Fac"], bump.inputs["Height"])
     links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
     links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
 

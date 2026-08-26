@@ -9,7 +9,6 @@ import sys
 
 SCRIPTS = [
     ("🔌 Blender Socket", "validate_tools.py"),
-    ("🔌 STDIO Bridge", "validate_stdio.py"),
     ("🌐 HTTP API", "validate_http.py"),
 ]
 

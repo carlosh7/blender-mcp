@@ -46,16 +46,20 @@ def _opencode_dir():
         return Path.home() / ".config" / "opencode"
 
 
-def _bridge_path():
-    """Ruta absoluta al STDIO bridge dentro del addon instalado."""
-    return str(Path(__file__).parent / "stdio_bridge.py")
+def _gateway_path():
+    """Ruta absoluta al gateway MCP (mcp_server.py) en la raíz del repo.
+
+    Reemplazo del stdio_bridge (eliminado en v3.0): el gateway único expone
+    las 6 tools base + todo el registry vía stdio.
+    """
+    return str(Path(__file__).parent.parent / "mcp_server.py")
 
 
 def _stdio_config():
     """Config STDIO estándar para cualquier cliente MCP."""
     return {
         "type": "local",
-        "command": [sys.executable, _bridge_path()],
+        "command": [sys.executable, _gateway_path()],
         "enabled": True,
     }
 

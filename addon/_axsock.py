@@ -1388,46 +1388,9 @@ class BlenderSocketServer:
     # ═══════════════════════════════════════════════════════════
     # NEW COMMANDS: Phase 5 - Advanced Features
     # ═══════════════════════════════════════════════════════════
-
-    def cmd_collab_register(self, agent_id="", name=""):
-        """Register agent for collaborative editing."""
-        try:
-            from . import collaborative
-
-            success = collaborative.collab_manager.register_agent(agent_id, name)
-            return {"status": "success" if success else "error"}
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
-
-    def cmd_collab_lock(self, obj_name="", agent_id=""):
-        """Acquire lock on object for collaborative editing."""
-        try:
-            from . import collaborative
-
-            success = collaborative.collab_manager.acquire_lock(obj_name, agent_id)
-            return {"status": "success" if success else "error", "locked_by": obj_name}
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
-
-    def cmd_collab_unlock(self, obj_name="", agent_id=""):
-        """Release lock on object."""
-        try:
-            from . import collaborative
-
-            success = collaborative.collab_manager.release_lock(obj_name, agent_id)
-            return {"status": "success" if success else "error"}
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
-
-    def cmd_collab_status(self):
-        """Get collaborative editing status."""
-        try:
-            from . import collaborative
-
-            status = collaborative.get_collab_status()
-            return {"status": "success", "collab": status}
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+    # Nota: los comandos collab_* legacy (módulo `collaborative`, deprecado en
+    # v2.2) fueron eliminados en v3.0. Usar las tools `collab.*` del registry
+    # (backend: addon/multi_agent.py).
 
     def cmd_version_create(self, label=None):
         """Create version snapshot of scene."""

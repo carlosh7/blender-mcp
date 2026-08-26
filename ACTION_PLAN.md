@@ -98,7 +98,7 @@ Ver evidencia completa en `AUDIT_REPORT.md` § Anexo runtime.
 | vlm_feedback | ✅ capture (viewport o render EEVEE headless) + analyze/quick/composition/lighting |
 | collab | ✅ locks por objeto, mensajería, tareas, workflows + asset_library + akb blueprints 27-pt (20 tools) |
 | planner/docs/version_control | ✅ plan.*/docs.*/vc.* (10 tools) |
-| Deprecaciones | ✅ stdio_bridge, export_manager, collaborative marcados (v3.0 los elimina) |
+| Deprecaciones | ✅ stdio_bridge, export_manager, collaborative **eliminados en v3.0** (auto_config ahora apunta al gateway `mcp_server.py`) |
 | Bugs legacy arreglados | physics_advanced constraint attr 5.x · doc_generator firma · vc.list nombre |
 
 **Total final: 217 tools registry · 223 vía MCP · 479 tests passed.**

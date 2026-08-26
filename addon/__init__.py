@@ -27,7 +27,7 @@ bl_info = {
     "name": "blender-mcp-ultra",
     "blender": (4, 0, 0),
     "category": "System",
-    "version": (2, 0, 0),
+    "version": (3, 0, 0),
     "author": "CarlosH",
     "description": "Professional MCP server for Blender — modeling, texturing, rigging, animation, characters, perception, export",
 }

@@ -9,6 +9,7 @@ Transport: stdio por defecto (clientes MCP locales); `--sse` para HTTP en :9879.
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -228,9 +229,11 @@ def main():
             import uvicorn
 
             app = mcp.sse_app()
-
-            logger.info("Uvicorn starting on :9879")
-            uvicorn.run(app, host="127.0.0.1", port=9879, log_level="info")
+            # 0.0.0.0 para acceso remoto (Docker/bridge); localhost por defecto
+            host = os.getenv("MCP_SSE_HOST", "127.0.0.1")
+            port = int(os.getenv("MCP_SSE_PORT", "9879"))
+            logger.info("Uvicorn starting on %s:%s", host, port)
+            uvicorn.run(app, host=host, port=port, log_level="info")
         else:
             logger.info("Transport: stdio")
             mcp.run()

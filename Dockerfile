@@ -1,33 +1,30 @@
+# blender-mcp — Gateway MCP remoto (SSE :9879)
+#
+# El addon de Blender corre en el host (necesita GUI/socket :9876);
+# este contenedor expone el gateway MCP para clientes remotos
+# (Claude Desktop, Cursor, opencode, etc.) vía SSE.
+#
+# Build:  docker build -t blender-mcp-gateway .
+# Run:    docker run -p 9879:9879 blender-mcp-gateway
+# Nota:   el gateway necesita alcanzar el socket de Blender (:9876);
+#         usa --network host en Linux o apunta BLENDER_HOST al host.
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY addon ./addon
+COPY blender_mcp ./blender_mcp
+COPY mcp_server.py mcp_adapter.py blender_connection.py config.py ./
 
-# Copy requirements
-COPY pyproject.toml .
-COPY README.md .
-COPY LICENSE .
+RUN pip install --no-cache-dir . && pip install --no-cache-dir "mcp[cli]>=1.3.0,<2"
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
+ENV PYTHONUNBUFFERED=1
+# SSE accesible fuera del contenedor (docker run -p 9879:9879)
+ENV MCP_SSE_HOST=0.0.0.0
+ENV MCP_SSE_PORT=9879
+EXPOSE 9879
 
-# Copy source code
-COPY src/ src/
-COPY addon/ addon/
-COPY skills/ skills/
-COPY mcp_adapter.py .
-COPY start_server.py .
-
-# Expose MCP server port
-EXPOSE 9876
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('localhost', 9876)); s.close()" || exit 1
-
-# Run MCP server
-CMD ["python", "mcp_adapter.py"]
+# Transporte SSE para acceso remoto (stdio no aplica en contenedor)
+CMD ["python", "mcp_server.py", "--sse"]
