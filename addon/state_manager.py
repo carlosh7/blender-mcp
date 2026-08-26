@@ -13,12 +13,14 @@ from pathlib import Path
 
 import bpy
 
+from ._paths import temp_dir as _temp_dir
+
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════
 
-STATE_DIR = Path("/tmp/blender_mcp_state")
-BACKUP_DIR = Path("/tmp/blender_mcp_backups")
+STATE_DIR = _temp_dir("blender_mcp_state")
+BACKUP_DIR = _temp_dir("blender_mcp_backups")
 LOG_FILE = STATE_DIR / "action_log.json"
 STATE_FILE = STATE_DIR / "agent_state.json"
 MAX_BACKUPS = 10
@@ -351,7 +353,7 @@ def auto_save():
         print(f"[state] Auto-guardado: {filepath}")
     else:
         # Archivo nuevo, guardar con nombre
-        filepath = f"/tmp/{project_name}_{timestamp}.blend"
+        filepath = str(_temp_dir(f"{project_name}_{timestamp}.blend"))
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
         print(f"[state] Auto-guardado (nuevo): {filepath}")
 
@@ -375,7 +377,7 @@ def save_project(name=None):
         _agent_state["project_name"] = name
 
     project_name = _agent_state["project_name"]
-    filepath = f"/tmp/{project_name}.blend"
+    filepath = str(_temp_dir(f"{project_name}.blend"))
 
     bpy.ops.wm.save_as_mainfile(filepath=filepath)
 

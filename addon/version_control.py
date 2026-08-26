@@ -10,11 +10,13 @@ from pathlib import Path
 
 import bpy
 
+from ._paths import temp_dir as _temp_dir
+
 # ═══════════════════════════════════════════════════════════════
 # VERSION CONTROL CONFIG
 # ═══════════════════════════════════════════════════════════════
 
-VERSION_DIR = Path("/tmp/blender_mcp_versions")
+VERSION_DIR = _temp_dir("blender_mcp_versions")
 VERSION_INDEX = VERSION_DIR / "versions.json"
 
 

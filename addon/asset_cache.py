@@ -8,11 +8,13 @@ import json
 import time
 from pathlib import Path
 
+from ._paths import temp_dir as _temp_dir
+
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════
 
-CACHE_DIR = Path("/tmp/blender_mcp_assets_cache")
+CACHE_DIR = _temp_dir("blender_mcp_assets_cache")
 CACHE_INDEX = CACHE_DIR / "index.json"
 MAX_CACHE_SIZE_MB = 500
 

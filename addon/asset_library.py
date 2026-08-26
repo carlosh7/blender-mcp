@@ -8,15 +8,16 @@ Regla de oro: REUTILIZAR objetos creados anteriormente.
 import json
 import shutil
 from datetime import datetime
-from pathlib import Path
 
 import bpy
+
+from ._paths import temp_dir as _temp_dir
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════
 
-ASSET_DIR = Path("/tmp/blender_assets")
+ASSET_DIR = _temp_dir("blender_assets")
 ASSET_INDEX = ASSET_DIR / "index.json"
 
 

@@ -17,6 +17,7 @@ from datetime import datetime
 import bpy
 
 from . import _axsock as bsock
+from ._paths import temp_dir as _temp_dir
 
 logger = logging.getLogger("blender-mcp-auto")
 
@@ -253,7 +254,7 @@ def _get_next_position():
 
 
 def _render_preview():
-    fp = "/tmp/blender_mcp_preview.png"
+    fp = str(_temp_dir("blender_mcp_preview.png"))
     bpy.context.scene.render.filepath = fp
     bpy.context.scene.render.resolution_x = 800
     bpy.context.scene.render.resolution_y = 600

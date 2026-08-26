@@ -4,9 +4,10 @@ Vista previa para realidad aumentada y virtual.
 """
 
 import os
-from pathlib import Path
 
 import bpy
+
+from ._paths import temp_dir as _temp_dir
 
 # ═══════════════════════════════════════════════════════════════
 # EXPORT FORMATS
@@ -63,7 +64,7 @@ def export_for_ar_vr(target: str, filepath: str | None = None) -> dict:
     config = AR_VR_FORMATS[target]
 
     if filepath is None:
-        export_dir = Path("/tmp/blender_mcp_ar_vr")
+        export_dir = _temp_dir("blender_mcp_ar_vr")
         export_dir.mkdir(parents=True, exist_ok=True)
         filepath = str(export_dir / f"scene_{target}{config['extension']}")
 

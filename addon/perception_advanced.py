@@ -3,6 +3,8 @@ blender-mcp — Perception Advanced Engine
 Motor de percepción avanzada: Escáner, Quality Check, Reference Compare.
 """
 
+from ._paths import temp_dir as _temp_dir
+
 try:
     import bpy
 except ImportError:
@@ -189,7 +191,7 @@ def reference_compare_advanced(scene_objects, reference_data):
 # ═══════════════════════════════════════════════════════════════
 
 
-def screenshot_with_analysis(filepath="/tmp/blender_analysis.png"):
+def screenshot_with_analysis(filepath=str(_temp_dir("blender_analysis.png"))):
     """
     Tomar screenshot y analizar.
     """

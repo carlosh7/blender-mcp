@@ -3,6 +3,8 @@ blender-mcp — AI Assets Engine
 Motor de IA + Assets: Text→3D, Photo→3D, PolyHaven, AmbientCG.
 """
 
+from ._paths import temp_dir as _temp_dir
+
 try:
     import bpy
 except ImportError:
@@ -69,7 +71,7 @@ def _meshy_text_to_3d(description):
     return None
 
 
-def _download_and_import(model_url, save_dir="/tmp/assets"):
+def _download_and_import(model_url, save_dir=str(_temp_dir("assets"))):
     """
     Descargar un modelo (GLB) generado por IA e importarlo a la escena.
 
@@ -359,7 +361,7 @@ def list_asset_formats():
 # ═══════════════════════════════════════════════════════════════
 
 
-def download_polyhaven_asset(asset_id, asset_type="textures", save_dir="/tmp/assets"):
+def download_polyhaven_asset(asset_id, asset_type="textures", save_dir=str(_temp_dir("assets"))):
     """
     Descargar asset desde PolyHaven.
 
@@ -395,7 +397,7 @@ def download_polyhaven_asset(asset_id, asset_type="textures", save_dir="/tmp/ass
     return None
 
 
-def download_ambientcg_asset(asset_id, asset_type="materials", save_dir="/tmp/assets"):
+def download_ambientcg_asset(asset_id, asset_type="materials", save_dir=str(_temp_dir("assets"))):
     """
     Descargar asset desde AmbientCG.
     """
@@ -447,7 +449,7 @@ def get_asset_info(asset_id, source="polyhaven"):
         return {"error": str(e)}
 
 
-def batch_import_assets(asset_list, save_dir="/tmp/assets"):
+def batch_import_assets(asset_list, save_dir=str(_temp_dir("assets"))):
     """
     Importar múltiples assets.
 
@@ -546,7 +548,7 @@ def create_ai_texture(description, style="realistic"):
 # ═══════════════════════════════════════════════════════════════
 
 
-def batch_download_assets(asset_list, save_dir="/tmp/assets"):
+def batch_download_assets(asset_list, save_dir=str(_temp_dir("assets"))):
     """
     Descargar múltiples assets.
 

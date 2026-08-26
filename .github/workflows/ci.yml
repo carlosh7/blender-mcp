@@ -90,6 +90,34 @@ jobs:
         if: always()
         run: pkill blender || true
 
+  test-os:
+    # Validación cross-OS de la lógica pura (sin e2e de Blender, que se prueba
+    # en ubuntu arriba). Cubre rutas temporales, paths y comportamiento base.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            python-version: '3.12'
+          - os: macos-latest
+            python-version: '3.12'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Run unit tests
+        run: pytest tests/unit -q
+
   security:
     runs-on: ubuntu-latest
     steps:

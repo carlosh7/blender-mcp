@@ -12,6 +12,8 @@ import time
 
 import bpy
 
+from ._paths import temp_dir as _temp_dir
+
 # ═══════════════════════════════════════════════════════════════
 # VLM CONFIGURATION
 # ═══════════════════════════════════════════════════════════════
@@ -52,9 +54,8 @@ def capture_viewport(filepath: str | None = None, resolution: int = 800) -> str 
         Path a la imagen capturada
     """
     if filepath is None:
-        temp_dir = "/tmp/blender_mcp_vlm"
-        os.makedirs(temp_dir, exist_ok=True)
-        filepath = os.path.join(temp_dir, f"capture_{int(time.time())}.png")
+        capture_dir = _temp_dir("blender_mcp_vlm")
+        filepath = os.path.join(str(capture_dir), f"capture_{int(time.time())}.png")
 
     try:
         # Get active window and 3D area

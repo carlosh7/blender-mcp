@@ -11,12 +11,14 @@ from pathlib import Path
 
 import bpy
 
+from ._paths import temp_dir as _temp_dir
+
 # ═══════════════════════════════════════════════════════════════
 # GENERACIÓN DE DOCUMENTACIÓN
 # ═══════════════════════════════════════════════════════════════
 
 
-def generate_scene_doc(output_dir="/tmp/blender_docs"):
+def generate_scene_doc(output_dir=str(_temp_dir("blender_docs"))):
     """
     Generar documentación completa de la escena.
 
@@ -148,7 +150,7 @@ def _build_scene_documentation():
 # ═══════════════════════════════════════════════════════════════
 
 
-def generate_object_spec(object_name, output_dir="/tmp/blender_docs"):
+def generate_object_spec(object_name, output_dir=str(_temp_dir("blender_docs"))):
     """
     Generar spec sheet para un objeto específico.
 
@@ -266,7 +268,7 @@ def _build_object_spec(obj):
 # ═══════════════════════════════════════════════════════════════
 
 
-def generate_changelog(actions_log, output_dir="/tmp/blender_docs"):
+def generate_changelog(actions_log, output_dir=str(_temp_dir("blender_docs"))):
     """
     Generar changelog desde el log de acciones.
 
@@ -318,7 +320,7 @@ def generate_changelog(actions_log, output_dir="/tmp/blender_docs"):
 # ═══════════════════════════════════════════════════════════════
 
 
-def export_scene_json(output_dir="/tmp/blender_docs"):
+def export_scene_json(output_dir=str(_temp_dir("blender_docs"))):
     """
     Exportar escena completa a JSON.
 

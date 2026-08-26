@@ -9,13 +9,14 @@ import json
 import threading
 import time
 from datetime import datetime
-from pathlib import Path
+
+from ._paths import temp_dir as _temp_dir
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURACIÓN
 # ═══════════════════════════════════════════════════════════════
 
-AGENT_DIR = Path("/tmp/blender_agents")
+AGENT_DIR = _temp_dir("blender_agents")
 LOCKS_FILE = AGENT_DIR / "locks.json"
 MESSAGES_FILE = AGENT_DIR / "messages.json"
 
