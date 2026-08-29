@@ -46,7 +46,11 @@ class TestLegacy:
         assert parsed == cmd and rest == b"" and framed is False
 
     def test_pipelined_preserves_rest(self):
-        buf = json.dumps({"command": "ping"}).encode() + b" " + json.dumps({"command": "pong"}).encode()
+        buf = (
+            json.dumps({"command": "ping"}).encode()
+            + b" "
+            + json.dumps({"command": "pong"}).encode()
+        )
         cmd1, rest, _ = proto.try_parse(buf)
         assert cmd1 == {"command": "ping"}
         cmd2, rest, _ = proto.try_parse(rest)

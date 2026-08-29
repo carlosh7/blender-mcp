@@ -6,7 +6,6 @@ import os
 import sys
 
 import pytest
-
 from helpers import is_blender_available, socket_token
 
 # Add addon to path for imports
@@ -59,15 +58,15 @@ def _isolated_blender_scene():
     try:
         resp = _socket_command(
             "execute_code",
-            {"code": 'import bpy\nprint("NAMES:" + repr(sorted(o.name for o in bpy.data.objects)))\n'},
+            {
+                "code": 'import bpy\nprint("NAMES:" + repr(sorted(o.name for o in bpy.data.objects)))\n'
+            },
         )
         out = (resp.get("result") or {}).get("output", "")
         import ast
 
         _existing_objects = (
-            ast.literal_eval(out.split("NAMES:")[-1].strip())
-            if "NAMES:" in out
-            else None
+            ast.literal_eval(out.split("NAMES:")[-1].strip()) if "NAMES:" in out else None
         )
     except Exception:
         _existing_objects = None

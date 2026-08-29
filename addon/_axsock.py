@@ -147,9 +147,7 @@ class BlenderSocketServer:
                 try:
                     cmd, buffer, framed = _proto.try_parse(buffer)
                 except ValueError as e:
-                    client.sendall(
-                        _proto.encode_legacy({"status": "error", "message": str(e)})
-                    )
+                    client.sendall(_proto.encode_legacy({"status": "error", "message": str(e)}))
                     return
                 if cmd is None:
                     break
@@ -161,9 +159,7 @@ class BlenderSocketServer:
                         "message": f"{type(e).__name__}: {e}",
                         "traceback": traceback.format_exc(),
                     }
-                client.sendall(
-                    _proto.encode_framed(resp) if framed else _proto.encode_legacy(resp)
-                )
+                client.sendall(_proto.encode_framed(resp) if framed else _proto.encode_legacy(resp))
                 served += 1
             if served:
                 client.settimeout(0.5)
@@ -182,9 +178,7 @@ class BlenderSocketServer:
                     try:
                         cmd, buffer, framed = _proto.try_parse(buffer)
                     except ValueError as e:
-                        client.sendall(
-                            _proto.encode_legacy({"status": "error", "message": str(e)})
-                        )
+                        client.sendall(_proto.encode_legacy({"status": "error", "message": str(e)}))
                         return
 
                     if cmd is None:
@@ -194,9 +188,7 @@ class BlenderSocketServer:
                         try:
                             resp = self._execute(cmd)
                             client.sendall(
-                                _proto.encode_framed(resp)
-                                if framed
-                                else _proto.encode_legacy(resp)
+                                _proto.encode_framed(resp) if framed else _proto.encode_legacy(resp)
                             )
                         except Exception as e:
                             try:
@@ -226,7 +218,6 @@ class BlenderSocketServer:
     def _get_auth_token(self):
         """Token del socket (OBLIGATORIO): delega en socket_auth.resolve_token."""
         return _auth.resolve_token()
-
 
     def _execute(self, cmd):
         cmd_type = cmd.get("type") or cmd.get("command")

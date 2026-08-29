@@ -2,7 +2,6 @@
 Prompts & resources MCP del gateway — funcionan SIN Blender.
 """
 
-import os
 import sys
 from pathlib import Path
 
