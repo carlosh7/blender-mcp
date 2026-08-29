@@ -6,6 +6,11 @@ metadatos en local, sin necesidad de que Blender esté arrancado; la
 ejecución va por socket (:9876) con reconexión transparente.
 Compatible con opencode, Claude Desktop, Cursor, Claude Code, etc.
 
+Modo lite (--lite o BLENDER_MCP_LITE=1): registra solo las tools núcleo +
+`tools_search` + `tool_execute` (~24 en vez de 245) — reduce el coste de
+contexto por petición de ~30k a ~2k tokens sin perder capacidad: el resto
+del registry se descubre con tools_search y se ejecuta con tool_execute.
+
 Transport: stdio por defecto (clientes MCP locales); `--sse` para HTTP en :9879.
 """
 
@@ -125,6 +130,19 @@ def snap_and_parent(obj_move: str, obj_target: str, anchor_move: str, anchor_tar
     return json.dumps(r, indent=2)
 
 
+@mcp.tool(**RW())
+def tool_execute(tool_name: str, params: dict | None = None) -> str:
+    """Ejecuta cualquier tool del registry por nombre (239 disponibles; descúbrelas con tools_search).
+    Acepta `material.pbr` (registry) o `material_pbr` (nombre MCP)."""
+    b = get_blender()
+    return json.dumps(
+        b.send_command(
+            "tool", {"tool_name": _normalize_registry_name(tool_name), "params": params or {}}
+        ),
+        indent=2,
+    )
+
+
 @mcp.resource("blender://scene/info")
 def resource_scene_info() -> str:
     b = get_blender()
@@ -155,6 +173,42 @@ _BASE_TOOLS = {
     "snap_and_parent",
 }
 
+# Modo lite: subconjunto núcleo del registry (el resto se alcanza con
+# tool_execute tras descubrirlo con tools_search)
+_LITE_CORE_TOOLS = {
+    "scene.get_info",
+    "scene.query",
+    "object.create",
+    "object.transform",
+    "object.place_bottom",
+    "material.pbr",
+    "material.assign",
+    "light.three_point",
+    "camera.create",
+    "camera.set_framing",
+    "render.render",
+    "render.preview",
+    "render.set_engine",
+    "inspect.view",
+    "mesh.bevel_edges",
+    "docs.scene",
+    "tools.search",
+}
+
+
+def _lite_mode() -> bool:
+    if "--lite" in sys.argv:
+        return True
+    return os.getenv("BLENDER_MCP_LITE", "").strip().lower() in ("1", "true", "yes")
+
+
+def _normalize_registry_name(name: str) -> str:
+    """Acepta `material.pbr` (registry) o `material_pbr` (nombre MCP)."""
+    name = name.strip()
+    if "." not in name and "_" in name:
+        name = name.replace("_", ".", 1)
+    return name
+
 
 def _list_registry_tools_local():
     """Metadatos del registry de src/ construido en este proceso (sin Blender).
@@ -164,8 +218,8 @@ def _list_registry_tools_local():
     Blender esté arrancado. Devuelve None si src/ no está disponible.
     """
     try:
-        from src.presentation.mcp_server import register_all_tools
-        from src.tools import ToolRegistry
+        from mcp_ultra.presentation.mcp_server import register_all_tools
+        from mcp_ultra.tools import ToolRegistry
     except Exception as e:
         logger.warning(f"Registry local (src/) no disponible: {e}")
         return None
@@ -199,6 +253,11 @@ def _register_dynamic_tools() -> int:
         except Exception as e:
             logger.warning(f"Blender no disponible para tools dinámicas: {e}")
             return 0
+
+    lite = _lite_mode()
+    if lite:
+        # Solo el núcleo: el resto del registry se alcanza vía tool_execute
+        tools = [t for t in tools if t.get("name") in _LITE_CORE_TOOLS]
 
     count = 0
     for tool in tools:
@@ -251,16 +310,20 @@ def _register_dynamic_tools() -> int:
 
 def main():
     dynamic = _register_dynamic_tools()
-    logger.info(f"Starting MCP Server ({6 + dynamic} tools: 6 base + {dynamic} registry)...")
+    mode = "lite" if _lite_mode() else "full"
+    logger.info(
+        f"Starting MCP Server [{mode}] ({7 + dynamic} tools: 7 base + {dynamic} registry)..."
+    )
 
     try:
-        if "--sse" in sys.argv:
+        sse = "--sse" in sys.argv or os.getenv("BLENDER_MCP_MODE", "").lower() == "sse"
+        if sse:
             import uvicorn
 
             app = mcp.sse_app()
             # 0.0.0.0 para acceso remoto (Docker/bridge); localhost por defecto
-            host = os.getenv("MCP_SSE_HOST", "127.0.0.1")
-            port = int(os.getenv("MCP_SSE_PORT", "9879"))
+            host = os.getenv("MCP_SSE_HOST") or os.getenv("BLENDER_MCP_HOST", "127.0.0.1")
+            port = int(os.getenv("MCP_SSE_PORT") or os.getenv("BLENDER_MCP_PORT", "9879"))
             logger.info("Uvicorn starting on %s:%s", host, port)
             uvicorn.run(app, host=host, port=port, log_level="info")
         else:

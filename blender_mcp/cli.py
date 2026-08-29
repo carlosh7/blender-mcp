@@ -22,6 +22,11 @@ def main():
         "--host", type=str, default="127.0.0.1", help="Host for SSE mode (default: 127.0.0.1)"
     )
     parser.add_argument("--doctor", action="store_true", help="Run health check and exit")
+    parser.add_argument(
+        "--lite",
+        action="store_true",
+        help="Register only core tools + tools_search/tool_execute (~24 vs 245; ahorra contexto)",
+    )
     parser.add_argument("--version", action="store_true", help="Print version and exit")
 
     # Subcommands for process management
@@ -52,6 +57,9 @@ def main():
 
         sys.exit(0 if run_doctor() else 1)
 
+    if args.lite:
+        os.environ["BLENDER_MCP_LITE"] = "1"
+
     if args.mode == "stdio":
         os.environ.setdefault("BLENDER_MCP_MODE", "stdio")
         from mcp_server import main as server_main
@@ -69,7 +77,9 @@ def _cmd_start():
     """Start the MCP server as a detached process (cross-platform)."""
     from blender_mcp.platform import get_log_dir, start_detached_process, write_pid_file
 
-    root = Path(__file__).parent.parent.parent.resolve()
+    # blender_mcp/cli.py → parent=blender_mcp, parent.parent=raíz del paquete
+    # (raíz del repo en checkout, site-packages en installs del wheel)
+    root = Path(__file__).parent.parent.resolve()
     server_script = root / "mcp_server.py"
     log_dir = get_log_dir()
     log_file = str(log_dir / "server.log")
@@ -104,7 +114,7 @@ def _cmd_stop():
     """Stop the background MCP server (cross-platform)."""
     from blender_mcp.platform import kill_process, read_pid_file
 
-    root = Path(__file__).parent.parent.parent.resolve()
+    root = Path(__file__).parent.parent.resolve()
     pid_file = str(root / ".mcp_server.pid")
     pid = read_pid_file(pid_file)
 
