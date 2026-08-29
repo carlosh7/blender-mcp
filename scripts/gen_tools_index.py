@@ -20,13 +20,19 @@ def main() -> int:
     register_all_tools(registry)
     entries = []
     for tool in registry.list_tools():
-        entries.append({
-            "name": tool.name,
-            "category": tool.category.value if hasattr(tool.category, "value") else str(tool.category),
-            "description": tool.description,
-            "permission": tool.permission.value if hasattr(tool.permission, "value") else str(tool.permission),
-            "parameters": tool.parameters or {},
-        })
+        entries.append(
+            {
+                "name": tool.name,
+                "category": tool.category.value
+                if hasattr(tool.category, "value")
+                else str(tool.category),
+                "description": tool.description,
+                "permission": tool.permission.value
+                if hasattr(tool.permission, "value")
+                else str(tool.permission),
+                "parameters": tool.parameters or {},
+            }
+        )
     out = REPO / "src" / "tools" / "context_search" / "data" / "tools_index.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(entries, indent=1, ensure_ascii=False))
