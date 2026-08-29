@@ -161,6 +161,67 @@ def resource_scene_info() -> str:
     return json.dumps(b.send_command("get_scene_info"), indent=2)
 
 
+# ── Prompts: plantillas de workflow que el cliente puede invocar ──
+
+
+@mcp.prompt()
+def product_shot(product: str = "taza de café", style: str = "estudio") -> str:
+    """Workflow completo de escena de producto con render final."""
+    return f"""Crea una escena de producto para: {product} (estilo: {style}).
+
+Flujo recomendado:
+1. Lee la guía: guidance.get(topic="scene-setup").
+2. Base: scene.preset(name="estudio") — suelo infinito + 3 puntos de luz.
+3. Modela o importa el producto con object.create / mesh_extrude_faces;
+   todo objeto con biselado (mesh.bevel_edges) y material PBR (material.pbr).
+4. Cámara: camera.create + camera.set_framing(product).
+5. Render: render.set_engine + render.preview para validar encuadre,
+   luego render.render a resolución final.
+Valida cada pieza con validate_object antes de continuar."""
+
+
+@mcp.prompt()
+def archviz(building: str = "sala moderna", mood: str = "warm_sunset") -> str:
+    """Workflow de visualización arquitectónica."""
+    return f"""Visualización arquitectónica: {building}, iluminación '{mood}'.
+
+1. guidance.get(topic="scene-setup") para el flujo completo.
+2. Geometría: modela paredes/suelo con object.create + object.transform
+   (medidas reales; object.place_bottom para apoyar en el suelo).
+3. Iluminación: scene.mood(mood="{mood}") + light.three_point si hace falta.
+4. Cámara interior con lente 24-35mm (camera.create).
+5. render.preview para iterar luz; render.render para el final."""
+
+
+@mcp.prompt()
+def simple_scene(description: str = "una mesa de madera con una taza") -> str:
+    """Escena simple a partir de una descripción libre."""
+    return f"""Crea una escena: {description}.
+
+Reglas del proyecto (anti-blockout):
+- Nada de primitivas peladas: biselado (mesh.bevel_edges) + material PBR
+  (material.pbr) + sombreado suave en todo objeto.
+- Conecta piezas con snap (snap_and_parent) y valida con validate_object.
+- Termina con render.preview y muestra el resultado."""
+
+
+# ── Resources: estado y contenido legibles sin tool call ──
+
+
+@mcp.resource("blender://scene/objects")
+def resource_scene_objects() -> str:
+    b = get_blender()
+    return json.dumps(b.send_command("get_scene_info"), indent=2)
+
+
+@mcp.resource("blender://guidance/{topic}")
+def resource_guidance(topic: str) -> str:
+    from mcp_ultra.tools.guidance import get_guidance
+
+    r = get_guidance(topic)
+    return r.get("content", f"Tema no encontrado: {topic}. Usa guidance.list.")
+
+
 # ── Registro dinámico: expone TODOS los tools del registry vía socket ──
 
 _TYPE_MAP = {
