@@ -89,25 +89,36 @@ jobs:
           done
           nc -z localhost 9876 || { cat /tmp/blender_ci.log; exit 1; }
 
-      - name: Run tests (e2e incluidos contra Blender headless)
-        run: pytest -q
+      - name: Run tests (e2e incluidos contra Blender headless) + coverage
+        run: pytest -q --cov=mcp_ultra --cov=blender_mcp --cov-report=term --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
 
       - name: Stop Blender
         if: always()
         run: pkill blender || true
 
   test-os:
-    # Validación cross-OS de la lógica pura (sin e2e de Blender, que se prueba
-    # en ubuntu arriba). Cubre rutas temporales, paths y comportamiento base.
+    # Cross-OS: unit + e2e con Blender headless (descarga oficial por SO).
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             python-version: '3.12'
+            blender: blender-5.1.2-windows-x64.zip
           - os: macos-latest
             python-version: '3.12'
+            blender: blender-5.1.2-macos-arm64.dmg
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -121,8 +132,37 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
-      - name: Run unit tests
-        run: pytest tests/unit -q
+      - name: Download Blender 5.1
+        run: curl -L -o blender.pkg "https://download.blender.org/release/Blender5.1/${{ matrix.blender }}"
+
+      - name: Extract Blender (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Expand-Archive blender.pkg -DestinationPath blender_dist
+          echo "$PWD/blender_dist/blender-5.1.2-windows-x64" >> $env:GITHUB_PATH
+
+      - name: Extract Blender (macos)
+        if: runner.os == 'macOS'
+        run: |
+          hdiutil attach blender.pkg -mountpoint /Volumes/blender -nobrowse
+          cp -R /Volumes/blender/Blender/blender.app /Applications/
+          hdiutil detach /Volumes/blender
+          echo "/Applications/blender.app/Contents/MacOS" >> $GITHUB_PATH
+
+      - name: Start headless MCP server
+        run: |
+          blender -b --factory-startup --python scripts/headless_server_ci.py > /tmp/blender_ci.log 2>&1 &
+          for i in $(seq 1 30); do
+            python -c "import socket;socket.create_connection(('localhost',9876),1)" && break || sleep 2
+          done
+
+      - name: Run unit + integration + e2e
+        run: pytest tests/unit tests/integration tests/e2e -q
+
+      - name: Stop Blender
+        if: always()
+        run: pkill blender || true
 
   security:
     runs-on: ubuntu-latest
