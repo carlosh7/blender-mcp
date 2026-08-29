@@ -28,7 +28,7 @@ Every image above was generated end-to-end through MCP tools — scene setup, ma
 
 ## What is it?
 
-`blender-mcp-ultra` connects **Blender** (the free open-source 3D suite) to **LLM agents** through the **Model Context Protocol**. Ask your AI assistant to model, texture, light, animate, simulate and render 3D scenes — it executes through 223 typed tools instead of fragile screenshot-guessing.
+`blender-mcp-ultra` connects **Blender** (the free open-source 3D suite) to **LLM agents** through the **Model Context Protocol**. Ask your AI assistant to model, texture, light, animate, simulate and render 3D scenes — it executes through 245 typed tools instead of fragile screenshot-guessing.
 
 ```text
 You:     "Create a wooden table with a coffee mug on it and render it in Cycles"
@@ -38,7 +38,7 @@ Claude:  → object.create, mesh ops, material PBR wood, light.three_point,
 
 ## Highlights
 
-- 🧰 **223 MCP tools** in 24 categories — modeling, materials, shader nodes, geometry nodes, lighting, cameras, animation, physics, compositor, UV, rigging, 3D printing, export (FBX/OBJ/glTF/STL), batch, VLM visual feedback, multi-agent collab, scene planner
+- 🧰 **245 MCP tools** (6 base + 239 registry) — modeling, materials, shader nodes, geometry nodes, lighting, cameras, animation, physics, compositor, UV, rigging, 3D printing, export (FBX/OBJ/glTF/STL), batch, VLM visual feedback, multi-agent collab, scene planner
 - 🖥️ **Any MCP client** — stdio (Claude Code/Desktop, Cursor, opencode, VS Code, Windsurf), SSE/HTTP (Antigravity, remote), REST
 - 🧠 **VLM feedback loop** — the agent *sees* its renders (EEVEE headless capture) and iterates
 - 🔒 **Enterprise security** — AST code validation (200+ blocked patterns), sandboxed execution, rate limiting, token auth, localhost-only binding, 0 secrets in history (gitleaks)
@@ -63,10 +63,18 @@ pip install -e .
 
 ### 2. Connect your AI client
 
+Install the gateway (provides the `blender-mcp-server` command). Startup order doesn't matter: all tools register even if Blender is closed and work as soon as you open it.
+
+```bash
+pip install blender-mcp-ultra
+```
+
 <details open>
 <summary><b>Claude Code</b></summary>
 
 ```bash
+claude mcp add blender -- blender-mcp-server
+# o, desde un checkout del repo:
 claude mcp add blender -- python /ruta/a/blender-mcp/mcp_server.py
 ```
 
@@ -80,8 +88,7 @@ More: [docs/clients/claude-code.md](docs/clients/claude-code.md)
 {
   "mcpServers": {
     "blender": {
-      "command": "python",
-      "args": ["/ruta/a/blender-mcp/mcp_server.py"]
+      "command": "blender-mcp-server"
     }
   }
 }
@@ -119,7 +126,7 @@ More: [docs/clients/antigravity.md](docs/clients/antigravity.md) · [docs/remote
 "Modela una silla de madera con biselado y material PBR, ilumina en 3 puntos y renderiza"
 ```
 
-## Tools (223)
+## Tools (245)
 
 | Category | Examples |
 |---|---|
@@ -155,7 +162,7 @@ Full reference generated from the live registry: `docs_scene` tool · skills/rec
 ## Architecture
 
 ```
-AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 239 tools)
+AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 245 tools)
                                                   │ socket :9876 (localhost + token)
                                                   ▼
                                     Blender + addon blender-mcp-ultra

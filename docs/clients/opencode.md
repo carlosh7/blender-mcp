@@ -1,5 +1,19 @@
 # opencode Integration
 
+## Prerequisites
+
+1. Install the gateway (provides the `blender-mcp-server` command):
+
+   ```bash
+   pip install blender-mcp-ultra
+   ```
+
+2. Install the Blender addon (`blender_mcp_ultra.zip`) and enable it — the
+   socket on `:9876` starts automatically (or press **Connect** in the N-panel).
+
+The order does not matter: all 245 tools register even if Blender is closed,
+and they work as soon as you open it.
+
 ## Configuration
 
 Add to `~/.config/opencode/opencode.json`:
@@ -8,7 +22,26 @@ Add to `~/.config/opencode/opencode.json`:
 {
   "mcp": {
     "blender-mcp-ultra": {
-      "command": ["python3", "/path/to/blender-mcp-ultra/mcp_adapter.py"],
+      "command": ["blender-mcp-server"],
+      "enabled": true,
+      "environment": {
+        "BLENDER_HOST": "localhost",
+        "BLENDER_PORT": "9876"
+      },
+      "timeout": 60000,
+      "type": "local"
+    }
+  }
+}
+```
+
+If you installed from a repo checkout instead of PyPI:
+
+```json
+{
+  "mcp": {
+    "blender-mcp-ultra": {
+      "command": ["python3", "/path/to/blender-mcp/mcp_server.py"],
       "enabled": true,
       "environment": {
         "BLENDER_HOST": "localhost",
@@ -23,21 +56,18 @@ Add to `~/.config/opencode/opencode.json`:
 
 ## Usage
 
-1. Start Blender with MCP server:
-   ```bash
-   blender --background --python start_server.py
+1. Restart opencode
+
+2. Ask the agent in natural language:
+   ```
+   Crea una taza de café con material cerámico PBR y renderízala
    ```
 
-2. Restart opencode
-
-3. Use tools:
-   ```python
-   tool("object.create", {"type": "MESH", "name": "Cube"})
-   tool("material.create", {"name": "Red", "color": [1, 0, 0, 1]})
-   ```
+The agent will use tools like `object_create`, `material_pbr`, `render_render`.
 
 ## Troubleshooting
 
-- **Connection refused**: Check if Blender is running and port 9876 is open
+- **Connection refused**: Open Blender with the addon enabled; tools reconnect
+  automatically once it is up
 - **No tools available**: Restart opencode after configuration changes
 - **Timeout errors**: Increase timeout in configuration

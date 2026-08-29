@@ -1,5 +1,26 @@
 # blender-mcp-ultra — Changelog
 
+## Unreleased
+
+### Fixed
+- **El gateway registra el registry completo sin Blender**: `mcp_server.py`
+  leía los metadatos de las 239 tools por socket una sola vez al arrancar;
+  si el addon no estaba arriba, el cliente MCP quedaba con 6 tools para
+  siempre. Ahora construye el mismo `ToolRegistry` de `src/` en local
+  (fallback socket), así que el orden de arranque cliente/Blender ya no
+  importa y las tools funcionan en cuanto Blender se abre (reconexión por
+  llamada). Verificado E2E: venv limpio + wheel → `blender-mcp-server` →
+  245 tools → ejecución real.
+
+### Changed
+- docs/clients/ (Claude Code/Desktop, Cursor, opencode, VS Code, Windsurf):
+  receta canónica `pip install blender-mcp-ultra` + `blender-mcp-server`
+  (variante repo con `mcp_server.py`); eliminadas las referencias a los
+  gateways legacy (`mcp_adapter.py`, `start_server.py`)
+- README: quick start con el flujo validado y conteos sincronizados
+  (245 tools = 6 base + 239 registry)
+- CI: `ruff format` de `scripts/gen_tools_index.py` (job de lint en rojo)
+
 ## v3.1.0 (2026-08-26) — "Spatial & Eyes + Agent Experience"
 
 ### Added (22 tools nuevas → 239 total)

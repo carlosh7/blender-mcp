@@ -1,16 +1,26 @@
 # Claude Code — Integración
 
 `blender-mcp-ultra` se conecta a Claude Code vía **MCP stdio** (transporte
-estándar). El gateway es `mcp_server.py` (223 tools: 6 base + registry dinámico).
+estándar). El gateway canónico es `mcp_server.py` — **245 tools** (6 base +
+239 del registry), que se registran siempre aunque Blender no esté abierto
+todavía; ejecutan en cuanto lo abras.
 
 ## Requisitos
 
-- Blender 4.2+ (o 5.x) con el addon `blender_mcp_ultra.zip` instalado y el
-  socket activo (panel N → blender-mcp → Connect, puerto 9876)
-- Python 3.10+ con `pip install -e .` en el repo (o `pip install blender-mcp-ultra`)
+- Blender 4.2+ (o 5.x) con el addon `blender_mcp_ultra.zip` instalado
+  (el socket en `:9876` arranca solo al habilitar el addon; también puedes
+  pulsar **Connect** en el panel N)
+- El gateway instalado: `pip install blender-mcp-ultra` (provee el comando
+  `blender-mcp-server`) o un checkout del repo con `pip install -e .`
 - Claude Code CLI instalado
 
 ## Registro (un solo comando)
+
+```bash
+claude mcp add blender -- blender-mcp-server
+```
+
+Si instalaste desde el repo en lugar de PyPI:
 
 ```bash
 claude mcp add blender -- python /ruta/a/blender-mcp/mcp_server.py
@@ -19,7 +29,7 @@ claude mcp add blender -- python /ruta/a/blender-mcp/mcp_server.py
 Con scope de usuario (disponible en todos tus proyectos):
 
 ```bash
-claude mcp add --scope user blender -- python /ruta/a/blender-mcp/mcp_server.py
+claude mcp add --scope user blender -- blender-mcp-server
 ```
 
 Verifica con:
@@ -38,15 +48,16 @@ Dentro de una sesión de Claude Code, simplemente pide:
 > Exporta la escena a glTF para web
 ```
 
-Claude Code invocará las tools `scene.*`, `render.*`, `export.*`, etc.
+Claude Code invocará las tools `scene_*`, `render_*`, `export_*`, etc.
 
 ## Notas
 
+- **El orden de arranque no importa**: las tools se registran leyendo el
+  registry local, y la ejecución reconecta al socket de Blender por llamada.
+  Si una tool se llama con Blender cerrado, devuelve un error claro y
+  funciona en cuanto lo abras — sin reiniciar nada.
 - El gateway se comunica con Blender por socket local `localhost:9876` —
-  nunca por red.
-- Si el socket no responde, las tools devuelven un error claro: abre Blender
-  y pulsa **Connect** en el panel del addon.
-- Para exponer más tools del registry dinámicamente, el gateway las descubre
-  al arrancar (ver log: `Starting MCP Server (N tools...)`).
+  nunca por red. Variables opcionales: `BLENDER_HOST`, `BLENDER_PORT`,
+  `BLENDER_TOKEN` (si configuraste token en el addon).
 - Alternativa con SSE (para clientes remotos): `python mcp_server.py --sse`
   y apunta el cliente a `http://localhost:9879/sse`.
