@@ -67,6 +67,7 @@ class BlenderConnection:
         self.port = port
         self.sock = None
         self._lock = threading.Lock()
+        self._protocol_v2 = None  # None=sin negociar; True/False tras el probe
 
     def connect(self):
         if self.sock:
@@ -96,6 +97,71 @@ class BlenderConnection:
         with self._lock:
             return self._send_command_locked(cmd_type, params)
 
+    # ── Protocolo v2 (framed: b"BMCP" + uint32 BE + JSON), espejo de
+    # addon/socket_protocol.py — este módulo también se empaqueta standalone.
+
+    @staticmethod
+    def _encode_framed(cmd: dict) -> bytes:
+        import struct
+
+        payload = json.dumps(cmd).encode("utf-8")
+        return b"BMCP" + struct.pack(">I", len(payload)) + payload
+
+    def _recv_message(self, timeout: float) -> dict | None:
+        """Recibe una respuesta framed o legacy; None si el peer cerró."""
+        self.sock.settimeout(timeout)
+        buffer = b""
+        while True:
+            try:
+                chunk = self.sock.recv(65536)
+            except TimeoutError:
+                raise TimeoutError("Tiempo de espera agotado con Blender") from None
+            if not chunk:
+                return None
+            buffer += chunk
+            if buffer[:4] == b"BMCP":
+                import struct
+
+                if len(buffer) < 8:
+                    continue
+                (length,) = struct.unpack(">I", buffer[4:8])
+                if len(buffer) < 8 + length:
+                    continue
+                return json.loads(buffer[8 : 8 + length].decode("utf-8"))
+            try:
+                return json.loads(buffer.decode("utf-8"))
+            except json.JSONDecodeError:
+                continue
+
+    def _probe_protocol(self) -> bool:
+        """True si el addon habla v2 framed; degrada a legacy si es viejo."""
+        try:
+            self.sock.sendall(self._encode_framed({"command": "ping", "args": {}}))
+            self.sock.settimeout(3.0)
+            buffer = b""
+            while True:
+                chunk = self.sock.recv(65536)
+                if not chunk:
+                    break
+                buffer += chunk
+                if buffer[:4] == b"BMCP" and len(buffer) >= 8:
+                    import struct
+
+                    (length,) = struct.unpack(">I", buffer[4:8])
+                    if len(buffer) >= 8 + length:
+                        return True
+                try:
+                    json.loads(buffer.decode("utf-8"))
+                    return False  # respondió legacy (addon viejo)
+                except json.JSONDecodeError:
+                    continue
+        except Exception:
+            pass
+        # Sin confirmación framed la conexión queda sucia (un servidor legacy
+        # retiene los bytes BMCP en su buffer): reconectar en limpio.
+        self.disconnect()
+        return False
+
     def _send_command_locked(self, cmd_type, params=None):
         if not self.sock and not self.connect():
             raise ConnectionError("No se pudo conectar con Blender")
@@ -104,26 +170,24 @@ class BlenderConnection:
         if token:
             cmd["token"] = token
         try:
-            self.sock.sendall(json.dumps(cmd).encode("utf-8"))
-            self.sock.settimeout(30.0 if cmd_type == "ping" else 180.0)
-            buffer = b""
-            while True:
-                chunk = self.sock.recv(65536)
-                if not chunk:
-                    self.disconnect()
-                    break
-                buffer += chunk
-                try:
-                    resp = json.loads(buffer.decode("utf-8"))
-                    if isinstance(resp, dict) and resp.get("status") == "error":
-                        self.disconnect()
-                        raise ConnectionError(
-                            f"Blender rechazó el comando: {resp.get('message', 'error desconocido')}"
-                        )
-                    return resp.get("result", {})
-                except json.JSONDecodeError:
-                    continue
-            raise Exception("Sin respuesta de Blender")
+            if self._protocol_v2 is None:
+                self._protocol_v2 = self._probe_protocol()
+                if not self._protocol_v2 and not self.sock:
+                    self.connect()
+            if self._protocol_v2:
+                self.sock.sendall(self._encode_framed(cmd))
+            else:
+                self.sock.sendall(json.dumps(cmd).encode("utf-8"))
+            resp = self._recv_message(30.0 if cmd_type == "ping" else 180.0)
+            if resp is None:
+                self.disconnect()
+                raise Exception("Sin respuesta de Blender")
+            if isinstance(resp, dict) and resp.get("status") == "error":
+                self.disconnect()
+                raise ConnectionError(
+                    f"Blender rechazó el comando: {resp.get('message', 'error desconocido')}"
+                )
+            return resp.get("result", {})
         except (OSError, ConnectionError, BrokenPipeError):
             self.disconnect()
             raise

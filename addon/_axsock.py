@@ -3,7 +3,6 @@
 # Thread-safe: los comandos se serializan al hilo principal vía bpy.app.timers.
 # Auth obligatoria por token (auto-generado en <config>/blender-mcp/socket_token).
 import io
-import json
 import os
 import secrets
 import socket
@@ -22,86 +21,27 @@ _auth_token_cache = None
 # Comandos que modifican la escena: sujetos al lock multi-agente
 _MUTATING_COMMANDS = {"execute_code", "tool", "create_object", "cleanup_scene"}
 
+try:  # paquete (extensión Blender)
+    from . import socket_auth as _auth
+    from . import socket_events as _events
+    from . import socket_protocol as _proto
+except ImportError:  # addon/ plano en sys.path (headless CI)
+    import socket_auth as _auth  # type: ignore[no-redef]
+    import socket_events as _events  # type: ignore[no-redef]
+    import socket_protocol as _proto  # type: ignore[no-redef]
 
-def _token_file_path():
-    """Ruta del token compartido con el gateway (misma fórmula en
-    blender_connection.py: <config>/blender-mcp/socket_token)."""
-    import sys as _sys
-    from pathlib import Path as _Path
+# Aliases públicos (mini_http y clientes externos los usan vía _axsock.*)
+_load_or_create_token = _auth.load_or_create_token
+_token_file_path = _auth.token_file_path
+_load_code_guard = _auth.load_code_guard
+_code_guard = _auth.load_code_guard()
+emit_event = _events.emit_event
+_auth_token_cache = None  # legacy: el cache real vive en socket_auth
 
-    if _sys.platform == "win32":
-        base = _Path(os.environ.get("APPDATA", _Path.home() / "AppData" / "Roaming"))
-    elif _sys.platform == "darwin":
-        base = _Path.home() / "Library" / "Application Support"
-    else:
-        base = _Path.home() / ".config"
-    return base / "blender-mcp" / "socket_token"
-
-
-def _load_or_create_token():
-    """Lee (o genera y persiste) el token del socket para este usuario."""
-    try:
-        p = _token_file_path()
-        if p.exists():
-            t = p.read_text(encoding="utf-8").strip()
-            if t:
-                return t
-        t = secrets.token_hex(16)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(t, encoding="utf-8")
-        try:
-            os.chmod(p, 0o600)
-        except Exception:
-            pass
-        return t
-    except Exception:
-        return ""
-
-
-def _load_code_guard():
-    """Carga code_guard.py (mismo directorio): blocklist AST para execute_code."""
-    import importlib.util
-    from pathlib import Path as _Path
-
-    guard_path = _Path(__file__).resolve().parent / "code_guard.py"
-    if not guard_path.exists():
-        return None
-    try:
-        spec = importlib.util.spec_from_file_location("bmcp_addon_code_guard", guard_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    except Exception:
-        return None
-
-
-_code_guard = _load_code_guard()
-
-# ── Bus de eventos (ring buffer) para polling de agentes ──
-import collections as _collections
-
-_EVENT_BUFFER: _collections.deque = _collections.deque(maxlen=500)
-_EVENT_SEQ = 0
-
-
-def emit_event(kind: str, data=None):
-    """Publicar un evento en el bus (poll con cmd_poll_events)."""
-    global _EVENT_SEQ
-    _EVENT_SEQ += 1
-    _EVENT_BUFFER.append(
-        {"seq": _EVENT_SEQ, "time": round(time.time(), 3), "kind": kind, "data": data or {}}
-    )
-
-
+# Estado del chat (lo consume mini_http vía _axsock.*)
 _chat_queue = []
 _chat_responses = {}
 _chat_lock = threading.Lock()
-_stop_agent = False
-mcp_last_ping = 0  # timestamp of last ping from MCP server
-mcp_connected = False
-mcp_status = "idle"
-mcp_error = ""
-_mcp_process = None  # true if ping received in last 15s
 
 
 class BlenderSocketServer:
@@ -202,25 +142,34 @@ class BlenderSocketServer:
             if not data:
                 break
             buffer += data
-            try:
-                cmd = json.loads(buffer.decode("utf-8"))
-            except json.JSONDecodeError:
-                continue
-            buffer = b""
-            try:
-                resp = self._execute(cmd)
-            except Exception as e:
-                resp = {
-                    "status": "error",
-                    "message": f"{type(e).__name__}: {e}",
-                    "traceback": traceback.format_exc(),
-                }
-            client.sendall(json.dumps(resp).encode("utf-8"))
-            served += 1
-            client.settimeout(0.5)
+            # Procesar todos los comandos completos del buffer (v2/legacy)
+            while True:
+                try:
+                    cmd, buffer, framed = _proto.try_parse(buffer)
+                except ValueError as e:
+                    client.sendall(
+                        _proto.encode_legacy({"status": "error", "message": str(e)})
+                    )
+                    return
+                if cmd is None:
+                    break
+                try:
+                    resp = self._execute(cmd)
+                except Exception as e:
+                    resp = {
+                        "status": "error",
+                        "message": f"{type(e).__name__}: {e}",
+                        "traceback": traceback.format_exc(),
+                    }
+                client.sendall(
+                    _proto.encode_framed(resp) if framed else _proto.encode_legacy(resp)
+                )
+                served += 1
+            if served:
+                client.settimeout(0.5)
 
     def _handle(self, client):
-        """Handle client connection with proper thread-safe execution."""
+        """Handle client connection (ejecución via timers: hilo principal)."""
         buffer = b""
         try:
             while self.running:
@@ -228,36 +177,44 @@ class BlenderSocketServer:
                 if not data:
                     break
                 buffer += data
-                try:
-                    # Try to find complete JSON
-                    raw_data = buffer.decode("utf-8")
-                    cmd = json.loads(raw_data)
-                    buffer = b""
+                # Procesar todos los comandos completos del buffer (v2/legacy)
+                while True:
+                    try:
+                        cmd, buffer, framed = _proto.try_parse(buffer)
+                    except ValueError as e:
+                        client.sendall(
+                            _proto.encode_legacy({"status": "error", "message": str(e)})
+                        )
+                        return
 
-                    # Execute via bpy.app.timers for thread safety
-                    def execute():
+                    if cmd is None:
+                        break
+
+                    def execute(cmd=cmd, framed=framed):
                         try:
                             resp = self._execute(cmd)
-                            client.sendall(json.dumps(resp).encode("utf-8"))
+                            client.sendall(
+                                _proto.encode_framed(resp)
+                                if framed
+                                else _proto.encode_legacy(resp)
+                            )
                         except Exception as e:
                             try:
+                                payload = {
+                                    "status": "error",
+                                    "message": f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}",
+                                }
                                 client.sendall(
-                                    json.dumps(
-                                        {
-                                            "status": "error",
-                                            "message": f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}",
-                                        }
-                                    ).encode("utf-8")
+                                    _proto.encode_framed(payload)
+                                    if framed
+                                    else _proto.encode_legacy(payload)
                                 )
                             except Exception:
                                 pass
                         return None
 
-                    # Register in main thread via timers
+                    # Ejecutar en el hilo principal vía timers (bpy no es thread-safe)
                     bpy.app.timers.register(execute, first_interval=0.0)
-                except json.JSONDecodeError:
-                    # Incomplete JSON, wait for more data
-                    pass
         except Exception as e:
             print(f"[BLENDER SOCKET] Client handler error: {e}")
         finally:
@@ -267,27 +224,9 @@ class BlenderSocketServer:
                 pass
 
     def _get_auth_token(self):
-        """Token del socket (OBLIGATORIO): env BLENDER_MCP_TOKEN > Scene > archivo.
+        """Token del socket (OBLIGATORIO): delega en socket_auth.resolve_token."""
+        return _auth.resolve_token()
 
-        Sin configuración previa se genera uno y se persiste en
-        <config>/blender-mcp/socket_token (0600) para que el gateway del
-        mismo usuario lo lea: cero configuración y ningún comando anónimo.
-        """
-        global _auth_token_cache
-        if _auth_token_cache is not None:
-            return _auth_token_cache
-        import os
-
-        token = os.environ.get("BLENDER_MCP_TOKEN", "")
-        if not token:
-            try:
-                token = bpy.context.scene.get("mcp_ultra_socket_token", "") or ""
-            except Exception:
-                token = ""
-        if not token:
-            token = _load_or_create_token()
-        _auth_token_cache = token
-        return _auth_token_cache
 
     def _execute(self, cmd):
         cmd_type = cmd.get("type") or cmd.get("command")
@@ -715,9 +654,8 @@ class BlenderSocketServer:
             return {"topic": topic, "error": str(e), "source": "error"}
 
     def cmd_poll_events(self, since: int = 0, limit: int = 100):
-        """Eventos del bus con seq > since (streaming por polling)."""
-        events = [e for e in _EVENT_BUFFER if e["seq"] > int(since)][: int(limit)]
-        return {"events": events, "last_seq": _EVENT_SEQ}
+        """Eventos con seq > since (bus en socket_events)."""
+        return _events.poll_events(since=since, limit=limit)
 
     # ── Lock de escena multi-agente (advisory) ──
 
