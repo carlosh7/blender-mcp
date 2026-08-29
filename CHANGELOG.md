@@ -20,6 +20,15 @@
   `ARCHITECTURE.md` reescrito a la arquitectura actual
 
 ### Security
+- **mini_http (REST :9877)**: todo acceso a bpy se serializa al hilo principal
+  vía `bpy.app.timers` (antes `exec()` desde el hilo HTTP — bpy no es
+  thread-safe); token unificado con el del socket vía archivo compartido
+  (**ya no se guarda en la escena .blend**, viajaba con el archivo); body
+  limitado a 1 MB
+- **Sin `SO_REUSEPORT`** en el socket :9876: en Linux permitía a otro proceso
+  bindear el mismo puerto y robar parte del tráfico
+- README: claims de seguridad ajustadas a la realidad (~80 patrones AST en
+  gateway+addon, sin "sandbox de subprocess" no cableado)
 - **Auth obligatoria en el socket :9876**: si no hay `BLENDER_MCP_TOKEN` ni
   token de escena, el addon genera uno (`secrets.token_hex`) y lo persiste en
   `<config>/blender-mcp/socket_token` (0600); el gateway lo lee del mismo
@@ -47,6 +56,10 @@
   canónico (sesión MCP reutilizable + token)
 
 ### Removed
+- **`data/` (27 MB, 4.400 archivos RST) fuera de git**: se descargan con
+  `python scripts/fetch_docs_data.py` desde el release asset
+  [`docs`](https://github.com/carlosh7/blender-mcp/releases/tag/docs);
+  tests de `rst_search` se omiten sin datos
 - **Gateways legacy**: `mcp_adapter.py` (auth auto-bypass, protocolo viejo) y
   `start_server.py` (exec sin guard); `src/tools/registry.py` (segundo
   ToolRegistry sin uso) y su test. Solo queda el gateway canónico

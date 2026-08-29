@@ -41,7 +41,7 @@ Claude:  → object.create, mesh ops, material PBR wood, light.three_point,
 - 🧰 **245 MCP tools** (6 base + 239 registry) — modeling, materials, shader nodes, geometry nodes, lighting, cameras, animation, physics, compositor, UV, rigging, 3D printing, export (FBX/OBJ/glTF/STL), batch, VLM visual feedback, multi-agent collab, scene planner
 - 🖥️ **Any MCP client** — stdio (Claude Code/Desktop, Cursor, opencode, VS Code, Windsurf), SSE/HTTP (Antigravity, remote), REST
 - 🧠 **VLM feedback loop** — the agent *sees* its renders (EEVEE headless capture) and iterates
-- 🔒 **Enterprise security** — AST code validation (200+ blocked patterns), sandboxed execution, rate limiting, token auth, localhost-only binding, 0 secrets in history (gitleaks)
+- 🔒 **Security-first** — AST code blocklist validated in gateway and addon, mandatory auth token (auto-generated), localhost-only binding, rate limiting, 0 secrets in history (gitleaks)
 - 🤖 **Multi-provider** — OpenAI, Anthropic, Google, DeepSeek, Ollama (local)
 - 📦 **Asset integrations** — PolyHaven, Sketchfab, AmbientCG, Hyper3D
 - 🚀 **Headless CI** — real E2E tests against Blender in GitHub Actions (Linux + Windows + macOS)
@@ -112,7 +112,7 @@ More: [docs/clients/opencode.md](docs/clients/opencode.md)
 
 ```bash
 python mcp_server.py --sse      # SSE en :9879 (MCP_SSE_HOST para exponer)
-# REST local: http://localhost:9877 (token en preferencias del addon)
+# REST local: http://localhost:9877 (mismo token que el socket: ~/.config/blender-mcp/socket_token)
 # Docker:
 docker build -t blender-mcp-gateway . && docker run -p 9879:9879 blender-mcp-gateway
 ```
@@ -153,11 +153,13 @@ Full reference generated from the live registry: `docs_scene` tool · skills/rec
 
 | Layer | Mechanism |
 |---|---|
-| Transport | localhost-only sockets + `X-API-Token` auth (HTTP) |
-| Code execution | AST validation (200+ blocked patterns) + sandboxed subprocess (CPU/RAM limits, timeout) |
-| Input | path traversal / injection validation |
+| Transport | localhost-only sockets + shared auth token (auto-generated; `X-API-Token` on HTTP) |
+| Code execution | AST blocklist (`code_guard`, ~80 patterns) in gateway **and** addon + 10s timeout + auto-undo |
+| Input | rate limit (30 req/min) and 1 MB body cap on the HTTP API |
 | Audit | structured JSON logs with rotation |
-| Supply chain | gitleaks (full history) + pip-audit in CI |
+| Supply chain | gitleaks (full history) + bandit + pip-audit in CI |
+
+Run trusted agents only — executing Blender Python on the agent's behalf is the product.
 
 ## Architecture
 

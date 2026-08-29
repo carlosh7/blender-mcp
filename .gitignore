@@ -29,3 +29,6 @@ Thumbs.db
 
 # Config local de ZCode (rutas absolutas de esta máquina)
 .zcode/
+
+# Docs RST de Blender (27MB): se descargan con scripts/fetch_docs_data.py
+data/

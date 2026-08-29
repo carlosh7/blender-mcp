@@ -133,13 +133,10 @@ class BlenderSocketServer:
                     pass
 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # SO_REUSEADDR + SO_REUSEPORT for quick port release
+            # SO_REUSEADDR para liberar el puerto rápido; SIN SO_REUSEPORT:
+            # en Linux permitiría a otro proceso bindear el mismo puerto y
+            # robar parte del tráfico (secuestro de comandos)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-            except (AttributeError, OSError):
-                # SO_REUSEPORT not available on all platforms
-                pass
 
             self.sock.bind((self.host, self.port))
             self.sock.listen(5)

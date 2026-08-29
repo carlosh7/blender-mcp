@@ -4,11 +4,13 @@ Puerto 9877. Sin dependencias externas. Corre dentro de Blender.
 
 Seguridad:
   - Bind a 127.0.0.1 (configurable vía BLENDER_MCP_HTTP_HOST, bajo tu responsabilidad)
-  - Token obligatorio: header X-API-Token (o ?token=). Se autogenera y se
-    imprime por consola la primera vez; también en Scene.mcp_ultra_http_token
-    o vía env BLENDER_MCP_HTTP_TOKEN.
-  - Rate limit: 30 req/min por IP.
+  - Token obligatorio: header X-API-Token (o ?token=). Mismo token que el
+    socket :9876 (env BLENDER_MCP_HTTP_TOKEN > <config>/blender-mcp/socket_token).
+    NO se guarda en la escena .blend (viajaba con el archivo).
+  - Rate limit: 30 req/min por IP. Body limitado a 1 MB.
   - POST /api/execute pasa por addon.code_guard (AST) antes de exec().
+  - Todo acceso a bpy se serializa al hilo principal vía bpy.app.timers
+    (bpy no es thread-safe).
 
 Endpoints:
   GET  /                → landing (sin info sensible)
@@ -30,6 +32,7 @@ import bpy
 HTTP_PORT = 9877
 HTTP_HOST = "127.0.0.1"
 RATE_LIMIT_PER_MIN = 30
+MAX_BODY_BYTES = 1_000_000
 _server_instance = None
 _token_cache = None
 _rate_lock = threading.Lock()
@@ -41,7 +44,7 @@ from ..code_guard import CodeGuardError, check_code
 
 
 def get_token():
-    """Token de la API: env > propiedad de escena > autogenerado (impreso una vez)."""
+    """Token de la API: env BLENDER_MCP_HTTP_TOKEN > token compartido del socket."""
     global _token_cache
     if _token_cache:
         return _token_cache
@@ -51,14 +54,31 @@ def get_token():
     if env_token:
         _token_cache = env_token
         return _token_cache
-    scene = bpy.context.scene
-    token = scene.get("mcp_ultra_http_token", "")
-    if not token:
-        token = secrets.token_hex(16)
-        scene["mcp_ultra_http_token"] = token
-        print(f"[blender-mcp] 🔑 Token HTTP API (guárdalo): {token}")
-    _token_cache = token
+    _token_cache = bsock._load_or_create_token()
     return _token_cache
+
+
+def _run_on_main(fn, timeout=30.0):
+    """Ejecuta fn() en el hilo principal de Blender (bpy no es thread-safe).
+
+    Devuelve (ok, resultado|excepción). El hilo HTTP queda a la espera del
+    evento mientras el timer de bpy ejecuta en el main thread.
+    """
+    ev = threading.Event()
+    box = {}
+
+    def task():
+        try:
+            box["ok"], box["out"] = True, fn()
+        except Exception as e:  # noqa: BLE001
+            box["ok"], box["out"] = False, e
+        ev.set()
+        return None
+
+    bpy.app.timers.register(task, first_interval=0.0)
+    if not ev.wait(timeout=timeout):
+        return False, TimeoutError("timeout ejecutando en el hilo principal")
+    return box.get("ok", False), box.get("out")
 
 
 def _rate_ok(ip):
@@ -96,6 +116,8 @@ class MiniAPIHandler(BaseHTTPRequestHandler):
 
     def _read_body(self):
         length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_BODY_BYTES:
+            raise ValueError(f"body demasiado grande ({length} bytes)")
         return json.loads(self.rfile.read(length)) if length else {}
 
     def do_OPTIONS(self):
@@ -116,14 +138,15 @@ class MiniAPIHandler(BaseHTTPRequestHandler):
             self._send({"error": "rate limit exceeded"}, 429)
             return
         if parsed.path == "/api/health":
-            self._send(
-                {
+            ok, out = _run_on_main(
+                lambda: {
                     "status": "ok",
                     "blender": bpy.app.version_string,
                     "scene": bpy.context.scene.name,
                     "objects": len(bpy.data.objects),
                 }
             )
+            self._send(out if ok else {"error": str(out)}, 200 if ok else 500)
         elif parsed.path == "/api/tools":
             handlers = [
                 "scene",
@@ -205,14 +228,18 @@ class MiniAPIHandler(BaseHTTPRequestHandler):
             import io
             from contextlib import redirect_stdout
 
-            ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
-            buf = io.StringIO()
-            with redirect_stdout(buf):
-                try:
-                    exec(code, ns)
-                    self._send({"status": "ok", "output": buf.getvalue()})
-                except Exception as e:
-                    self._send({"status": "error", "message": str(e)}, 500)
+            def _work():
+                ns = {"bpy": bpy, "C": bpy.context, "D": bpy.data, "ops": bpy.ops}
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    exec(code, ns)  # noqa: S102 — protegido por code_guard
+                return buf.getvalue()
+
+            ok, out = _run_on_main(_work)
+            if ok:
+                self._send({"status": "ok", "output": out})
+            else:
+                self._send({"status": "error", "message": str(out)}, 500)
         else:
             self._send({"error": "Not found"}, 404)
 
