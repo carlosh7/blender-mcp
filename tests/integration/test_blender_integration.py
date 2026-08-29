@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from helpers import skip_without_blender
+from helpers import skip_without_blender, socket_token
 
 
 def send_command(command, params=None):
@@ -21,7 +21,11 @@ def send_command(command, params=None):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(30)
     sock.connect(("localhost", 9876))
-    cmd = json.dumps({"command": command, "params": params or {}})
+    cmd = {"command": command, "params": params or {}}
+    tok = socket_token()
+    if tok:
+        cmd["token"] = tok
+    cmd = json.dumps(cmd)
     sock.sendall(cmd.encode())
     time.sleep(0.1)
     # loop de recepción: respuestas grandes (list_tools ~500KB) llegan fragmentadas

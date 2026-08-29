@@ -1,6 +1,7 @@
 # blender-mcp — Socket server for Blender (ahujasid-compatible)
 # Runs inside Blender, listens on port 9876 for JSON commands via TCP socket.
-# Thread-safe: Uses ExecutionQueue for bpy operations.
+# Thread-safe: los comandos se serializan al hilo principal vía bpy.app.timers.
+# Auth obligatoria por token (auto-generado en <config>/blender-mcp/socket_token).
 import io
 import json
 import os
@@ -20,6 +21,61 @@ _auth_token_cache = None
 
 # Comandos que modifican la escena: sujetos al lock multi-agente
 _MUTATING_COMMANDS = {"execute_code", "tool", "create_object", "cleanup_scene"}
+
+
+def _token_file_path():
+    """Ruta del token compartido con el gateway (misma fórmula en
+    blender_connection.py: <config>/blender-mcp/socket_token)."""
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    if _sys.platform == "win32":
+        base = _Path(os.environ.get("APPDATA", _Path.home() / "AppData" / "Roaming"))
+    elif _sys.platform == "darwin":
+        base = _Path.home() / "Library" / "Application Support"
+    else:
+        base = _Path.home() / ".config"
+    return base / "blender-mcp" / "socket_token"
+
+
+def _load_or_create_token():
+    """Lee (o genera y persiste) el token del socket para este usuario."""
+    try:
+        p = _token_file_path()
+        if p.exists():
+            t = p.read_text(encoding="utf-8").strip()
+            if t:
+                return t
+        t = secrets.token_hex(16)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(t, encoding="utf-8")
+        try:
+            os.chmod(p, 0o600)
+        except Exception:
+            pass
+        return t
+    except Exception:
+        return ""
+
+
+def _load_code_guard():
+    """Carga code_guard.py (mismo directorio): blocklist AST para execute_code."""
+    import importlib.util
+    from pathlib import Path as _Path
+
+    guard_path = _Path(__file__).resolve().parent / "code_guard.py"
+    if not guard_path.exists():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("bmcp_addon_code_guard", guard_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:
+        return None
+
+
+_code_guard = _load_code_guard()
 
 # ── Bus de eventos (ring buffer) para polling de agentes ──
 import collections as _collections
@@ -214,7 +270,12 @@ class BlenderSocketServer:
                 pass
 
     def _get_auth_token(self):
-        """Token opcional del socket: env BLENDER_MCP_TOKEN > Scene.mcp_ultra_socket_token."""
+        """Token del socket (OBLIGATORIO): env BLENDER_MCP_TOKEN > Scene > archivo.
+
+        Sin configuración previa se genera uno y se persiste en
+        <config>/blender-mcp/socket_token (0600) para que el gateway del
+        mismo usuario lo lea: cero configuración y ningún comando anónimo.
+        """
         global _auth_token_cache
         if _auth_token_cache is not None:
             return _auth_token_cache
@@ -226,6 +287,8 @@ class BlenderSocketServer:
                 token = bpy.context.scene.get("mcp_ultra_socket_token", "") or ""
             except Exception:
                 token = ""
+        if not token:
+            token = _load_or_create_token()
         _auth_token_cache = token
         return _auth_token_cache
 
@@ -233,7 +296,7 @@ class BlenderSocketServer:
         cmd_type = cmd.get("type") or cmd.get("command")
         params = cmd.get("params") or cmd.get("args") or {}
 
-        # Auth opcional: si hay token configurado, exigirlo en cada comando
+        # Auth obligatoria: el token siempre existe (auto-generado si hace falta)
         expected = self._get_auth_token()
         if expected and not secrets.compare_digest(str(cmd.get("token", "")), expected):
             return {"status": "error", "message": "unauthorized: invalid or missing token"}
@@ -495,33 +558,15 @@ class BlenderSocketServer:
         mcp_connected = True
         return {"pong": True, "time": mcp_last_ping}
 
-    def _strip_bad_code(self, code):
-        import re
-
-        code = re.sub(
-            r"^[ \t]*bpy\.context\.collection\.objects\.unlink\([^)]+\)\s*\n",
-            "",
-            code,
-            flags=re.MULTILINE,
-        )
-        code = re.sub(
-            r"^[ \t]*bpy\.context\.scene\.collection\.objects\.unlink\([^)]+\)\s*\n",
-            "",
-            code,
-            flags=re.MULTILINE,
-        )
-
-        def _fix_scale(m):
-            inner = m.group(1)
-            inner = re.sub(r"\s*/\s*2\s*", "", inner)
-            return ".scale = (" + inner + ")"
-
-        code = re.sub(r"\.scale\s*=\s*\(([^)]*)\)", _fix_scale, code)
-        return code
-
     def cmd_execute_code(self, code=""):
-        """Execute Python code in Blender with safety measures."""
-        code = self._strip_bad_code(code)
+        """Execute Python code in Blender (code_guard + timeout 10s + undo)."""
+        # Validación AST antes de tocar Blender (misma blocklist que el gateway)
+        if _code_guard is not None:
+            try:
+                _code_guard.check_code(code)
+            except _code_guard.CodeGuardError as e:
+                emit_event("code_blocked", {"error": str(e)[:200]})
+                return {"output": f"⛔ Bloqueado por seguridad: {e}"}
         win = (
             bpy.context.window
             if bpy.context.window
@@ -553,10 +598,13 @@ class BlenderSocketServer:
             except Exception:
                 pass
 
+        # SIGALRM no existe en Windows: sin timeout ahí, sin romper la llamada
+        _use_alarm = hasattr(signal, "SIGALRM")
         buf = io.StringIO()
         with redirect_stdout(buf):
-            signal.signal(signal.SIGALRM, handler)
-            signal.alarm(10)
+            if _use_alarm:
+                signal.signal(signal.SIGALRM, handler)
+                signal.alarm(10)
             try:
                 # Expresión única → eval y devolver valor; si no, exec normal
                 try:
@@ -590,7 +638,8 @@ class BlenderSocketServer:
                         pass
                 return {"output": f"❌ Axiom ExecutionError: {str(e)[:200]} (Escena revertida)"}
             finally:
-                signal.alarm(0)
+                if _use_alarm:
+                    signal.alarm(0)
 
         return {"output": buf.getvalue()}
 
@@ -726,9 +775,13 @@ class BlenderSocketServer:
             s2.settimeout(1)
             s2.connect(("127.0.0.1", 9879))
             result["mcp"] = True
-            s2.close()
         except (ConnectionRefusedError, OSError):
             pass
+        finally:
+            try:
+                s2.close()
+            except Exception:
+                pass
 
         return result
 

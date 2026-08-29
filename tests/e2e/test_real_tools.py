@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from helpers import skip_without_blender
+from helpers import skip_without_blender, socket_token
 
 
 def call_tool(tool_name, arguments=None):
@@ -24,6 +24,9 @@ def call_tool(tool_name, arguments=None):
         sock.connect(("localhost", 9876))
 
         cmd = {"command": "tool", "params": {"tool_name": tool_name, "params": arguments or {}}}
+        tok = socket_token()
+        if tok:
+            cmd["token"] = tok
         sock.sendall(json.dumps(cmd).encode())
         time.sleep(0.2)
 
