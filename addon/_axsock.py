@@ -1519,9 +1519,13 @@ def serve_forever(host="localhost", port=None):
     atiende clientes de forma síncrona en el hilo principal. No retorna.
     """
     global _socket_server
+    import os as _os
+
+    # Multi-instancia: BLENDER_MCP_SOCKET_PORT (addon) ↔ BLENDER_PORT (gateway)
+    default_port = int(_os.getenv("BLENDER_MCP_SOCKET_PORT", str(SOCKET_PORT)))
     _socket_server = BlenderSocketServer(
         host=host,
-        port=port or SOCKET_PORT,
+        port=port or default_port,
     )
     _socket_server.start(blocking=True)
     if not _socket_server.listening:
