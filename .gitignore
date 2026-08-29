@@ -26,3 +26,6 @@ Thumbs.db
 .pytest_cache/
 *.zip
 !dist/*.zip
+
+# Config local de ZCode (rutas absolutas de esta máquina)
+.zcode/
