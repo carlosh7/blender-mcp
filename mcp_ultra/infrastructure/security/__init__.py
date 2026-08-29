@@ -1,36 +1,22 @@
 """
 blender-mcp-ultra — Security Infrastructure
-Provides security validators and protections.
+Validación de entrada para los parámetros de las tools.
+
+La ejecución de código se protege con addon/code_guard.py (blocklist AST,
+validada en gateway y addon); el token y el rate limit viven en el addon y
+mini_http. Este paquete queda reducido a lo que está realmente cableado.
 """
 
-from .ast_validator import ASTValidator, SecurityError, validate_code, validate_code_strict
 from .input_validator import (
     InputValidationError,
     InputValidator,
     validate_filename,
     validate_string,
 )
-from .rate_limiter import RateLimiter, RateLimitExceeded, check_rate_limit
-from .sandbox import Sandbox, SandboxTimeout, execute_code
-from .url_validator import URLError, URLValidator, validate_url, validate_url_strict
 
 __all__ = [
-    "ASTValidator",
-    "SecurityError",
-    "validate_code",
-    "validate_code_strict",
-    "Sandbox",
-    "SandboxTimeout",
-    "execute_code",
-    "URLValidator",
-    "URLError",
-    "validate_url",
-    "validate_url_strict",
-    "RateLimiter",
-    "RateLimitExceeded",
-    "check_rate_limit",
-    "InputValidator",
     "InputValidationError",
-    "validate_string",
+    "InputValidator",
     "validate_filename",
+    "validate_string",
 ]

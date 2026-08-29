@@ -13,7 +13,7 @@ from ..core.entities import Tool, ToolCategory, ToolPermission, ToolResult
 from ..core.interfaces import IBlenderAPI, IToolRegistry
 from ..infrastructure.cache import get_tool_cache
 from ..infrastructure.logging import get_logger
-from ..infrastructure.security import validate_code_strict
+from ..infrastructure.security import InputValidationError, validate_string
 
 
 def _remediation_hint(tool_name: str, exc: Exception) -> str:
@@ -168,17 +168,13 @@ class ToolRegistry(IToolRegistry):
         return list(self._tools.values())
 
     def _validate_params(self, tool: Tool, params: dict[str, Any]) -> None:
-        """Validate tool parameters."""
-        # Basic validation - extend as needed
+        """Valida strings (inyección/path traversal): error → ToolResult con hint."""
         for key, value in params.items():
             if isinstance(value, str):
-                # Validate string inputs
                 try:
-                    from infrastructure.security import validate_string
-
                     validate_string(value, field_name=key)
-                except ImportError:
-                    pass  # Skip validation if security module not available
+                except InputValidationError as e:
+                    raise ValueError(f"parámetro '{key}' rechazado por validación: {e}") from e
 
     def load_category(self, category: str) -> int:
         """

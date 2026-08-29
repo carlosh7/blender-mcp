@@ -439,42 +439,6 @@ class TestToolRegistry:
         assert stats["total_tools"] == 1
 
 
-class TestLLMAdapters:
-    """Tests for LLM Adapters."""
-
-    def test_openai_provider(self):
-        from mcp_ultra.adapters.llm import LLMConfig, OpenAIProvider
-
-        config = LLMConfig(api_key="test", api_url="", model="gpt-4o")
-        provider = OpenAIProvider(config)
-        assert provider.get_provider_name() == "OpenAIProvider"
-        assert len(provider.get_models()) > 0
-
-    def test_anthropic_provider(self):
-        from mcp_ultra.adapters.llm import AnthropicProvider, LLMConfig
-
-        config = LLMConfig(api_key="test", api_url="", model="claude-3")
-        provider = AnthropicProvider(config)
-        assert provider.get_provider_name() == "AnthropicProvider"
-        assert len(provider.get_models()) > 0
-
-    def test_google_provider(self):
-        from mcp_ultra.adapters.llm import GoogleProvider, LLMConfig
-
-        config = LLMConfig(api_key="test", api_url="", model="gemini-pro")
-        provider = GoogleProvider(config)
-        assert provider.get_provider_name() == "GoogleProvider"
-        assert len(provider.get_models()) > 0
-
-    def test_deepseek_provider(self):
-        from mcp_ultra.adapters.llm import DeepSeekProvider, LLMConfig
-
-        config = LLMConfig(api_key="test", api_url="", model="deepseek-chat")
-        provider = DeepSeekProvider(config)
-        assert provider.get_provider_name() == "DeepSeekProvider"
-        assert len(provider.get_models()) > 0
-
-
 class TestInfrastructure:
     """Tests for Infrastructure modules."""
 

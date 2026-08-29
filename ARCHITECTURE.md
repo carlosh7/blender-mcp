@@ -44,7 +44,7 @@ Puntos clave del diseño:
 | `blender_connection.py` | Cliente socket con lock + resolución del token compartido |
 | `mcp_ultra/tools/` | Fuente de verdad de las 239 tools (TOOLS + HANDLERS por módulo) |
 | `mcp_ultra/presentation/mcp_server/` | Server FastMCP alternativo in-process (modo bpy, entry `blender-mcp-server`) |
-| `mcp_ultra/infrastructure/security/` | Validadores (el gateway usa además `addon/code_guard.py`) |
+| `mcp_ultra/infrastructure/security/` | InputValidator (inyección/path traversal en parámetros); el AST guard real es `addon/code_guard.py` |
 | `addon/_axsock.py` | Servidor socket :9876 dentro de Blender; auth, timers, cmd_* |
 | `addon/code_guard.py` | Blocklist AST (~80 patrones) para `execute_code` |
 | `addon/rst_search.py` | Búsqueda TF-IDF sobre los RST de la API de Blender (`data/api`) |
