@@ -29,6 +29,12 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
+      - name: Docs de tools en sync (scripts/gen_tools_docs.py)
+        run: |
+          pip install -e . --no-deps
+          python scripts/gen_tools_docs.py
+          git diff --exit-code docs/TOOLS.md
+
   secrets:
     runs-on: ubuntu-latest
     steps:
@@ -138,7 +144,7 @@ jobs:
         # Skips JUSTIFICADOS (by-design del producto, ver pyproject [tool.bandit]):
         # B102/B307 exec/eval es la función central (protegida por validator+token),
         # B310 descargas de APIs de assets, B108 rutas /tmp de Blender
-        run: bandit -q -ll --skip B102,B307,B310,B108 -r src addon
+        run: bandit -q -ll --skip B102,B307,B310,B108 -r mcp_ultra addon blender_mcp mcp_server.py blender_connection.py
 
       - name: pip-audit (dependencias del proyecto)
         run: pip-audit --skip-editable --progress-spinner off
