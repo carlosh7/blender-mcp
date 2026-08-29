@@ -17,7 +17,7 @@ def _load_registry_entries() -> list[dict[str, Any]]:
     import os
     from pathlib import Path
 
-    idx = Path(__file__).parent / "data" / "tools_index.json"
+    idx = Path(__file__).parent / "index" / "tools_index.json"
     if idx.exists():
         try:
             return json.loads(idx.read_text())

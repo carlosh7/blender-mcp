@@ -26,5 +26,4 @@ paths_exclude_pattern = [
     "docs/",
     "benchmarks/",
     "data/",
-    "skills/",
 ]

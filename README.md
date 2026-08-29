@@ -28,7 +28,7 @@ Every image above was generated end-to-end through MCP tools — scene setup, ma
 
 ## What is it?
 
-`blender-mcp-ultra` connects **Blender** (the free open-source 3D suite) to **LLM agents** through the **Model Context Protocol**. Ask your AI assistant to model, texture, light, animate, simulate and render 3D scenes — it executes through 245 typed tools instead of fragile screenshot-guessing.
+`blender-mcp-ultra` connects **Blender** (the free open-source 3D suite) to **LLM agents** through the **Model Context Protocol**. Ask your AI assistant to model, texture, light, animate, simulate and render 3D scenes — it executes through 248 typed tools instead of fragile screenshot-guessing.
 
 ```text
 You:     "Create a wooden table with a coffee mug on it and render it in Cycles"
@@ -38,7 +38,7 @@ Claude:  → object.create, mesh ops, material PBR wood, light.three_point,
 
 ## Highlights
 
-- 🧰 **245 MCP tools** (6 base + 239 registry) — modeling, materials, shader nodes, geometry nodes, lighting, cameras, animation, physics, compositor, UV, rigging, 3D printing, export (FBX/OBJ/glTF/STL), batch, VLM visual feedback, multi-agent collab, scene planner
+- 🧰 **248 MCP tools** (7 base + 241 registry, incl. built-in workflow guidance) — modeling, materials, shader nodes, geometry nodes, lighting, cameras, animation, physics, compositor, UV, rigging, 3D printing, export (FBX/OBJ/glTF/STL), batch, VLM visual feedback, multi-agent collab, scene planner
 - 🖥️ **Any MCP client** — stdio (Claude Code/Desktop, Cursor, opencode, VS Code, Windsurf), SSE/HTTP (Antigravity, remote), REST
 - 🧠 **VLM feedback loop** — the agent *sees* its renders (EEVEE headless capture) and iterates
 - 🔒 **Security-first** — AST code blocklist validated in gateway and addon, mandatory auth token (auto-generated), localhost-only binding, rate limiting, 0 secrets in history (gitleaks)
@@ -126,7 +126,7 @@ More: [docs/clients/antigravity.md](docs/clients/antigravity.md) · [docs/remote
 "Modela una silla de madera con biselado y material PBR, ilumina en 3 puntos y renderiza"
 ```
 
-## Tools (245)
+## Tools (248)
 
 | Category | Examples |
 |---|---|
@@ -164,7 +164,7 @@ Run trusted agents only — executing Blender Python on the agent's behalf is th
 ## Architecture
 
 ```
-AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 245 tools)
+AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway, 248 tools)
                                                   │ socket :9876 (localhost + token)
                                                   ▼
                                     Blender + addon blender-mcp-ultra
@@ -174,7 +174,6 @@ AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway
 ```
 mcp_ultra/  # hexagonal: core / adapters / infrastructure / presentation / tools
 addon/      # Blender addon: socket server, handlers, PBR factory, anti-blockout
-skills/     # 19+ skill definitions for Claude Code / Cursor
 docs/       # client guides, skills recipes, tutorials
 tests/      # 479 tests (unit + integration + e2e headless)
 ```

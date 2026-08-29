@@ -28,8 +28,8 @@ INCLUDE = [
     "data/**/*.json",
 ]
 
-# El registry completo (217 tools) vive en src/ + blender_mcp/ y se empaqueta
-# DENTRO de la extensión para que `list_tools`/`tool` funcionen en
+# El registry completo (241 tools) vive en mcp_ultra/ + blender_mcp/ y se
+# empaqueta DENTRO de la extensión para que `list_tools`/`tool` funcionen en
 # instalaciones limpias (sin repo). Ver addon/_axsock.py::_get_tool_registry.
 BUNDLED_PACKAGES = ["mcp_ultra", "blender_mcp"]
 
@@ -37,9 +37,10 @@ EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", "tests", "node_modules"}
 
 
 def _iter_pkg_files(base: Path):
-    """.py + .json de los paquetes bundled (el índice de tools es JSON)."""
+    """.py + .json + .md de los paquetes bundled (índice de tools JSON,
+    guías de workflow en Markdown)."""
     for f in sorted(base.rglob("*")):
-        if f.suffix not in {".py", ".json"}:
+        if f.suffix not in {".py", ".json", ".md"}:
             continue
         if any(part in EXCLUDE_DIRS for part in f.parts):
             continue

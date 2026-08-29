@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Guías de workflow dentro del MCP** (`guidance.list` / `guidance.get`):
+  22 guías de técnica y pipeline (animación, iluminación, render, escena de
+  producto...) empaquetadas en el wheel y servidas bajo demanda — el agente
+  las pide cuando el workflow se complica, con coste de contexto ~0 hasta
+  entonces. Sustituye a las skills instalables: cero fricción para el usuario
 - **Modo lite del gateway** (`--lite`, `--lite` en `blender-mcp`, o
   `BLENDER_MCP_LITE=1`): registra 24 tools (7 base + 17 núcleo) en vez de
   245 — reduce el coste de contexto por petición de ~30k a ~4k tokens sin
@@ -54,8 +59,17 @@
   simultáneas ya no pueden intercalar `sendall`/`recv` y cruzar respuestas
 - Fuga de socket en `cmd_diagnose`; tests e2e actualizados al gateway
   canónico (sesión MCP reutilizable + token)
+- **Contenido no-Python del wheel**: el patrón `data/` del `.gitignore`
+  hacía que hatchling excluyera los directorios `data/` empaquetados —
+  `tools_index.json` (tools_search) no viajaba en el wheel y quedaba roto
+  en installs de pip. Renombrados a `guidance/guides/` y
+  `context_search/index/`
 
 ### Removed
+- **`skills/` consolidado**: los 29 SKILL.md (7 pares duplicados con dos
+  esquemas de nombre, sin frontmatter) se deduplicaron a 22 guías canónicas
+  que ahora viajan dentro del MCP vía `guidance.*` — las skills instalables
+  a mano ya no existen como mecanismo
 - **`data/` (27 MB, 4.400 archivos RST) fuera de git**: se descargan con
   `python scripts/fetch_docs_data.py` desde el release asset
   [`docs`](https://github.com/carlosh7/blender-mcp/releases/tag/docs);

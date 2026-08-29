@@ -1,7 +1,7 @@
 [project]
 name = "blender-mcp-ultra"
 version = "3.1.0"
-description = "The most complete MCP server for Blender — 239 tools, 19 skills, enterprise security"
+description = "The most complete MCP server for Blender — 248 tools with built-in workflow guidance"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -63,7 +63,6 @@ force-include = {"mcp_server.py" = "mcp_server.py", "blender_connection.py" = "b
 include = [
     "mcp_ultra/",
     "addon/",
-    "skills/",
     "mcp_server.py",
     "blender_connection.py",
     "config.py",
@@ -82,7 +81,7 @@ include = [
 #   https de la propia integración.
 # - B108: rutas /tmp convencionales de Blender para caches/exports.
 skips = ["B102", "B307", "B310", "B108"]
-exclude_dirs = ["tests", "data", "skills"]
+exclude_dirs = ["tests", "data"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -120,7 +119,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "data/**" = ["F821", "N805", "E501"]
-"skills/**" = ["F821"]
 "**/__init__.py" = ["F401"]
 # Agregador deliberado de creation_rules (re-export)
 "addon/creation_rules_unified.py" = ["F403"]

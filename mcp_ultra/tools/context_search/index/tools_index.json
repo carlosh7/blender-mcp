@@ -3816,5 +3816,25 @@
     "type": "str"
    }
   }
+ },
+ {
+  "name": "guidance.list",
+  "category": "guidance",
+  "description": "Lista las guías de workflow y técnica disponibles (animación, iluminación, render, pipeline de producción...). Léelas antes de empezar workflows complejos.",
+  "permission": "read_only",
+  "parameters": {}
+ },
+ {
+  "name": "guidance.get",
+  "category": "guidance",
+  "description": "Devuelve la guía completa de un tema. Temas: animation, camera, compositing, export, geometry-nodes, io-export, lighting, materials, modeling, multi-dcc, optimization, procedural, production, rendering, rigging, scene-setup, simulation, text-to-blender, texturing, video, wireframe-to-3d, workflow",
+  "permission": "read_only",
+  "parameters": {
+   "topic": {
+    "type": "str",
+    "required": true,
+    "description": "ej: 'lighting', 'scene-setup'"
+   }
+  }
  }
 ]

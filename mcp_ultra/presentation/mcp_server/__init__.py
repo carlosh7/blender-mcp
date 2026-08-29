@@ -38,6 +38,8 @@ from ...tools.curves_text import HANDLERS as curves_text_handlers
 from ...tools.curves_text import TOOLS as curves_text_tools
 from ...tools.geometry_nodes import HANDLERS as geonodes_handlers
 from ...tools.geometry_nodes import TOOLS as geonodes_tools
+from ...tools.guidance import HANDLERS as guidance_handlers
+from ...tools.guidance import TOOLS as guidance_tools
 from ...tools.inspect import HANDLERS as inspect_handlers
 from ...tools.inspect import TOOLS as inspect_tools
 from ...tools.io import HANDLERS as io_handlers
@@ -123,6 +125,7 @@ def register_all_tools(registry: ToolRegistry):
         (printing_tools, printing_handlers),
         (shader_tools, shader_handlers),
         (geonodes_tools, geonodes_handlers),
+        (guidance_tools, guidance_handlers),
     ]
 
     total = 0

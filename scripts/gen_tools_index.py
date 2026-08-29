@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera src/tools/context_search/data/tools_index.json desde el registry.
+"""Genera mcp_ultra/tools/context_search/index/tools_index.json desde el registry.
 
 Se ejecuta en build (pre-empaquetado) para que tools.search funcione sin bpy.
 """
@@ -33,7 +33,7 @@ def main() -> int:
                 "parameters": tool.parameters or {},
             }
         )
-    out = REPO / "mcp_ultra" / "tools" / "context_search" / "data" / "tools_index.json"
+    out = REPO / "mcp_ultra" / "tools" / "context_search" / "index" / "tools_index.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(entries, indent=1, ensure_ascii=False))
     print(f"OK: {out} ({len(entries)} tools)")

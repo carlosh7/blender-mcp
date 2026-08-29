@@ -28,6 +28,7 @@ class ToolCategory(Enum):
     BATCH = "batch"
     SCENE_UTILS = "scene_utils"
     PRINTING = "printing"
+    GUIDANCE = "guidance"
 
 
 class ToolPermission(Enum):

@@ -7,7 +7,7 @@ ejecución va por socket (:9876) con reconexión transparente.
 Compatible con opencode, Claude Desktop, Cursor, Claude Code, etc.
 
 Modo lite (--lite o BLENDER_MCP_LITE=1): registra solo las tools núcleo +
-`tools_search` + `tool_execute` (~24 en vez de 245) — reduce el coste de
+`tools_search` + `tool_execute` (~26 en vez de 248) — reduce el coste de
 contexto por petición de ~30k a ~2k tokens sin perder capacidad: el resto
 del registry se descubre con tools_search y se ejecuta con tool_execute.
 
@@ -193,6 +193,8 @@ _LITE_CORE_TOOLS = {
     "mesh.bevel_edges",
     "docs.scene",
     "tools.search",
+    "guidance.list",
+    "guidance.get",
 }
 
 

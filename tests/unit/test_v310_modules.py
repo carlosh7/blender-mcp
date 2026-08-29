@@ -42,7 +42,7 @@ def test_tools_search_sin_resultados():
 
 
 def test_tools_index_completo():
-    idx = Path(__file__).parents[2] / "mcp_ultra/tools/context_search/data/tools_index.json"
+    idx = Path(__file__).parents[2] / "mcp_ultra/tools/context_search/index/tools_index.json"
     data = json.loads(idx.read_text())
     assert len(data) >= 230
     nombres = {e["name"] for e in data}
