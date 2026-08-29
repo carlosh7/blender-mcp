@@ -1,6 +1,6 @@
 # blender-mcp-ultra — Changelog
 
-## Unreleased
+## v3.2.0 (2026-08-28) — "Lite, Seguro y Guiado"
 
 ### Added
 - **Guías de workflow dentro del MCP** (`guidance.list` / `guidance.get`):

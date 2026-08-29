@@ -1,6 +1,6 @@
 [project]
 name = "blender-mcp-ultra"
-version = "3.1.0"
+version = "3.2.0"
 description = "The most complete MCP server for Blender — 248 tools with built-in workflow guidance"
 readme = "README.md"
 license = {text = "MIT"}
