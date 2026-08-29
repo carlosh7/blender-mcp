@@ -14,7 +14,7 @@ python3 --version
 blender --version
 
 # Check MCP server
-python3 /path/to/blender-mcp/mcp_adapter.py < /dev/null 2>&1 | head -5
+python3 /path/to/blender-mcp/mcp_server.py < /dev/null 2>&1 | head -5
 
 # Check port
 ss -tlnp | grep 9876
@@ -31,10 +31,8 @@ ss -tlnp | grep 9876
 - Tools return connection errors
 
 **Solutions:**
-1. Verify Blender is running with MCP server:
-   ```bash
-   blender --background --python start_server.py
-   ```
+1. Verify Blender is running with the addon enabled (the socket on 9876
+   starts automatically; or press **Connect** in the N-panel).
 
 2. Check port 9876 is listening:
    ```bash
@@ -76,8 +74,8 @@ ss -tlnp | grep 9876
 
 **Solutions:**
 1. Add delays between requests
-2. Increase `MAX_REQUESTS_PER_MINUTE` in mcp_adapter.py
-3. Use connection pooling
+2. Several MCP clients share one Blender: use the scene lock (`scene_lock`)
+   and work sequentially per agent
 
 ### 5. "Authentication required"
 

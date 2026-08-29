@@ -1,11 +1,10 @@
 """
 blender-mcp-ultra — Multi-Client Tests
-Tests for MCP client compatibility.
+Tests for MCP client compatibility against the canonical gateway.
 """
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -13,10 +12,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from helpers import skip_without_blender
+from helpers import MCPSession, skip_without_blender
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MCP_ADAPTER = str(REPO_ROOT / "mcp_adapter.py")
 
 
 class TestMCPProtocol:
@@ -24,68 +22,46 @@ class TestMCPProtocol:
 
     @skip_without_blender
     def test_initialize(self):
-        """Test MCP initialize method."""
-        result = subprocess.run(
-            ["python3", MCP_ADAPTER],
-            input=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        response = json.loads(result.stdout)
-        assert "result" in response
-        assert "protocolVersion" in response["result"]
-        assert "serverInfo" in response["result"]
+        """Test MCP initialize method (hecho por MCPSession al conectar)."""
+        session = MCPSession()
+        session.close()
+        resp = session.init_response
+        assert "result" in resp
+        assert "protocolVersion" in resp["result"]
+        assert "serverInfo" in resp["result"]
 
     @skip_without_blender
     def test_tools_list(self):
-        """Test MCP tools/list method."""
-        result = subprocess.run(
-            ["python3", MCP_ADAPTER],
-            input=json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}),
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        response = json.loads(result.stdout)
+        """Test MCP tools/list method (registry completo: 245 tools)."""
+        session = MCPSession()
+        try:
+            response = session.request("tools/list")
+        finally:
+            session.close()
         assert "result" in response
         assert "tools" in response["result"]
-        assert len(response["result"]["tools"]) > 0
+        assert len(response["result"]["tools"]) > 200
 
     @skip_without_blender
     def test_tools_call(self):
         """Test MCP tools/call method."""
-        result = subprocess.run(
-            ["python3", MCP_ADAPTER],
-            input=json.dumps(
-                {
-                    "jsonrpc": "2.0",
-                    "id": 3,
-                    "method": "tools/call",
-                    "params": {"name": "scene.get_info", "arguments": {}},
-                }
-            ),
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        response = json.loads(result.stdout)
+        session = MCPSession()
+        try:
+            response = session.request("tools/call", {"name": "scene_get_info", "arguments": {}})
+        finally:
+            session.close()
         assert "result" in response
         assert "content" in response["result"]
 
     @skip_without_blender
     def test_ping(self):
         """Test MCP ping method."""
-        result = subprocess.run(
-            ["python3", MCP_ADAPTER],
-            input=json.dumps({"jsonrpc": "2.0", "id": 4, "method": "ping", "params": {}}),
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        response = json.loads(result.stdout)
+        session = MCPSession()
+        try:
+            response = session.request("ping")
+        finally:
+            session.close()
         assert "result" in response
-        assert response["result"].get("pong") is True
 
 
 class TestClientConfigs:

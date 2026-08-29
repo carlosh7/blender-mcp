@@ -15,10 +15,9 @@
 5. Show the MCP panel in 3D Viewport
 
 ### MCP Server Setup (1:30 - 2:30)
-1. Open terminal
-2. Run: `blender --background --python start_server.py`
-3. Show server starting on port 9876
-4. Verify connection with ping test
+1. Enable the addon in Blender — the socket on port 9876 starts automatically
+2. Install the gateway: `pip install blender-mcp-ultra` (command `blender-mcp-server`)
+3. Verify connection with the ping test
 
 ### opencode Configuration (2:30 - 3:30)
 1. Open opencode config

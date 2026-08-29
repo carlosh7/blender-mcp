@@ -5,40 +5,48 @@ Complete workflow tests simulating real LLM interactions.
 
 import json
 import os
-import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from helpers import skip_without_blender
+from helpers import MCPSession, skip_without_blender
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-MCP_ADAPTER = str(REPO_ROOT / "mcp_adapter.py")
+_session = None
+
+
+def _get_session():
+    global _session
+    if _session is None:
+        _session = MCPSession()
+    return _session
 
 
 def send_mcp_request(method, params=None):
-    """Send MCP request via adapter."""
-    req = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}})
-    result = subprocess.run(
-        ["python3", MCP_ADAPTER], input=req, capture_output=True, text=True, timeout=30
-    )
-    if result.stdout:
-        return json.loads(result.stdout)
-    return None
+    """Send MCP request via the canonical gateway (mcp_server.py, stdio)."""
+    return _get_session().request(method, params)
 
 
 def call_tool(tool_name, arguments=None):
-    """Call a tool via MCP."""
-    result = send_mcp_request("tools/call", {"name": tool_name, "arguments": arguments or {}})
+    """Call a tool via MCP (nombres `a.b` del registry se publican como `a_b`)."""
+    result = send_mcp_request(
+        "tools/call", {"name": tool_name.replace(".", "_"), "arguments": arguments or {}}
+    )
     if result and "result" in result:
         content = result["result"].get("content", [{}])[0].get("text", "")
         try:
-            return json.loads(content)
+            payload = json.loads(content)
         except Exception:
             return {"raw": content}
+        # El gateway devuelve {"success": bool, "data": {...}}: desenvolver data
+        if (
+            isinstance(payload, dict)
+            and payload.get("success")
+            and isinstance(payload.get("data"), dict)
+        ):
+            return payload["data"]
+        return payload
     return None
 
 

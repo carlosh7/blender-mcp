@@ -2,23 +2,51 @@
 
 ## Unreleased
 
+### Security
+- **Auth obligatoria en el socket :9876**: si no hay `BLENDER_MCP_TOKEN` ni
+  token de escena, el addon genera uno (`secrets.token_hex`) y lo persiste en
+  `<config>/blender-mcp/socket_token` (0600); el gateway lo lee del mismo
+  archivo — cero configuración, ningún comando anónimo en localhost
+- **`code_guard` (AST blocklist) cableado en `cmd_execute_code`** del addon:
+  la vía principal ya no ejecuta código sin validar (antes solo protegía la
+  ruta HTTP :9877)
+- **Eliminado `_strip_bad_code`**: el addon ya no reescribe silenciosamente
+  el código del agente (borraba `unlink(...)` y quitaba los `/2` de
+  `.scale = (...)`, corrompiendo la intención)
+
 ### Fixed
 - **El gateway registra el registry completo sin Blender**: `mcp_server.py`
   leía los metadatos de las 239 tools por socket una sola vez al arrancar;
   si el addon no estaba arriba, el cliente MCP quedaba con 6 tools para
   siempre. Ahora construye el mismo `ToolRegistry` de `src/` en local
-  (fallback socket), así que el orden de arranque cliente/Blender ya no
-  importa y las tools funcionan en cuanto Blender se abre (reconexión por
-  llamada). Verificado E2E: venv limpio + wheel → `blender-mcp-server` →
-  245 tools → ejecución real.
+  (fallback socket) — el orden de arranque cliente/Blender ya no importa y
+  las tools funcionan en cuanto Blender se abre. Verificado E2E: venv limpio
+  + wheel → `blender-mcp-server` → 245 tools → ejecución real
+- **`execute_code` en Windows**: `signal.SIGALRM` no existe ahí y rompía cada
+  llamada; ahora el timeout se aplica solo donde está disponible
+- **Concurrencia en `blender_connection`**: lock por petición — llamadas MCP
+  simultáneas ya no pueden intercalar `sendall`/`recv` y cruzar respuestas
+- Fuga de socket en `cmd_diagnose`; tests e2e actualizados al gateway
+  canónico (sesión MCP reutilizable + token)
+
+### Removed
+- **Gateways legacy**: `mcp_adapter.py` (auth auto-bypass, protocolo viejo) y
+  `start_server.py` (exec sin guard); `src/tools/registry.py` (segundo
+  ToolRegistry sin uso) y su test. Solo queda el gateway canónico
+  `mcp_server.py` (entry points `blender-mcp` y `blender-mcp-server`)
+- **Pila legacy "AXIOM" del addon** (~5.500 líneas, 0 importers): raíz
+  `__init__.py`, `properties/preferences/chat_types`, `operators/`,
+  `panels/`, `client/`, `auto_process`, `ai_assistant_clean`,
+  `weak_sandbox`, `execution_queue`, `asset_cache`, `deferred_tool`,
+  `progress_reporter`, `error_handler`, `perception_helper`
+- 10 scripts legacy de raíz (tests/stress duplicados por `tests/`); los 9
+  generadores de escena movidos a `examples/`
 
 ### Changed
 - docs/clients/ (Claude Code/Desktop, Cursor, opencode, VS Code, Windsurf):
-  receta canónica `pip install blender-mcp-ultra` + `blender-mcp-server`
-  (variante repo con `mcp_server.py`); eliminadas las referencias a los
-  gateways legacy (`mcp_adapter.py`, `start_server.py`)
-- README: quick start con el flujo validado y conteos sincronizados
-  (245 tools = 6 base + 239 registry)
+  receta canónica `pip install blender-mcp-ultra` + `blender-mcp-server`;
+  README con conteos sincronizados (245 tools)
+- pyproject: URLs del repo corregidas (apuntaban a un repo inexistente)
 - CI: `ruff format` de `scripts/gen_tools_index.py` (job de lint en rojo)
 
 ## v3.1.0 (2026-08-26) — "Spatial & Eyes + Agent Experience"
