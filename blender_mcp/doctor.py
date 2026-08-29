@@ -59,16 +59,21 @@ def check_socket():
     try:
         s.connect((host, port))
         print(f"  ✅ Blender socket: {host}:{port} (connected)")
-        s.close()
         return True
     except Exception:
         print(f"  ⚠️ Blender socket: {host}:{port} (not responding)")
         return False
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
 
 
 def check_disk():
-    st = os.statvfs(".")
-    mb = (st.f_frsize * st.f_bavail) / (1024 * 1024)
+    import shutil
+
+    mb = shutil.disk_usage(".").free / (1024 * 1024)
     ok = mb > 500
     print(f"  {'✅' if ok else '⚠️'} Disk: {mb:.0f} MB free")
     return ok
@@ -76,10 +81,9 @@ def check_disk():
 
 def check_opencode_config():
     try:
-        from blender_mcp.platform import get_log_dir
+        from blender_mcp.platform import get_opencode_config_paths
 
-        config_dir = get_log_dir().parent
-        opencode_configs = list(config_dir.glob("opencode*.json"))
+        opencode_configs = [p for p in get_opencode_config_paths() if p.exists()]
         if opencode_configs:
             import json
 
@@ -91,7 +95,7 @@ def check_opencode_config():
                     return True
                 except Exception:
                     pass
-        print(f"  ⚠️ No opencode config with model found in {config_dir}")
+        print("  ⚠️ No opencode config with model found")
         return False
     except Exception:
         print("  ⚠️ Could not check opencode config")

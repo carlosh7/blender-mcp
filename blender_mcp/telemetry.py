@@ -75,6 +75,9 @@ def record_tool(tool_name: str, success: bool, duration_ms: float, error: str = 
     record("tool_execution", **kwargs)
 
 
+from blender_mcp import __version__
+
+
 def record_startup():
     """Record server startup event."""
-    record("server_startup", version="0.8.0")
+    record("server_startup", version=__version__)

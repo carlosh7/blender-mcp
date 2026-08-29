@@ -26,9 +26,18 @@ def find_blender():
 
 
 def is_blender_running():
-    """Check if Blender process is running."""
-    result = subprocess.run(["pgrep", "-x", "blender"], capture_output=True, text=True)
-    return result.returncode == 0
+    """Check if Blender process is running (Linux/macOS/Windows)."""
+    import shutil as _shutil
+
+    if _shutil.which("pgrep"):
+        result = subprocess.run(["pgrep", "-x", "blender"], capture_output=True, text=True)
+        return result.returncode == 0
+    if os.name == "nt":
+        result = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq blender.exe"], capture_output=True, text=True
+        )
+        return "blender.exe" in result.stdout.lower()
+    return False
 
 
 def is_socket_alive(host="localhost", port=9876, timeout=3):
@@ -58,11 +67,11 @@ def is_socket_alive(host="localhost", port=9876, timeout=3):
     return False
 
 
-def start_blender(blender_path):
-    """Start Blender in background."""
-    print(f"[watchdog] Starting Blender: {blender_path}")
+def start_blender(blender_path, project_file=None):
+    """Start Blender in background, con el archivo de proyecto si se indica."""
+    print(f"[watchdog] Starting Blender: {blender_path} ({project_file or 'sin archivo'})")
     subprocess.Popen(
-        [blender_path],
+        [blender_path] + ([project_file] if project_file else []),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
@@ -138,6 +147,7 @@ def save_project(name):
 
 
 def main():
+    project_file = os.getenv("BLENDER_WATCHDOG_PROJECT", "")
     blender_path = find_blender()
     project_name = "blender_project"
     check_interval = 5  # seconds
@@ -172,7 +182,7 @@ def main():
             time.sleep(check_interval)
 
             running = is_blender_running()
-            socket = is_socket_alive()
+            socket_ok = is_socket_alive()
 
             if not running:
                 print(f"\n[watchdog] BLENDER CLOSED! (was running={blender_running})")
@@ -184,18 +194,15 @@ def main():
 
                 # Restart Blender
                 print("[watchdog] Restarting Blender...")
-                if start_blender(blender_path):
+                if start_blender(blender_path, project_file):
                     if wait_for_socket():
-                        # Restore project
-                        result, path = save_project(project_name)
-                        print(f"[watchdog] Project saved: {path}")
                         print("[watchdog] Blender recovered successfully!")
                     else:
                         print("[watchdog] WARNING: Socket not available after restart")
                 else:
                     print("[watchdog] ERROR: Failed to restart Blender")
 
-            elif not socket:
+            elif not socket_ok:
                 print(
                     f"[watchdog] Socket not responding (Blender running, PID={get_blender_pid()})"
                 )
