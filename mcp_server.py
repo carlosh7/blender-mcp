@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-blender-mcp — Simplified MCP Server
-Exposes 6 core tools for controlling Blender via MCP protocol.
-Compatible with opencode, Claude Desktop, Cursor, etc.
+blender-mcp — Gateway MCP canónico.
+Registra SIEMPRE el registry completo de src/ (239 tools) leyendo los
+metadatos en local, sin necesidad de que Blender esté arrancado; la
+ejecución va por socket (:9876) con reconexión transparente.
+Compatible con opencode, Claude Desktop, Cursor, Claude Code, etc.
 
 Transport: stdio por defecto (clientes MCP locales); `--sse` para HTTP en :9879.
 """
@@ -154,23 +156,50 @@ _BASE_TOOLS = {
 }
 
 
-def _register_dynamic_tools() -> int:
-    """Exponer el registry completo (165 tools) como tools MCP reales.
+def _list_registry_tools_local():
+    """Metadatos del registry de src/ construido en este proceso (sin Blender).
 
-    Usa `list_tools` por socket; si Blender no responde, el servidor arranca
-    igual con las 6 tools base. Los nombres `a.b` se publican como `a_b`.
+    Es la misma fuente que consulta el addon via `list_tools` (cmd_list_tools
+    construye el mismo ToolRegistry in-process), pero sin depender de que
+    Blender esté arrancado. Devuelve None si src/ no está disponible.
+    """
+    try:
+        from src.presentation.mcp_server import register_all_tools
+        from src.tools import ToolRegistry
+    except Exception as e:
+        logger.warning(f"Registry local (src/) no disponible: {e}")
+        return None
+    try:
+        registry = ToolRegistry()
+        register_all_tools(registry)
+        return [tool.to_dict() for tool in registry.list_tools()]
+    except Exception as e:
+        logger.warning(f"Fallo construyendo el registry local: {e}")
+        return None
+
+
+def _register_dynamic_tools() -> int:
+    """Exponer el registry completo (239 tools) como tools MCP reales.
+
+    Los metadatos se leen del registry local de src/ (no requiere Blender);
+    fallback: `list_tools` por socket si src/ no está importable. Los
+    handlers siempre ejecutan por socket, así que una tool llamada antes de
+    arrancar Blender falla con error de conexión y funciona en cuanto
+    Blender esté arriba (get_blender reconecta por llamada).
     """
     import inspect
     from inspect import Parameter
 
-    try:
-        b = get_blender()
-        resp = b.send_command("list_tools")
-    except Exception as e:
-        logger.warning(f"Blender no disponible para tools dinámicas: {e}")
-        return 0
+    tools = _list_registry_tools_local()
+    if tools is None:
+        try:
+            b = get_blender()
+            resp = b.send_command("list_tools")
+            tools = resp.get("tools", []) if isinstance(resp, dict) else []
+        except Exception as e:
+            logger.warning(f"Blender no disponible para tools dinámicas: {e}")
+            return 0
 
-    tools = resp.get("tools", []) if isinstance(resp, dict) else []
     count = 0
     for tool in tools:
         raw_name = str(tool.get("name", "")).strip()
