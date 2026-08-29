@@ -54,10 +54,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["blender_mcp", "addon", "mcp_ultra"]
+packages = ["blender_mcp", "mcp_ultra"]
 # Gateway canónico + conexión de socket: necesarios para que el entry point
-# `blender-mcp-server` funcione sin el repo (modo socket sin bpy)
-force-include = {"mcp_server.py" = "mcp_server.py", "blender_connection.py" = "blender_connection.py", "config.py" = "config.py"}
+# `blender-mcp-server` funcione sin el repo (modo socket sin bpy).
+# NOTA: code_guard viaja dentro de blender_mcp/ (copia verificada por tests).
+force-include = {"mcp_server.py" = "mcp_server.py", "blender_connection.py" = "blender_connection.py"}
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -65,7 +66,6 @@ include = [
     "addon/",
     "mcp_server.py",
     "blender_connection.py",
-    "config.py",
     "README.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",

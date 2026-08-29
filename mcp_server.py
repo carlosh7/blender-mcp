@@ -39,16 +39,28 @@ mcp = FastMCP("blender-mcp", log_level="INFO")
 
 
 def _load_code_guard():
-    """Carga addon/code_guard.py (solo stdlib) por ruta; None si no existe."""
+    """Carga code_guard: paquete blender_mcp (wheel) o addon/ local (repo)."""
+    try:
+        from blender_mcp import code_guard as mod
+
+        return mod
+    except Exception:
+        pass
     import importlib.util
 
-    guard_path = Path(__file__).resolve().parent / "addon" / "code_guard.py"
-    if not guard_path.exists():
-        return None
-    spec = importlib.util.spec_from_file_location("bmcp_code_guard", guard_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+    for guard_path in (
+        Path(__file__).resolve().parent / "addon" / "code_guard.py",  # repo checkout
+        Path(__file__).resolve().parent / "code_guard.py",  # legacy flat
+    ):
+        if guard_path.exists():
+            try:
+                spec = importlib.util.spec_from_file_location("bmcp_code_guard", guard_path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return mod
+            except Exception:
+                continue
+    return None
 
 
 _code_guard = _load_code_guard()
