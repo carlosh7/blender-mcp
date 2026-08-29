@@ -6,7 +6,7 @@ import os
 import sys
 
 # Add src to path before any other imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestConfig:
@@ -47,13 +47,13 @@ class TestSettings:
 
     def test_settings_import(self):
         """Settings should be importable."""
-        from src.infrastructure.config.settings import Settings
+        from mcp_ultra.infrastructure.config.settings import Settings
 
         assert Settings is not None
 
     def test_settings_default_values(self):
         """Settings should have default values."""
-        from src.infrastructure.config.settings import Settings
+        from mcp_ultra.infrastructure.config.settings import Settings
 
         s = Settings()
 
@@ -64,7 +64,7 @@ class TestSettings:
 
     def test_get_settings(self):
         """get_settings should return Settings instance."""
-        from src.infrastructure.config.settings import get_settings
+        from mcp_ultra.infrastructure.config.settings import get_settings
 
         s = get_settings()
         assert s is not None
@@ -73,7 +73,7 @@ class TestSettings:
 
     def test_settings_from_dict(self):
         """Settings should be created from dict."""
-        from src.infrastructure.config.settings import dict_to_settings
+        from mcp_ultra.infrastructure.config.settings import dict_to_settings
 
         data = {
             "blender": {"host": "0.0.0.0", "port": 8080},
@@ -89,7 +89,7 @@ class TestSettings:
         """Environment variables should override config."""
         os.environ["BLENDER_MCP_BLENDER_PORT"] = "9999"
 
-        from src.infrastructure.config.settings import apply_env_overrides
+        from mcp_ultra.infrastructure.config.settings import apply_env_overrides
 
         config = {}
         config = apply_env_overrides(config)

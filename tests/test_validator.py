@@ -5,7 +5,7 @@ blender-mcp — AST Validator Tests
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestASTValidator:

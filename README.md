@@ -170,7 +170,7 @@ AI Agent (Claude/Cursor/…) ──MCP stdio/SSE──▶ mcp_server.py (gateway
 ```
 
 ```
-src/        # hexagonal: core / adapters / infrastructure / presentation / tools
+mcp_ultra/  # hexagonal: core / adapters / infrastructure / presentation / tools
 addon/      # Blender addon: socket server, handlers, PBR factory, anti-blockout
 skills/     # 19+ skill definitions for Claude Code / Cursor
 docs/       # client guides, skills recipes, tutorials

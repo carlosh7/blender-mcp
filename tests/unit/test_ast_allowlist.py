@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestASTValidatorAllowlist:
@@ -15,13 +15,13 @@ class TestASTValidatorAllowlist:
 
     def test_import(self):
         """Validator should be importable."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         assert ASTValidator is not None
 
     def test_safe_code(self):
         """Safe code should pass validation."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("x = 1 + 2")
@@ -29,7 +29,7 @@ class TestASTValidatorAllowlist:
 
     def test_allowed_import_bpy(self):
         """bpy import should be allowed."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("import bpy")
@@ -37,7 +37,7 @@ class TestASTValidatorAllowlist:
 
     def test_allowed_import_math(self):
         """math import should be allowed."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("import math")
@@ -45,7 +45,7 @@ class TestASTValidatorAllowlist:
 
     def test_allowed_import_json(self):
         """json import should be allowed."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("import json")
@@ -53,7 +53,7 @@ class TestASTValidatorAllowlist:
 
     def test_blocked_import_os(self):
         """os import should be blocked."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("import os")
@@ -62,7 +62,7 @@ class TestASTValidatorAllowlist:
 
     def test_blocked_import_subprocess(self):
         """subprocess import should be blocked."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("import subprocess")
@@ -70,7 +70,7 @@ class TestASTValidatorAllowlist:
 
     def test_blocked_exec(self):
         """exec() should be blocked."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("exec('print(1)')")
@@ -78,7 +78,7 @@ class TestASTValidatorAllowlist:
 
     def test_blocked_eval(self):
         """eval() should be blocked."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("eval('1+1')")
@@ -86,7 +86,7 @@ class TestASTValidatorAllowlist:
 
     def test_blocked_open(self):
         """open() should be blocked."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("f = open('/etc/passwd', 'r')")
@@ -94,7 +94,7 @@ class TestASTValidatorAllowlist:
 
     def test_custom_blocked(self):
         """Custom blocked names should be blocked."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist", custom_blocked={"dangerous_func"})
         result = v.validate("dangerous_func()")
@@ -102,7 +102,7 @@ class TestASTValidatorAllowlist:
 
     def test_validate_strict_raises(self):
         """validate_strict should raise SecurityError."""
-        from src.infrastructure.security.ast_validator import ASTValidator, SecurityError
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator, SecurityError
 
         v = ASTValidator(mode="allowlist")
         with pytest.raises(SecurityError):
@@ -110,7 +110,7 @@ class TestASTValidatorAllowlist:
 
     def test_syntax_error(self):
         """Syntax error should fail validation."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         result = v.validate("def foo(")
@@ -118,7 +118,7 @@ class TestASTValidatorAllowlist:
 
     def test_complex_safe_code(self):
         """Complex safe code should pass."""
-        from src.infrastructure.security.ast_validator import ASTValidator
+        from mcp_ultra.infrastructure.security.ast_validator import ASTValidator
 
         v = ASTValidator(mode="allowlist")
         code = """
@@ -139,7 +139,7 @@ print(result.name)
 
     def test_singleton(self):
         """get_validator should return singleton."""
-        from src.infrastructure.security.ast_validator import get_validator
+        from mcp_ultra.infrastructure.security.ast_validator import get_validator
 
         v1 = get_validator()
         v2 = get_validator()

@@ -19,7 +19,7 @@ results = {}
 
 def bench_registration():
     """Tiempo de crear el servidor MCP con 118 tools registradas."""
-    from src.presentation.mcp_server import create_mcp_server
+    from mcp_ultra.presentation.mcp_server import create_mcp_server
 
     times = []
     for _ in range(5):
@@ -80,8 +80,8 @@ def bench_execute_code():
 def bench_cache():
     """Cache de resultados de tools: hit vs miss."""
     try:
-        from src.tools import ToolRegistry
-        from src.tools.scene import HANDLERS, TOOLS
+        from mcp_ultra.tools import ToolRegistry
+        from mcp_ultra.tools.scene import HANDLERS, TOOLS
 
         reg = ToolRegistry(use_cache=True)
         for t in TOOLS:

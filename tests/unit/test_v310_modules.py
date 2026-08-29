@@ -12,14 +12,14 @@ bpy = pytest.importorskip("bpy", reason="requiere bpy") if False else None
 
 
 def test_tools_search_importa_sin_bpy():
-    from src.tools import context_search
+    from mcp_ultra.tools import context_search
 
     importlib.reload(context_search)
     assert hasattr(context_search, "tools_search")
 
 
 def test_tools_search_por_query():
-    from src.tools.context_search import tools_search
+    from mcp_ultra.tools.context_search import tools_search
 
     r = tools_search(query="bevel")
     assert "resultados" in r
@@ -27,7 +27,7 @@ def test_tools_search_por_query():
 
 
 def test_tools_search_por_categoria():
-    from src.tools.context_search import tools_search
+    from mcp_ultra.tools.context_search import tools_search
 
     r = tools_search(category="render", limit=30)
     assert r["total"] > 0
@@ -35,14 +35,14 @@ def test_tools_search_por_categoria():
 
 
 def test_tools_search_sin_resultados():
-    from src.tools.context_search import tools_search
+    from mcp_ultra.tools.context_search import tools_search
 
     r = tools_search(query="zzzznada")
     assert r["total"] == 0
 
 
 def test_tools_index_completo():
-    idx = Path(__file__).parents[2] / "src/tools/context_search/data/tools_index.json"
+    idx = Path(__file__).parents[2] / "mcp_ultra/tools/context_search/data/tools_index.json"
     data = json.loads(idx.read_text())
     assert len(data) >= 230
     nombres = {e["name"] for e in data}
@@ -56,7 +56,7 @@ def test_tools_index_completo():
 
 
 def test_dimensions_db():
-    from src.tools.spatial_intel import REAL_DIMENSIONS
+    from mcp_ultra.tools.spatial_intel import REAL_DIMENSIONS
 
     assert len(REAL_DIMENSIONS) >= 55
     for k, (w, d, h) in REAL_DIMENSIONS.items():
@@ -64,7 +64,7 @@ def test_dimensions_db():
 
 
 def test_dimensions_search():
-    from src.tools.spatial_intel import spatial_dimensions
+    from mcp_ultra.tools.spatial_intel import spatial_dimensions
 
     r = spatial_dimensions(search="mesa")
     assert r["total"] >= 3
@@ -76,11 +76,11 @@ def test_dimensions_search():
 @pytest.mark.parametrize(
     "mod",
     [
-        "src.tools.agent_experience",
-        "src.tools.spatial_intel",
-        "src.tools.inspect",
-        "src.tools.scene_explain",
-        "src.tools.presets",
+        "mcp_ultra.tools.agent_experience",
+        "mcp_ultra.tools.spatial_intel",
+        "mcp_ultra.tools.inspect",
+        "mcp_ultra.tools.scene_explain",
+        "mcp_ultra.tools.presets",
     ],
 )
 def test_modulos_importan_sin_bpy(mod):

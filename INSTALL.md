@@ -359,7 +359,7 @@ for obj in result["objects"]:
 
 ### Error: "No module named 'infrastructure'"
 
-**Causa:** El addon intenta importar módulos de `src/` que no existen dentro de Blender.
+**Causa:** El addon intenta importar módulos de `mcp_ultra/` que no existen dentro de Blender.
 
 **Solución:** Asegúrate de usar el addon de `addon/` (self-contained), no el de `addon_package/`.
 

@@ -9,7 +9,7 @@ import sys
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 REQUIRED_CATEGORIES = [
@@ -80,24 +80,24 @@ class TestToolModuleImports:
 
     @pytest.mark.parametrize("category", REQUIRED_CATEGORIES)
     def test_module_imports(self, category):
-        module = importlib.import_module(f"src.tools.{category}")
+        module = importlib.import_module(f"mcp_ultra.tools.{category}")
         assert module is not None
 
     @pytest.mark.parametrize("category", REQUIRED_CATEGORIES)
     def test_tools_not_empty(self, category):
-        module = importlib.import_module(f"src.tools.{category}")
+        module = importlib.import_module(f"mcp_ultra.tools.{category}")
         assert hasattr(module, "TOOLS"), f"tools.{category} missing TOOLS"
         assert len(module.TOOLS) > 0, f"tools.{category}.TOOLS is empty"
 
     @pytest.mark.parametrize("category", REQUIRED_CATEGORIES)
     def test_handlers_not_empty(self, category):
-        module = importlib.import_module(f"src.tools.{category}")
+        module = importlib.import_module(f"mcp_ultra.tools.{category}")
         assert hasattr(module, "HANDLERS"), f"tools.{category} missing HANDLERS"
         assert len(module.HANDLERS) > 0, f"tools.{category}.HANDLERS is empty"
 
     @pytest.mark.parametrize("category", REQUIRED_CATEGORIES)
     def test_all_tools_have_handlers(self, category):
-        module = importlib.import_module(f"src.tools.{category}")
+        module = importlib.import_module(f"mcp_ultra.tools.{category}")
         for tool in module.TOOLS:
             assert tool.name in module.HANDLERS, (
                 f"Handler missing for {tool.name} in tools.{category}"
@@ -109,7 +109,7 @@ class TestExpectedToolNames:
 
     @pytest.mark.parametrize("category,expected", EXPECTED_TOOLS_PER_CATEGORY.items())
     def test_expected_tools_present(self, category, expected):
-        module = importlib.import_module(f"src.tools.{category}")
+        module = importlib.import_module(f"mcp_ultra.tools.{category}")
         tool_names = {t.name for t in module.TOOLS}
         for tool_name in expected:
             assert tool_name in tool_names, (
@@ -121,13 +121,13 @@ class TestToolRegistry:
     """Test the central tool registry."""
 
     def test_registry_import(self):
-        from src.tools import ToolRegistry
+        from mcp_ultra.tools import ToolRegistry
 
         assert ToolRegistry is not None
 
     def test_registry_register_and_execute(self):
-        from src.core.entities import Tool, ToolCategory, ToolPermission
-        from src.tools import ToolRegistry
+        from mcp_ultra.core.entities import Tool, ToolCategory, ToolPermission
+        from mcp_ultra.tools import ToolRegistry
 
         registry = ToolRegistry()
         tool = Tool(
@@ -143,8 +143,8 @@ class TestToolRegistry:
         assert result.success is True
 
     def test_registry_list_tools(self):
-        from src.core.entities import Tool, ToolCategory, ToolPermission
-        from src.tools import ToolRegistry
+        from mcp_ultra.core.entities import Tool, ToolCategory, ToolPermission
+        from mcp_ultra.tools import ToolRegistry
 
         registry = ToolRegistry()
         tool = Tool(
@@ -158,8 +158,8 @@ class TestToolRegistry:
         assert len(tools) == 1
 
     def test_registry_stats(self):
-        from src.core.entities import Tool, ToolCategory, ToolPermission
-        from src.tools import ToolRegistry
+        from mcp_ultra.core.entities import Tool, ToolCategory, ToolPermission
+        from mcp_ultra.tools import ToolRegistry
 
         registry = ToolRegistry()
         tool = Tool(

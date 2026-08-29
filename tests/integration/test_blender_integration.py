@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from helpers import skip_without_blender, socket_token
 

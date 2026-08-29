@@ -114,7 +114,6 @@ def pack(margin: float = 0.001) -> dict:
 def smart_project(angle_limit: float = 66.0, object_name: str = None) -> dict:
     try:
         import bpy
-
         from infrastructure.blender_helpers import ensure_active_object, safe_mode_set
 
         # Set active object if specified

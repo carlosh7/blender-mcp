@@ -41,7 +41,7 @@ dev = [
 
 [project.scripts]
 blender-mcp = "blender_mcp.cli:main"
-blender-mcp-server = "src.presentation.mcp_server:main"
+blender-mcp-server = "mcp_ultra.presentation.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/carlosh7/blender-mcp"
@@ -54,14 +54,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["blender_mcp", "addon", "src"]
+packages = ["blender_mcp", "addon", "mcp_ultra"]
 # Gateway canónico + conexión de socket: necesarios para que el entry point
 # `blender-mcp-server` funcione sin el repo (modo socket sin bpy)
 force-include = {"mcp_server.py" = "mcp_server.py", "blender_connection.py" = "blender_connection.py", "config.py" = "config.py"}
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/",
+    "mcp_ultra/",
     "addon/",
     "skills/",
     "mcp_server.py",
@@ -97,7 +97,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["mcp_ultra"]
 omit = ["*/tests/*", "*/test_*.py"]
 
 [tool.ruff]

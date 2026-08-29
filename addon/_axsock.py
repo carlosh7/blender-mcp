@@ -330,7 +330,7 @@ class BlenderSocketServer:
         return {"status": "error", "message": f"Unknown command: {cmd_type}"}
 
     def _get_tool_registry(self):
-        """Cargar (una vez) el ToolRegistry de src/ si está disponible.
+        """Cargar (una vez) el ToolRegistry de mcp_ultra/ si está disponible.
 
         Dos layouts soportados:
         - Repo:   <repo>/addon/_axsock.py → raíz = padre del addon
@@ -352,13 +352,13 @@ class BlenderSocketServer:
             ]
             registry = None
             for root in candidates:
-                if not os.path.isdir(os.path.join(root, "src")):
+                if not os.path.isdir(os.path.join(root, "mcp_ultra")):
                     continue
                 if root not in sys.path:
                     sys.path.insert(0, root)
                 try:
-                    from src.presentation.mcp_server import register_all_tools
-                    from src.tools import ToolRegistry
+                    from mcp_ultra.presentation.mcp_server import register_all_tools
+                    from mcp_ultra.tools import ToolRegistry
 
                     registry = ToolRegistry(use_cache=False)
                     register_all_tools(registry)
@@ -367,12 +367,12 @@ class BlenderSocketServer:
                     registry = None
                     continue
             if registry is None:
-                raise RuntimeError("src/ no encontrado en ninguna raíz candidata")
+                raise RuntimeError("mcp_ultra/ no encontrado en ninguna raíz candidata")
             self._tool_registry = registry
             print(f"[BLENDER SOCKET] Registry cargado: {len(registry.list_tools())} tools")
         except Exception as e:
             self._tool_registry = False
-            print(f"[BLENDER SOCKET] Registry de src/ no disponible: {e}")
+            print(f"[BLENDER SOCKET] Registry de mcp_ultra/ no disponible: {e}")
             return None
         return self._tool_registry
 

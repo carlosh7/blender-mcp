@@ -5,7 +5,7 @@ blender-mcp-ultra — Tests for Real Sandbox (Subprocess)
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestRealSandbox:
@@ -13,13 +13,13 @@ class TestRealSandbox:
 
     def test_import(self):
         """Sandbox should be importable."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         assert RealSandbox is not None
 
     def test_create_sandbox(self):
         """Should create sandbox instance."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
         assert s is not None
@@ -27,7 +27,7 @@ class TestRealSandbox:
 
     def test_execute_safe_code(self):
         """Should execute safe code."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
         result = s.execute("x = 1 + 2")
@@ -35,7 +35,7 @@ class TestRealSandbox:
 
     def test_execute_with_output(self):
         """Should capture output."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
         result = s.execute("print('hello world')")
@@ -44,7 +44,7 @@ class TestRealSandbox:
 
     def test_execute_with_error(self):
         """Should handle errors."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
         result = s.execute("1/0")
@@ -59,7 +59,7 @@ class TestRealSandbox:
         puede hacer sleep(). El loop puro agota RLIMIT_CPU y el proceso muere
         por señal (SIGXCPU) → el sandbox lo reporta como timed_out.
         """
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=2)
         result = s.execute("x = 0\nfor i in range(10**9):\n    x += 1")
@@ -68,7 +68,7 @@ class TestRealSandbox:
 
     def test_execute_with_context(self):
         """Should pass context variables."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
         result = s.execute("print(f'Value: {my_var}')", context={"my_var": 42})
@@ -77,7 +77,7 @@ class TestRealSandbox:
 
     def test_isolation(self):
         """Code should be isolated from main process."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
 
@@ -88,7 +88,7 @@ class TestRealSandbox:
 
     def test_stats(self):
         """Should track statistics."""
-        from src.infrastructure.security.sandbox_real import RealSandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import RealSandbox
 
         s = RealSandbox(timeout=5)
 
@@ -100,7 +100,7 @@ class TestRealSandbox:
 
     def test_singleton(self):
         """get_sandbox should return singleton."""
-        from src.infrastructure.security.sandbox_real import get_sandbox
+        from mcp_ultra.infrastructure.security.sandbox_real import get_sandbox
 
         s1 = get_sandbox()
         s2 = get_sandbox()

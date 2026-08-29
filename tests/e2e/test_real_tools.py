@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from helpers import skip_without_blender, socket_token
 
@@ -30,9 +30,23 @@ def call_tool(tool_name, arguments=None):
         sock.sendall(json.dumps(cmd).encode())
         time.sleep(0.2)
 
-        resp = sock.recv(65536)
+        # loop de recepción: respuestas grandes (escenas con cientos de
+        # objetos) llegan fragmentadas — un solo recv trunca el JSON
+        buf = b""
+        result = None
+        while True:
+            chunk = sock.recv(262144)
+            if not chunk:
+                break
+            buf += chunk
+            try:
+                result = json.loads(buf.decode())
+                break
+            except json.JSONDecodeError:
+                continue
         sock.close()
-        result = json.loads(resp.decode())
+        if result is None:
+            return {"error": "sin respuesta o JSON truncado"}
         if result.get("status") == "success" and isinstance(result.get("result"), dict):
             inner = result["result"]
             return inner.get("data", inner)

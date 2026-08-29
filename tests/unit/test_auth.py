@@ -9,19 +9,19 @@ import time
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestAuthenticator:
     """Tests for Authenticator."""
 
     def test_authenticator_import(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         assert Authenticator is not None
 
     def test_generate_token(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         token = auth.generate_token("user1")
@@ -29,7 +29,7 @@ class TestAuthenticator:
         assert len(token) == 64  # hex token
 
     def test_validate_token(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         token = auth.generate_token("user1")
@@ -38,14 +38,14 @@ class TestAuthenticator:
         assert auth_token.user_id == "user1"
 
     def test_validate_invalid_token(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         auth_token = auth.validate_token("invalid_token")
         assert auth_token is None
 
     def test_token_expiration(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         token = auth.generate_token("user1", expires_in=1)  # 1 second
@@ -54,7 +54,7 @@ class TestAuthenticator:
         assert auth_token is None
 
     def test_check_permission(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         token = auth.generate_token("user1", permissions=["read", "write"])
@@ -63,7 +63,7 @@ class TestAuthenticator:
         assert auth.check_permission(token, "admin") is False
 
     def test_revoke_token(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         token = auth.generate_token("user1")
@@ -71,7 +71,7 @@ class TestAuthenticator:
         assert auth.validate_token(token) is None
 
     def test_revoke_all_user_tokens(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         token1 = auth.generate_token("user1")
@@ -82,7 +82,7 @@ class TestAuthenticator:
         assert auth.validate_token(token2) is None
 
     def test_get_user_tokens(self):
-        from src.infrastructure.security.auth import Authenticator
+        from mcp_ultra.infrastructure.security.auth import Authenticator
 
         auth = Authenticator()
         auth.generate_token("user1")
@@ -95,7 +95,7 @@ class TestAuthSingleton:
     """Tests for auth singleton."""
 
     def test_singleton(self):
-        from src.infrastructure.security.auth import get_authenticator
+        from mcp_ultra.infrastructure.security.auth import get_authenticator
 
         auth1 = get_authenticator()
         auth2 = get_authenticator()
@@ -106,20 +106,20 @@ class TestAuthConvenience:
     """Tests for convenience functions."""
 
     def test_generate_token_convenience(self):
-        from src.infrastructure.security.auth import generate_token
+        from mcp_ultra.infrastructure.security.auth import generate_token
 
         token = generate_token("user1")
         assert token is not None
 
     def test_validate_token_convenience(self):
-        from src.infrastructure.security.auth import generate_token, validate_token
+        from mcp_ultra.infrastructure.security.auth import generate_token, validate_token
 
         token = generate_token("user1")
         auth_token = validate_token(token)
         assert auth_token is not None
 
     def test_check_permission_convenience(self):
-        from src.infrastructure.security.auth import check_permission, generate_token
+        from mcp_ultra.infrastructure.security.auth import check_permission, generate_token
 
         token = generate_token("user1", permissions=["read"])
         assert check_permission(token, "read") is True

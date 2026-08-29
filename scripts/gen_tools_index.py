@@ -11,8 +11,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-from src.presentation.mcp_server import register_all_tools  # noqa: E402
-from src.tools import ToolRegistry  # noqa: E402
+from mcp_ultra.presentation.mcp_server import register_all_tools  # noqa: E402
+from mcp_ultra.tools import ToolRegistry  # noqa: E402
 
 
 def main() -> int:
@@ -33,7 +33,7 @@ def main() -> int:
                 "parameters": tool.parameters or {},
             }
         )
-    out = REPO / "src" / "tools" / "context_search" / "data" / "tools_index.json"
+    out = REPO / "mcp_ultra" / "tools" / "context_search" / "data" / "tools_index.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(entries, indent=1, ensure_ascii=False))
     print(f"OK: {out} ({len(entries)} tools)")

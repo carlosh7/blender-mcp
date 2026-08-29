@@ -2,7 +2,7 @@
 blender-mcp — Unified Creation Rules
 Single source of truth: src/tools/objects/creation_rules.py
 
-This module imports everything from src/tools/objects/creation_rules.py
+This module imports everything from mcp_ultra/tools/objects/creation_rules.py
 addon/ files should import from this module instead of duplicating code.
 """
 
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 # Add src to path for imports
-_src_path = Path(__file__).parent.parent.parent / "src"
+_src_path = Path(__file__).parent.parent / "mcp_ultra"
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
@@ -27,10 +27,10 @@ try:
         verify_connection,
     )
 
-    _source = "src/tools/objects/creation_rules.py"
+    _source = "mcp_ultra/tools/objects/creation_rules.py"
 except ImportError as e:
     # Fallback: inline copy if src/ not available
-    print(f"[creation_rules] Warning: Could not import from src/, using inline copy: {e}")
+    print(f"[creation_rules] Warning: Could not import from mcp_ultra/, using inline copy: {e}")
     _source = "inline"
 
     # This will be the fallback - copy the essential parts here

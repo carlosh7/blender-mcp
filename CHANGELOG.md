@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Added
+- **Modo lite del gateway** (`--lite`, `--lite` en `blender-mcp`, o
+  `BLENDER_MCP_LITE=1`): registra 24 tools (7 base + 17 núcleo) en vez de
+  245 — reduce el coste de contexto por petición de ~30k a ~4k tokens sin
+  perder capacidad: `tools_search` descubre el resto del registry y
+  `tool_execute` lo ejecuta (acepta `material.pbr` o `material_pbr`)
+- **Estrategia de docs RST**: `scripts/fetch_docs_data.py` descarga
+  `data/` del release; los tests de `rst_search` se omiten si no hay datos
+
+### Changed
+- **Paquete `src/` renombrado a `mcp_ultra/`**: el wheel ya no instala un
+  paquete top-level llamado `src` en site-packages (colisiones casi
+  garantizadas); entry point `blender-mcp-server` actualizado
+- CLI: `--mode sse` ahora funciona (respetaba envs que el gateway ignoraba);
+  `start/stop` encontraban el server script en una ruta equivocada;
+  `ARCHITECTURE.md` reescrito a la arquitectura actual
+
 ### Security
 - **Auth obligatoria en el socket :9876**: si no hay `BLENDER_MCP_TOKEN` ni
   token de escena, el addon genera uno (`secrets.token_hex`) y lo persiste en
@@ -18,7 +35,7 @@
 - **El gateway registra el registry completo sin Blender**: `mcp_server.py`
   leía los metadatos de las 239 tools por socket una sola vez al arrancar;
   si el addon no estaba arriba, el cliente MCP quedaba con 6 tools para
-  siempre. Ahora construye el mismo `ToolRegistry` de `src/` en local
+  siempre. Ahora construye el mismo `ToolRegistry` en local
   (fallback socket) — el orden de arranque cliente/Blender ya no importa y
   las tools funcionan en cuanto Blender se abre. Verificado E2E: venv limpio
   + wheel → `blender-mcp-server` → 245 tools → ejecución real

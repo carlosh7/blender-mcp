@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 class TestPythonCompatibility:
@@ -103,22 +103,24 @@ class TestFileStructure:
 
     def test_src_directory_exists(self):
         """Verify src directory exists."""
-        src_path = os.path.join(os.path.dirname(__file__), "..", "..", "src")
+        src_path = os.path.join(os.path.dirname(__file__), "..", "..")
         assert os.path.exists(src_path)
 
     def test_core_directory_exists(self):
         """Verify core directory exists."""
-        core_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "core")
+        core_path = os.path.join(os.path.dirname(__file__), "..", "..", "mcp_ultra", "core")
         assert os.path.exists(core_path)
 
     def test_tools_directory_exists(self):
         """Verify tools directory exists."""
-        tools_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "tools")
+        tools_path = os.path.join(os.path.dirname(__file__), "..", "..", "mcp_ultra", "tools")
         assert os.path.exists(tools_path)
 
     def test_infrastructure_directory_exists(self):
         """Verify infrastructure directory exists."""
-        infra_path = os.path.join(os.path.dirname(__file__), "..", "..", "src", "infrastructure")
+        infra_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "mcp_ultra", "infrastructure"
+        )
         assert os.path.exists(infra_path)
 
     def test_skills_directory_exists(self):

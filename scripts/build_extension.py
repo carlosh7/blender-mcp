@@ -31,7 +31,7 @@ INCLUDE = [
 # El registry completo (217 tools) vive en src/ + blender_mcp/ y se empaqueta
 # DENTRO de la extensión para que `list_tools`/`tool` funcionen en
 # instalaciones limpias (sin repo). Ver addon/_axsock.py::_get_tool_registry.
-BUNDLED_PACKAGES = ["src", "blender_mcp"]
+BUNDLED_PACKAGES = ["mcp_ultra", "blender_mcp"]
 
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", "tests", "node_modules"}
 
