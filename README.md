@@ -1,6 +1,5 @@
 # blender-mcp-ultra
 
-[![CI](https://github.com/carlosh7/blender-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/carlosh7/blender-mcp/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/carlosh7/blender-mcp)](https://github.com/carlosh7/blender-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)](pyproject.toml)
@@ -9,7 +8,7 @@
 
 **The most complete MCP server for Blender** — control Blender with natural language from any AI agent: Claude Code, Claude Desktop, Cursor, opencode, Windsurf, Antigravity, LM Studio, Ollama and any Model Context Protocol (MCP) client.
 
-> **239 tools** · Windows / macOS / Linux · headless-ready · production-grade security
+> **248 tools** · Windows / macOS / Linux · headless-ready · production-grade security
 
 ![Demo scene created entirely by an AI agent with blender-mcp-ultra: wooden table, Pixar-style lamp, coffee mug and metal towers](docs/img/demo-scene.png)
 
